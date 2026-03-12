@@ -1,0 +1,144 @@
+# Fuyao Hyperparameter Sweep (User Command)
+
+Deploy parallel hyperparameter sweep training jobs on Fuyao.
+Invoke as `/sweep-fuyao`.
+
+## Quick Start
+
+User says something like:
+> "Sweep learning_rate over 1e-4, 2e-4, 3e-4 and entropy_coef over 0.01, 0.005 on task r01_v12_sa_amp_with_4dof_arms_and_head_full_scenes using branch huh8/my-experiment"
+
+Agent translates this to a sweep payload and runs the orchestrator.
+
+## Required Inputs
+
+Collect these before executing. Ask user if missing:
+
+- `task` -- registered task name (validate against `humanoid-gym/humanoid/envs/__init__.py`)
+- `branch` -- git branch for the training code
+- `hyperparameters` -- at least one param with values to sweep
+
+## Optional Inputs (with defaults)
+
+- `patch_file_rel` (default: `humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py`)
+- `experiment` (default: `huh8/r01`)
+- `ssh_alias` (default: `remote.kernel.fuyo`)
+- `queue` (default: `rc-wbc-4090-share`)
+- `project` (default: `rc-wbc`)
+- `site` (default: `fuyao_sh_n2`)
+- `gpus_per_node` (default: `1`)
+- `priority` (default: `normal`)
+- `dry_run` (default: `false`)
+- `hp_class_map` -- override class mappings for custom params
+
+## Workflow
+
+### Step 1: Parse User Intent
+
+Read the skill at `~/.cursor/skills/hp-sweep-orchestrator/SKILL.md` for NLP parsing guidance.
+
+Extract:
+1. Task name (fuzzy-match against registered tasks if needed)
+2. Branch name
+3. Hyperparameter specs: `["param1=val1,val2", "param2=val3,val4"]`
+4. Any infrastructure overrides (queue, GPUs, etc.)
+
+### Step 2: Build Sweep Payload
+
+Write a JSON file to `~/.cursor/tmp/sweep_payloads/<timestamp>.json`:
+
+```json
+{
+  "task": "r01_v12_sa_amp_with_4dof_arms_and_head_full_scenes",
+  "branch": "huh8/my-experiment",
+  "patch_file_rel": "humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py",
+  "hp_specs": ["learning_rate=1e-4,2e-4,3e-4", "entropy_coef=0.01,0.005"],
+  "dry_run": false
+}
+```
+
+### Step 3: Show Sweep Preview
+
+Before executing, show the user:
+- Number of combinations (Cartesian product)
+- Each combination's parameter values
+- Estimated resource usage (combos x GPUs)
+
+Ask for confirmation unless user already said to proceed.
+
+### Step 4: Execute Orchestrator
+
+```bash
+bash ~/.cursor/scripts/orchestrator.sh --payload <payload_file>
+```
+
+Report the run root directory from the output.
+
+### Step 5: Verify Training Started
+
+After orchestrator completes dispatch, verify jobs are actually training:
+
+```bash
+bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --once
+```
+
+If jobs are still pending, poll:
+
+```bash
+bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --poll-interval 30 --max-attempts 10
+```
+
+Report results to user.
+
+### Step 6: Cancel (if test run)
+
+If user requested a test/verification sweep, or explicitly asks to cancel:
+
+```bash
+bash ~/.cursor/scripts/orchestrator.sh --cancel-sweep <run_root>
+```
+
+## Dry Run Mode
+
+If user says "dry run", "just show me", or "what would happen":
+
+```json
+{ "dry_run": true, ... }
+```
+
+This generates all payloads and commands without submitting to Fuyao.
+
+## Common Hyperparameters
+
+These are auto-mapped to the correct config class (no hp_class_map needed):
+
+| Parameter | Config class | Example values |
+|-----------|-------------|----------------|
+| `learning_rate` | algorithm | `1e-4, 2e-4, 3e-4` |
+| `entropy_coef` | algorithm | `0.01, 0.005, 0.001` |
+| `gamma` | algorithm | `0.99, 0.995` |
+| `clip_param` | algorithm | `0.1, 0.2, 0.3` |
+| `num_learning_epochs` | algorithm | `3, 5, 8` |
+| `num_mini_batches` | algorithm | `4, 8` |
+| `mirror_loss_coeff` | algorithm.symmetry_cfg | `0.1, 0.2, 0.5` |
+| `use_mirror_loss` | algorithm.symmetry_cfg | `True, False` |
+| `amp_task_reward_lerp` | runner | `0.2, 0.3, 0.5` |
+| `max_iterations` | runner | `1500, 3000, 5000` |
+| `max_push_vel_xy` | domain_rand | `0.3, 0.5, 1.0` |
+
+For params not in this list, user can provide `hp_class_map` in the payload.
+
+## Default Queue/GPU Configuration
+
+For full-scene AMP tasks that need significant VRAM, use:
+- `queue: "rc-wbc-4090"` with `gpu_type: "full"` (recommended)
+- `queue: "rc-wbc-4090-share"` with `gpu_type: "shared"` only works for small envs
+
+## Error Recovery
+
+- If orchestrator fails: check `<run_root>/logs/*.dispatch.log`
+- If jobs submitted but not training: use verify then check `fuyao log <job_name>`
+- If need to cancel: use `--cancel-sweep <run_root>`
+- If patcher fails on a param: add it to `hp_class_map` in payload or to `DEFAULT_CLASS_MAP` in `~/.cursor/scripts/hp_patcher.py`
+- If CUDA OOM: switch from shared to full GPU, or reduce `num_envs`
+- If model_files missing: orchestrator auto-fetches via `update_repo_deps.sh`, but verify SSH key access to `gitlab-adc.xiaopeng.link`

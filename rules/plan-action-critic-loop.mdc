@@ -1,0 +1,44 @@
+---
+description: Require action/plan drafting with mandatory reviewer-subagent critique loops until convergence.
+alwaysApply: true
+---
+
+# Plan Or Action Critique Loop
+
+For every user prompt, run this loop before final execution:
+
+1. Draft response mode:
+   - `Action` when the user asks you to execute.
+   - `Plan` when execution is restricted or the user asks for planning.
+2. Write a concise objective snapshot with:
+   - user goal,
+   - constraints,
+   - success criteria.
+3. Always spawn a dedicated reviewer subagent to critique the current action/plan.
+4. Reviewer must test:
+   - objective alignment and completeness,
+   - constraint adherence and non-goals,
+   - dependency and sequencing gaps,
+   - hidden assumptions,
+   - outliers and gotchas the user did not mention,
+   - risk, regression, safety, and operational hazards.
+5. If reviewer reports unresolved issues, revise action/plan and rerun reviewer.
+6. Continue until convergence:
+   - objective coverage is complete,
+   - constraints are satisfied,
+   - critical ambiguities are resolved (or raised to the user),
+   - outliers/gotchas have mitigations (or explicit user acceptance).
+7. If not converged after 3 critique cycles, ask one focused clarification question, then continue the loop.
+8. Once converged, proceed with execution (or present the finalized plan in plan-only contexts).
+
+Use this per-iteration format:
+- Objective snapshot:
+- Current action/plan:
+- Reviewer findings:
+- Outliers/Gotchas + mitigations:
+- Decision: `Iterate` or `Execute`
+
+Guardrails:
+- Do not skip reviewer spawn for speed.
+- Do not claim convergence while critical/high findings remain unresolved.
+- Keep iterations concise and deterministic.

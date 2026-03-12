@@ -1,0 +1,36 @@
+---
+description: Run gated toolbox sync after skill/command/rule edits; apply only for toolbox file work.
+globs: "{**/.cursor/skills/**,**/.cursor/commands/**,**/.cursor/rules/**}"
+alwaysApply: false
+---
+
+# Sync Toolbox After Toolbox Edits
+
+Use this workflow after creating or modifying toolbox assets under skills, commands, or rules.
+
+1. Finish the requested edit first.
+2. Detect whether toolbox files actually changed.
+3. If none changed, skip sync and state that explicitly.
+4. If changed, invoke `SyncOrchestrator` and include:
+   - changed files/diffs
+   - host-purpose context for `local`, `huh.desktop.us`, `isaacgym`, `Huh8.remote_kernel.fuyao`
+5. Require parallel reviewers per host:
+   - `RemotePolicyReviewer`
+   - `SecurityReviewer`
+6. Enforce gating outcomes:
+   - `block` or `skip`: exclude host
+   - `prompt`: require explicit user confirmation; include a `mark all` option to approve all prompt-gated hosts at once
+   - `apply` or `pass`: approved
+7. Sync approved hosts only:
+   - `bash ~/.cursor/scripts/sync_toolbox.sh apply --resolution-file <path> --destinations <csv_hosts> --async`
+8. After apply, output destinations with first line exactly:
+   - `successfully synced to`
+9. Report short counts:
+   - `identical`, `partial`, `conflicts`, `unreachable`
+10. End with:
+   - `Office Sync Action: <1-2 sentence sync outcome>`
+
+Guardrails:
+- Do not hardcode hostnames, IPs, or ports.
+- Use SSH aliases from `~/.ssh/config`.
+- Continue when a host is unreachable and report skipped targets.

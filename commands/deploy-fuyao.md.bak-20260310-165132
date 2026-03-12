@@ -1,0 +1,78 @@
+# Fuyao Deploy and Sweep Command
+
+Invoke as `/deploy-fuyao`.
+
+Use toolbox wrappers under `~/.cursor/scripts`:
+
+- single deploy helper: `deploy_fuyao.sh`
+- parallel sweep orchestrator: `orchestrator.sh` (delegates to parallel engine)
+
+## Single Deploy Path
+
+Use when user wants one job:
+
+```bash
+bash /home/huh/.cursor/scripts/deploy_fuyao.sh \
+  --helper-mode deploy \
+  --task <task> \
+  --branch <branch> \
+  --label <label> \
+  --ssh-alias Huh8.remote_kernel.fuyao \
+  --remote-root /root/motion_rl \
+  --project rc-wbc \
+  --site fuyao_sh_n2 \
+  --queue rc-wbc-4090-share \
+  --experiment huh8/r01 \
+  --auto-yes true
+```
+
+Use `--receipt-out <path>` and report machine-readable receipt fields (`submitted`, `job_name`, `job_id`).
+
+## Parallel Sweep Path (Preferred for HP sweep)
+
+Use when user wants hyperparameter combinations:
+
+```bash
+bash /home/huh/.cursor/scripts/orchestrator.sh --payload /tmp/sweep_payload.json
+```
+
+Required payload safety fields for live runs:
+
+- `confirm_live_submit: true`
+- `confirm_live_cancel: true`
+
+Parallel policy:
+
+- submit/validate/cancel each cycle in parallel,
+- hard cap of `2` live jobs per cycle (`max_live_jobs_per_cycle`).
+
+## Validation Policy (Anti-Fake-Job)
+
+Do not treat submit receipt alone as success.
+A combo is start-confirmed only when both pass:
+
+1. Status probe shows running-like state (`JOB_RUNNING`/running equivalent).
+2. Log probe shows training-entry markers (for example `humanoid/scripts/train.py`, `Setting seed:`).
+
+These are written to per-combo artifacts:
+
+- `submission_receipt.json`
+- `start_validation.json`
+- `cancel_validation.json`
+
+## Task Validation (Mandatory)
+
+- Validate task against `humanoid-gym/humanoid/envs/__init__.py` via `task_registry.register("...")`.
+- Resolve ambiguity before running deploy.
+
+## Required User-Facing Reporting
+
+For each run, report:
+
+- execution path (`ssh -> Huh8.remote_kernel.fuyao`),
+- branch and task,
+- submission status,
+- job name/id (if available),
+- validation status (start confirmed vs not),
+- cancellation status (for sweep canary cycles),
+- artifact folder path for evidence.
