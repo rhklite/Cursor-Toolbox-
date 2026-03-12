@@ -9,6 +9,8 @@ BACKUP_ROOT_LOCAL="${HOME}/.cursor/.sync_toolbox_backups"
 
 TARGET_ALIASES=("huh.desktop.us" "isaacgym" "remote.kernel.fuyo")
 CATEGORIES=("rules" "commands" "skills" "agents" "scripts")
+TOOLBOX_REPO_DIR="${HOME}/.cursor"
+TOOLBOX_GIT_REMOTE="origin"
 
 log() {
   printf '[sync-toolbox] %s\n' "$*"
@@ -42,9 +44,128 @@ single_quote_escape() {
   printf "%s" "$1" | sed "s/'/'\"'\"'/g"
 }
 
+sync_toolbox_repo_by_git() {
+  local repo_dir="$1"
+  local remote_name="$2"
+  local branch=""
+
+  if [[ ! -d "${repo_dir}/.git" ]]; then
+    err "Repository directory not found: ${repo_dir}"
+    return 1
+  fi
+
+  if ! git -C "${repo_dir}" remote get-url "${remote_name}" >/dev/null 2>&1; then
+    err "Git remote '${remote_name}' is missing in ${repo_dir}"
+    return 1
+  fi
+
+  if ! branch="$(git -C "${repo_dir}" rev-parse --abbrev-ref HEAD)"; then
+    err "Unable to determine current branch in ${repo_dir}"
+    return 1
+  fi
+
+  if [[ -z "${branch}" || "${branch}" == "HEAD" ]]; then
+    err "Refusing to sync detached HEAD in ${repo_dir}"
+    return 1
+  fi
+
+  if [[ -n "$(git -C "${repo_dir}" status --short)" ]]; then
+    err "Uncommitted changes detected in ${repo_dir}; aborting git sync."
+    return 1
+  fi
+
+  if ! git -C "${repo_dir}" fetch --prune "${remote_name}"; then
+    err "Failed to fetch from ${remote_name} for ${repo_dir}"
+    return 1
+  fi
+
+  if git -C "${repo_dir}" pull --ff-only "${remote_name}" "${branch}"; then
+    return 0
+  fi
+
+  log "Fast-forward pull failed for ${repo_dir}; attempting merge from ${remote_name}/${branch}"
+  if ! git -C "${repo_dir}" merge --no-edit "${remote_name}/${branch}"; then
+    err "Failed to merge ${remote_name}/${branch} in ${repo_dir}"
+    return 1
+  fi
+
+  return 0
+}
+
+sync_toolbox_repo_local() {
+  local repo_dir="$1"
+  sync_toolbox_repo_by_git "${repo_dir}" "${TOOLBOX_GIT_REMOTE}"
+}
+
+sync_toolbox_repo_remote() {
+  local destination="$1"
+
+  if ! ssh -o BatchMode=yes "${destination}" 'bash -s' <<'REMOTE_SYNC'
+set -euo pipefail
+repo="${HOME}/.cursor"
+remote_name="origin"
+
+if [ ! -d "${repo}/.git" ]; then
+  echo "[sync-toolbox] remote destination missing repository: ${repo}" >&2
+  exit 1
+fi
+
+if ! git -C "${repo}" remote get-url "${remote_name}" >/dev/null 2>&1; then
+  echo "[sync-toolbox] remote destination missing remote '${remote_name}' in ${repo}" >&2
+  exit 2
+fi
+
+branch="$(git -C "${repo}" rev-parse --abbrev-ref HEAD)"
+if [ -z "${branch}" ] || [ "${branch}" = "HEAD" ]; then
+  echo "[sync-toolbox] remote destination has detached HEAD in ${repo}" >&2
+  exit 3
+fi
+
+if [ -n "$(git -C "${repo}" status --short)" ]; then
+  echo "[sync-toolbox] remote destination has uncommitted changes in ${repo}" >&2
+  exit 4
+fi
+
+if ! git -C "${repo}" fetch --prune "${remote_name}"; then
+  echo "[sync-toolbox] failed to fetch from ${remote_name} in ${repo}" >&2
+  exit 5
+fi
+
+if ! git -C "${repo}" pull --ff-only "${remote_name}" "${branch}"; then
+  if ! git -C "${repo}" merge --no-edit "${remote_name}/${branch}"; then
+    echo "[sync-toolbox] failed to merge ${remote_name}/${branch} in ${repo}" >&2
+    exit 6
+  fi
+fi
+REMOTE_SYNC
+  then
+    return 1
+  fi
+}
+
+sync_toolbox_destination() {
+  local destination="$1"
+  local dry_run="$2"
+
+  if [[ "${dry_run}" == "true" ]]; then
+    log "DRY-RUN: ${destination} toolbox git pull/merge"
+    return 0
+  fi
+
+  if [[ "${destination}" == "local" ]]; then
+    sync_toolbox_repo_local "${TOOLBOX_REPO_DIR}"
+  else
+    sync_toolbox_repo_remote "${destination}"
+  fi
+}
+
 ensure_prereqs() {
   command -v python3 >/dev/null 2>&1 || {
     err "python3 is required."
+    exit 1
+  }
+  command -v git >/dev/null 2>&1 || {
+    err "git is required."
     exit 1
   }
   command -v ssh >/dev/null 2>&1 || {
@@ -496,6 +617,42 @@ for c in data.get("conflicts", []):
         break
 PY
 )"
+    local recent_info
+    recent_info="$(python3 - "${conflicts_json}" "${conflict_id}" <<'PY'
+import json
+import pathlib
+import sys
+
+report = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+cid = sys.argv[2]
+selected = ""
+selected_mtime = ""
+
+for f in report.get("files", []):
+    if f.get("id") != cid:
+        continue
+    entries = f.get("entries", {})
+    best_mtime = -1
+    for source, entry in entries.items():
+        ts = int(entry.get("mtime", -1))
+        if ts > best_mtime:
+            best_mtime = ts
+            selected = source
+            selected_mtime = str(ts)
+    break
+
+if selected:
+    print(f"{selected}\t{selected_mtime}")
+PY
+)"
+
+    local recent_source=""
+    local recent_mtime=""
+    if [[ -n "${recent_info}" ]]; then
+      recent_source="$(printf '%s' "${recent_info}" | cut -f1)"
+      recent_mtime="$(printf '%s' "${recent_info}" | cut -f2-)"
+    fi
+
     local base_source
     base_source="$(printf '%s\n' "${present_sources}" | awk 'NF{print; exit}')"
     if [[ -z "${base_source}" ]]; then
@@ -535,6 +692,13 @@ PY
       echo "  ${i}) ${src}"
       i=$((i + 1))
     done <<< "${present_sources}"
+    if [[ -n "${recent_source}" ]]; then
+      if [[ "${recent_mtime}" != "-1" ]]; then
+        echo "  r) most recent edit (${recent_source}, mtime: ${recent_mtime})"
+      else
+        echo "  r) most recent edit (${recent_source})"
+      fi
+    fi
     echo "  s) skip"
 
     local selected=""
@@ -544,6 +708,12 @@ PY
         selected="skip"
         break
       fi
+      if [[ "${answer}" == "r" || "${answer}" == "R" ]]; then
+        if [[ -n "${recent_source}" ]]; then
+          selected="${recent_source}"
+          break
+        fi
+      fi
       if [[ "${answer}" =~ ^[0-9]+$ ]]; then
         local pick
         pick="$(printf '%s\n' "${present_sources}" | sed -n "${answer}p" || true)"
@@ -552,7 +722,7 @@ PY
           break
         fi
       fi
-      echo "Invalid choice. Enter number or s."
+      echo "Invalid choice. Enter number, r, or s."
     done
 
     python3 - "${decisions_out}" "${conflict_id}" "${selected}" <<'PY'
@@ -675,19 +845,21 @@ apply_operations() {
   local ops_json="$1"
   local dry_run="$2"
   local async_mode="${3:-false}"
-  local stamp
-  stamp="$(date +%Y%m%d_%H%M%S)"
 
-  local lines
-  lines="$(python3 - "${ops_json}" <<'PY'
+  local destination_lines
+  destination_lines="$(python3 - "${ops_json}" <<'PY'
 import json, pathlib, sys
 data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
+seen = []
 for op in data.get("operations", []):
-    print("\t".join([op["source"], op["destination"], op["category"], op["relpath"], op["reason"]]))
+    destination = op.get("destination", "")
+    if destination and destination not in seen:
+        seen.append(destination)
+        print(destination)
 PY
 )"
 
-  if [[ -z "${lines}" ]]; then
+  if [[ -z "${destination_lines}" ]]; then
     log "No eligible operations to apply."
     return 0
   fi
@@ -695,27 +867,31 @@ PY
   local failures=0
   if [[ "${async_mode}" == "true" && "${dry_run}" != "true" ]]; then
     local -a pids=()
-    while IFS=$'\t' read -r src dst category relpath reason; do
-      [[ -z "${src:-}" ]] && continue
-      log "Apply (${reason}): ${src} -> ${dst} :: ${category}/${relpath}"
+    local -a destinations=()
+    while IFS= read -r destination; do
+      [[ -z "${destination}" ]] && continue
+      log "Apply (git sync): ${destination}"
+      destinations+=("${destination}")
       (
-        copy_file_between_sources "${src}" "${dst}" "${category}" "${relpath}" "${stamp}" "${dry_run}"
+        sync_toolbox_destination "${destination}" "${dry_run}"
       ) &
       pids+=("$!")
-    done <<< "${lines}"
-    for pid in "${pids[@]}"; do
+    done <<< "${destination_lines}"
+    for idx in "${!pids[@]}"; do
+      pid="${pids[$idx]}"
       if ! wait "${pid}"; then
         failures=$((failures + 1))
+        err "Failed to sync destination ${destinations[$idx]}"
       fi
     done
   else
-    while IFS=$'\t' read -r src dst category relpath reason; do
-      [[ -z "${src:-}" ]] && continue
-      log "Apply (${reason}): ${src} -> ${dst} :: ${category}/${relpath}"
-      if ! copy_file_between_sources "${src}" "${dst}" "${category}" "${relpath}" "${stamp}" "${dry_run}"; then
+    while IFS= read -r destination; do
+      [[ -z "${destination}" ]] && continue
+      log "Apply (git sync): ${destination}"
+      if ! sync_toolbox_destination "${destination}" "${dry_run}"; then
         failures=$((failures + 1))
       fi
-    done <<< "${lines}"
+    done <<< "${destination_lines}"
   fi
 
   if [[ "${failures}" -gt 0 ]]; then

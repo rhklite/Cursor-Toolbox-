@@ -1,0 +1,31 @@
+---
+description: Enforce short, no-fluff summaries in responses
+alwaysApply: true
+---
+
+# Concise Result Summaries
+
+When the agent provides a result summary:
+
+- Lead with a direct outcome in 1–2 sentences.
+- Use compact bullets; no narrative paragraphs unless requested.
+- Do not include setup chatter, motivation, or extra context.
+- Prefer this order:
+  1. Final result
+  2. Key evidence/actions
+  3. Any required next action (if any)
+- If a summary has multiple items, cap it at 3 short bullets.
+- Use plain language and avoid hype or softening language (no "great", "just a heads-up", etc.).
+
+When responding to a user question:
+
+- Start with lowercase `yes` or `no` only.
+- Use lowercase exactly: `yes` or `no` as the first token.
+- Keep any explanation one short sentence after the token.
+
+When the user is asking for a task completion outcome:
+
+- End the reply with exactly a standalone token: `done` or `not doable`.
+- Use lowercase exactly.
+- Use `done` only if the requested task was completed in this turn.
+- Use `not doable` when blocked by environment, permissions, unavailable files, or constraints.

@@ -4,7 +4,7 @@ Synchronize Cursor toolbox assets (`rules`, `commands`, `skills`, `agents` for s
 - local machine
 - `huh.desktop.us`
 - `isaacgym`
-- `Huh8.remote_kernel.fuyao`
+- `remote.kernel.fuyo`
 
 Use `~/.ssh/config` aliases as the source of host definitions.
 
@@ -22,8 +22,10 @@ Use `~/.ssh/config` aliases as the source of host definitions.
 3. For each conflict:
    - Show per-source short differences.
    - Ask user which source should win, or skip.
+   - Include an explicit prompt option to choose the most recently edited source.
 4. Build a resolution file and run:
    - `bash ~/.cursor/scripts/sync_toolbox.sh apply --resolution-file <path> --destinations <csv_hosts|all> --async`
+   - Apply performs SSH to each destination and runs `git pull`/merge in each host's `~/.cursor` against the toolbox GitHub origin.
 5. Print final verification summary.
 
 ## Conflict prompt format requirements

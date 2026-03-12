@@ -16,8 +16,7 @@ Collect these values before execution:
 Optional:
 
 - `project` (default: `rc-wbc`)
-- `site` (default: `fuyao_sh_n2`)
-- `queue` (default: `rc-wbc-4090`)
+- `queue` (default: `rc-wbc-4090`; always use fully-qualified queue name, never bare aliases like `4090`)
 
 ## Argument Prompt Contract (Selectable Questions)
 
@@ -75,19 +74,40 @@ Prompt order when multiple required inputs are missing:
 - If omitted, use defaults from **Defaults**.
 - Only if user explicitly asks to configure optional values, present single-select questions:
   - `project`: `rc-wbc` or `Enter custom project`
-  - `site`: `fuyao_sh_n2` or `Enter custom site`
-  - `queue`: `rc-wbc-4090` or `Enter custom queue`
+  - `queue`: `rc-wbc-4090` or `Enter custom queue` (must be fully-qualified name like `rc-wbc-4090`, never bare `4090`)
 
 ## Baseline Command Pattern
 
 Always execute deploy via SSH into remote kernel and wrapper script from repo root:
 
 ```bash
+BRANCH="<branch>"
+PROJECT="<project>"
+LABEL="<label>"
+TASK="<task>"
+EXPERIMENT="<experiment>"
+QUEUE="<queue>"
+
+git checkout "${BRANCH}" \
+    && if [[ -n "$(git status --porcelain)" ]]; then
+    git add -A
+    git commit -m "chore: commit before deploy"
+fi
+git push -u origin "${BRANCH}"
+
 SSH_ALIAS="Huh8.remote_kernel.fuyao"
 if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${SSH_ALIAS}" "echo ok >/dev/null" >/dev/null 2>&1; then
   SSH_ALIAS="remote.kernel.fuyo"
 fi
-ssh "${SSH_ALIAS}" 'cd /root/motion_rl && bash ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --site <site> --queue <queue> --yes'
+ssh "${SSH_ALIAS}" "cd /root/motion_rl && \
+  git fetch origin && \
+  if git show-ref --verify --quiet refs/heads/\"${BRANCH}\"; then \
+    git checkout \"${BRANCH}\"; \
+  else \
+    git checkout -b \"${BRANCH}\" \"origin/${BRANCH}\"; \
+  fi && \
+  git reset --hard \"origin/${BRANCH}\" && \
+  bash ./humanoid-gym/scripts/fuyao_deploy.sh --project \"${PROJECT}\" --label \"${LABEL}\" --task \"${TASK}\" --experiment \"${EXPERIMENT}\" --queue \"${QUEUE}\" --yes"
 ```
 
 Do not use direct `fuyao deploy --remote-kernel ...` as the default path for this command.
@@ -111,6 +131,7 @@ Before deploy, ensure remote kernel branch matches local selected branch.
 
 1. Local:
    - checkout target branch
+   - if working tree is dirty, commit changes first
    - set upstream to `origin/<branch>` if needed
    - push branch to origin
 2. Remote kernel (`/root/motion_rl`):
@@ -126,8 +147,7 @@ Before deploy, ensure remote kernel branch matches local selected branch.
 Use these defaults unless user explicitly overrides:
 
 - `project=rc-wbc`
-- `site=fuyao_sh_n2`
-- `queue=rc-wbc-4090`
+- `queue=rc-wbc-4090` (fully-qualified; site is resolved by the deploy script from the queue name)
 - `experiment=huh8/r01`
 - `--yes` enabled
 
@@ -136,7 +156,7 @@ Use these defaults unless user explicitly overrides:
 1. Resolve `branch` and `task` via **Argument Prompt Contract (Selectable Questions)**; apply `experiment=huh8/r01` by default unless user explicitly overrides.
 2. Resolve `label` via **label prompt contract** (always asked after `branch`/`task`); include suggested label derived from branch (`huh8/foo` -> `foo`).
 3. Validate `task` from humanoid registry.
-4. Sync branch local -> origin -> remote kernel.
+4. Commit local branch changes (if any), then sync branch local -> origin -> remote kernel.
 5. Execute wrapper-based SSH command from `/root/motion_rl`.
 6. If failure includes auth error:
    - check local `ssh-add -l`

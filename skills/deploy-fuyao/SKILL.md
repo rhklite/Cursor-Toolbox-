@@ -26,8 +26,7 @@ This skill should be treated as mandatory instruction; only fallback is manual m
 
 - `label` (default: remove one leading `huh8/` from `branch`)
 - `project` (default: `rc-wbc`)
-- `site` (default: `fuyao_sh_n2`)
-- `queue` (default: `rc-wbc-4090`)
+- `queue` (default: `rc-wbc-4090`; always use fully-qualified name, never bare aliases like `4090`)
 - `yes` flag (default: `--yes`)
 
 ## Deterministic Workflow
@@ -60,8 +59,10 @@ SSH_ALIAS="Huh8.remote_kernel.fuyao"
 if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${SSH_ALIAS}" "echo ok" >/dev/null 2>&1; then
   SSH_ALIAS="remote.kernel.fuyo"
 fi
-ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --site <site> --queue <queue> --yes'
+ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
+
+**Queue safety rule**: The `--queue` value passed here MUST be the fully-qualified Fuyao queue name (e.g. `rc-wbc-4090`), never a bare alias like `4090`. Do NOT pass `--site`; the deploy script resolves site from the queue name internally.
 
 9. If command fails with auth symptoms:
    - `ssh-add -l`
@@ -88,5 +89,5 @@ SSH_ALIAS="Huh8.remote_kernel.fuyao"
 if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${SSH_ALIAS}" "echo ok" >/dev/null 2>&1; then
   SSH_ALIAS="remote.kernel.fuyo"
 fi
-ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --site <site> --queue <queue> --yes'
+ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
