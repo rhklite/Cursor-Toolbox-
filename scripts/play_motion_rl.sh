@@ -26,6 +26,8 @@ Options:
   --skip-health   Skip container healthcheck
   --pull          Pull latest changes on remote repo (skip prompt)
   --no-pull       Do not pull (skip prompt)
+  --replace       Kill existing play.py and launch new one (skip prompt)
+  --refresh       Keep existing play.py, just refresh PlotJuggler (skip prompt)
   --interactive   Use play_interactive.py (keyboard velocity/push/reset + HUD)
   --push_vel_xy   Max push velocity for interactive keyboard push (default: 1.0)
   --help          Show this help
@@ -44,6 +46,7 @@ LAYOUT_USER_SET=0
 TOTAL_STEPS="${DEFAULT_TOTAL_STEPS}"
 SKIP_HEALTH=0
 PULL_REPO=""
+PROCESS_ACTION=""
 INTERACTIVE=0
 PUSH_VEL_XY="1.0"
 
@@ -56,6 +59,8 @@ while [[ $# -gt 0 ]]; do
     --skip-health)   SKIP_HEALTH=1;      shift   ;;
     --pull)          PULL_REPO=1;        shift   ;;
     --no-pull)       PULL_REPO=0;        shift   ;;
+    --replace)       PROCESS_ACTION="replace"; shift ;;
+    --refresh)       PROCESS_ACTION="refresh"; shift ;;
     --interactive)   INTERACTIVE=1;      shift   ;;
     --push_vel_xy)   PUSH_VEL_XY="$2";  shift 2 ;;
     --help|-h)       usage 0                     ;;
@@ -63,11 +68,56 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -z "${TASK}" ]]       && { err "Missing --task";       usage 2; }
-[[ -z "${CHECKPOINT}" ]] && { err "Missing --checkpoint"; usage 2; }
+# ---------- 1. Detect existing play.py processes ----------
+EXISTING_PROCS=""
+EXISTING_PROCS=$(ssh "${JUMP_HOST}" "pgrep -af 'play.*\.py.*--task' 2>/dev/null" || true)
 
-# ---------- 1. Container healthcheck ----------
-if [[ "${SKIP_HEALTH}" -eq 0 ]]; then
+REFRESH_ONLY=0
+
+if [[ -n "${EXISTING_PROCS}" ]]; then
+  if [[ "${PROCESS_ACTION}" == "refresh" ]]; then
+    info "Existing process found — refresh mode (keeping existing):"
+    echo "${EXISTING_PROCS}" | while IFS= read -r line; do info "  ${line}"; done
+    REFRESH_ONLY=1
+  elif [[ "${PROCESS_ACTION}" == "replace" ]]; then
+    info "Existing process found — replacing:"
+    echo "${EXISTING_PROCS}" | while IFS= read -r line; do info "  ${line}"; done
+    ssh "${JUMP_HOST}" "pkill -f 'play.*\.py.*--task' 2>/dev/null || true"
+    sleep 2
+    ok "Existing process killed"
+    SKIP_HEALTH=1
+  else
+    info "Existing process detected:"
+    echo "${EXISTING_PROCS}" | while IFS= read -r line; do info "  ${line}"; done
+    if [[ -t 0 ]]; then
+      read -rp $'\033[1;34m[INFO]\033[0m  Replace with new process? [y/N] ' replace_answer
+      if [[ "${replace_answer}" =~ ^[Yy]$ ]]; then
+        ssh "${JUMP_HOST}" "pkill -f 'play.*\.py.*--task' 2>/dev/null || true"
+        sleep 2
+        ok "Existing process killed"
+        SKIP_HEALTH=1
+      else
+        info "Keeping existing process — refreshing PlotJuggler only"
+        REFRESH_ONLY=1
+      fi
+    else
+      info "Non-interactive mode — proceeding with fresh launch"
+    fi
+  fi
+elif [[ "${PROCESS_ACTION}" == "refresh" ]]; then
+  err "No existing play.py process found — nothing to refresh against"
+  exit 1
+fi
+
+if [[ "${REFRESH_ONLY}" -eq 0 ]]; then
+  [[ -z "${TASK}" ]]       && { err "Missing --task";       usage 2; }
+  [[ -z "${CHECKPOINT}" ]] && { err "Missing --checkpoint"; usage 2; }
+fi
+
+# ---------- 2. Container healthcheck ----------
+if [[ "${REFRESH_ONLY}" -eq 1 ]]; then
+  info "Skipping container healthcheck (refresh mode)"
+elif [[ "${SKIP_HEALTH}" -eq 0 ]]; then
   info "Running container healthcheck on ${JUMP_HOST}..."
   if ssh "${JUMP_HOST}" "bash ${HEALTHCHECK_SCRIPT}"; then
     ok "Container healthy"
@@ -79,46 +129,54 @@ else
   info "Skipping container healthcheck (--skip-health)"
 fi
 
-# ---------- 2. Pull latest changes ----------
-if [[ -z "${PULL_REPO}" ]]; then
-  if [[ -t 0 ]]; then
-    read -rp $'\033[1;34m[INFO]\033[0m  Pull latest changes for motion_rl on remote? [y/N] ' pull_answer
-    [[ "${pull_answer}" =~ ^[Yy]$ ]] && PULL_REPO=1 || PULL_REPO=0
-  else
-    PULL_REPO=0
-  fi
-fi
-if [[ "${PULL_REPO}" -eq 1 ]]; then
-  info "Pulling latest changes on ${JUMP_HOST}:${REMOTE_WORKDIR}..."
-  if ssh "${JUMP_HOST}" "git -C '${REMOTE_WORKDIR}' pull --ff-only"; then
-    ok "Repo updated"
-  else
-    err "git pull --ff-only failed (divergent or uncommitted changes?). Continuing with current state."
-  fi
+# ---------- 3. Pull latest changes ----------
+if [[ "${REFRESH_ONLY}" -eq 1 ]]; then
+  info "Skipping repo pull (refresh mode)"
 else
-  info "Skipping repo pull"
-fi
-
-# ---------- 3. Resolve checkpoint ----------
-REMOTE_CKPT=""
-if [[ -f "${CHECKPOINT}" ]]; then
-  BASENAME="$(basename "${CHECKPOINT}")"
-  info "Local checkpoint detected, copying to ${JUMP_HOST}..."
-  scp "${CHECKPOINT}" "${JUMP_HOST}:${REMOTE_CKPT_DIR}/"
-  REMOTE_CKPT="${REMOTE_CKPT_DIR}/${BASENAME}"
-  ok "Checkpoint uploaded: ${REMOTE_CKPT}"
-else
-  info "Treating checkpoint as remote path: ${CHECKPOINT}"
-  if ssh "${JUMP_HOST}" "test -f '${CHECKPOINT}'"; then
-    REMOTE_CKPT="${CHECKPOINT}"
-    ok "Remote checkpoint verified: ${REMOTE_CKPT}"
+  if [[ -z "${PULL_REPO}" ]]; then
+    if [[ -t 0 ]]; then
+      read -rp $'\033[1;34m[INFO]\033[0m  Pull latest changes for motion_rl on remote? [y/N] ' pull_answer
+      [[ "${pull_answer}" =~ ^[Yy]$ ]] && PULL_REPO=1 || PULL_REPO=0
+    else
+      PULL_REPO=0
+    fi
+  fi
+  if [[ "${PULL_REPO}" -eq 1 ]]; then
+    info "Pulling latest changes on ${JUMP_HOST}:${REMOTE_WORKDIR}..."
+    if ssh "${JUMP_HOST}" "git -C '${REMOTE_WORKDIR}' pull --ff-only"; then
+      ok "Repo updated"
+    else
+      err "git pull --ff-only failed (divergent or uncommitted changes?). Continuing with current state."
+    fi
   else
-    err "Checkpoint not found locally or on ${JUMP_HOST}: ${CHECKPOINT}"
-    exit 1
+    info "Skipping repo pull"
   fi
 fi
 
-# ---------- 4. Resolve layout ----------
+# ---------- 4. Resolve checkpoint ----------
+if [[ "${REFRESH_ONLY}" -eq 1 ]]; then
+  REMOTE_CKPT="(existing)"
+else
+  REMOTE_CKPT=""
+  if [[ -f "${CHECKPOINT}" ]]; then
+    BASENAME="$(basename "${CHECKPOINT}")"
+    info "Local checkpoint detected, copying to ${JUMP_HOST}..."
+    scp "${CHECKPOINT}" "${JUMP_HOST}:${REMOTE_CKPT_DIR}/"
+    REMOTE_CKPT="${REMOTE_CKPT_DIR}/${BASENAME}"
+    ok "Checkpoint uploaded: ${REMOTE_CKPT}"
+  else
+    info "Treating checkpoint as remote path: ${CHECKPOINT}"
+    if ssh "${JUMP_HOST}" "test -f '${CHECKPOINT}'"; then
+      REMOTE_CKPT="${CHECKPOINT}"
+      ok "Remote checkpoint verified: ${REMOTE_CKPT}"
+    else
+      err "Checkpoint not found locally or on ${JUMP_HOST}: ${CHECKPOINT}"
+      exit 1
+    fi
+  fi
+fi
+
+# ---------- 5. Resolve layout ----------
 REMOTE_LAYOUT="${LAYOUT}"
 if [[ "${LAYOUT_USER_SET}" -eq 1 && -f "${LAYOUT}" ]]; then
   BASENAME="$(basename "${LAYOUT}")"
@@ -137,12 +195,12 @@ elif [[ "${LAYOUT_USER_SET}" -eq 1 ]]; then
   fi
 fi
 
-# ---------- 5. Kill existing PlotJuggler ----------
+# ---------- 6. Kill existing PlotJuggler ----------
 info "Stopping any existing PlotJuggler on ${JUMP_HOST}..."
 ssh "${JUMP_HOST}" "pkill -f plotjuggler 2>/dev/null || true"
 sleep 1
 
-# ---------- 6. Launch PlotJuggler ----------
+# ---------- 7. Launch PlotJuggler ----------
 info "Launching PlotJuggler on ${JUMP_HOST} (layout: $(basename "${REMOTE_LAYOUT}"))..."
 ssh "${JUMP_HOST}" "DISPLAY=${DISPLAY_VAR} nohup plotjuggler --nosplash --layout '${REMOTE_LAYOUT}' > ${PJ_LOG} 2>&1 &"
 
@@ -165,7 +223,23 @@ else
   exit 1
 fi
 
-# ---------- 7. Launch play script ----------
+# ---------- 8. Launch play script ----------
+if [[ "${REFRESH_ONLY}" -eq 1 ]]; then
+  echo ""
+  echo "=========================================="
+  echo "  Play Motion RL - REFRESH SUCCESS"
+  echo "=========================================="
+  echo "  PlotJuggler PID:  ${PJ_PID}"
+  echo "  play.py:          (kept existing)"
+  echo "  Layout:           $(basename "${REMOTE_LAYOUT}")"
+  echo ""
+  echo "  Next step:"
+  echo "    In PlotJuggler: Streaming -> Start: UDP Server"
+  echo "    Port: 9870, Protocol: JSON"
+  echo "=========================================="
+  exit 0
+fi
+
 if [[ "${INTERACTIVE}" -eq 1 ]]; then
   PLAY_SCRIPT="humanoid-gym/humanoid/scripts/play_interactive.py"
   info "Launching play_interactive.py in isaacgym container..."
@@ -220,7 +294,7 @@ else
   exit 1
 fi
 
-# ---------- 8. Summary ----------
+# ---------- 9. Summary ----------
 echo ""
 echo "=========================================="
 echo "  Play Motion RL - SUCCESS"
