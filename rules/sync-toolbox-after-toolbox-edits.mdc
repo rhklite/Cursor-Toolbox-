@@ -1,10 +1,24 @@
 ---
-description: Run gated toolbox sync after skill/command/rule edits; apply only for toolbox file work.
-globs: "{**/.cursor/skills/**,**/.cursor/commands/**,**/.cursor/rules/**}"
-alwaysApply: false
+description: Run gated toolbox sync after skill/command/rule/script edits. Always active so the agent never forgets.
+globs: "{**/.cursor/skills/**,**/.cursor/commands/**,**/.cursor/rules/**,**/.cursor/scripts/**}"
+alwaysApply: true
 ---
 
 # Sync Toolbox After Toolbox Edits
+
+## Mandatory Pre-Done Gate
+
+Before reporting "done" or completing any task, the agent MUST:
+1. Check: did this session create or modify any file under ~/.cursor/skills/, ~/.cursor/commands/, ~/.cursor/rules/, or ~/.cursor/scripts/?
+2. If YES and sync has not been run yet in this session: STOP. Do not report done. Run the sync workflow (steps 1-11 below) first.
+3. If NO: proceed normally.
+
+This gate is non-negotiable. The agent must NOT:
+- Defer sync to a "later step" that never happens
+- Report done with "sync pending" or "user can sync manually"
+- Skip sync because the task was complex or had many iterations
+
+## Sync Workflow
 
 Use this workflow after creating or modifying toolbox assets under skills, commands, rules, agents, or scripts.
 
@@ -26,6 +40,8 @@ Sync model: the toolbox is a git repo. Changes are committed and pushed to GitHu
    - `identical`, `partial`, `conflicts`, `unreachable`
 9. End with:
    - `Office Sync Action: <1-2 sentence sync outcome>`
+10. Print a concise sync result summary in the chat so the user sees it without scrolling (include destinations synced, counts, and any failures).
+11. The sync script also fires an OS desktop notification automatically (macOS and Linux; no-op on unsupported systems).
 
 Guardrails:
 - Do not hardcode hostnames, IPs, or ports.
