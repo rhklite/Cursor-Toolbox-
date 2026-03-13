@@ -43,6 +43,8 @@ This skill should be treated as mandatory instruction; only fallback is manual m
    - if ambiguous, present choices and require explicit selection
 5. Ensure local branch state:
    - checkout selected local branch
+   - run `git status --porcelain` to check for uncommitted changes in `humanoid-gym/`
+   - if uncommitted changes exist in training code, **stop and warn the user**. Do NOT proceed with deploy until the user commits or discards them. Deploying with uncommitted changes means the remote will not match the local working directory.
    - set upstream `origin/<branch>` if needed
    - `git push` that branch to origin
 6. Ensure remote kernel SSH target:
@@ -62,13 +64,78 @@ fi
 ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
 
-**Queue safety rule**: The `--queue` value passed here MUST be the fully-qualified Fuyao queue name (e.g. `rc-wbc-4090`), never a bare alias like `4090`. Do NOT pass `--site`; the deploy script resolves site from the queue name internally.
+For multi-GPU distributed training, append `--distributed --nproc_per_node <N>`:
+
+```bash
+ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --distributed --nproc_per_node <N> --yes'
+```
+
+**Queue safety rule**: The `--queue` value passed here MUST be the fully-qualified Fuyao queue name (e.g. `rc-wbc-4090`), never a bare alias like `4090`. Do NOT pass `--site`; the deploy script resolves site from the queue name internally. Do NOT pass `--gpu-type` or `--gpu-slice`; Fuyao infers GPU type from the queue name.
 
 9. If command fails with auth symptoms:
    - `ssh-add -l`
    - `ssh "${SSH_ALIAS}" 'ssh-add -l'`
    - `ssh "${SSH_ALIAS}" 'ssh -T git@gitlab-adc.xiaopeng.link'`
    - Retry only after fixing auth.
+
+## Experiment Tracker Integration (Post-Deploy)
+
+Run this step **after a successful deploy** (Step 8 exits 0 and output does not contain `ERROR` or `FAILED`). If Step 9 triggers a retry, run the tracker after the successful retry, not after the initial failure. Tracker failures must not cause the agent to report the deployment as failed, abort remaining steps, or omit the Post-Submit Report. Always continue to the Post-Submit Report regardless of tracker outcome.
+
+1. **Extract `job_name`** from the deploy command's stdout/stderr output. Search for all matches of `bifrost-\d{16,}-[A-Za-z0-9_-]+` and use the **last** match. If no match is found, set `job_name` to `""` and emit a warning: "Could not extract job_name from deploy output."
+
+2. **Build the tracker payload** as a JSON object and write it to a temp file using the Write tool. All string values must be valid JSON (escape `"`, `\`, and control characters). Use the **resolved** SSH alias (after fallback), not the shell template:
+
+```json
+{
+  "task": "<resolved registered task name>",
+  "branch": "<branch>",
+  "label": "<label>",
+  "project": "<project>",
+  "queue": "<queue>",
+  "site": "<site if known, else empty>",
+  "experiment": "<experiment>",
+  "command": "ssh Huh8.remote_kernel.fuyao 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project rc-wbc --label dev_r01_v12 --task HuhR01V12SAAmpV0 --experiment huh8/r01 --queue rc-wbc-4090 --yes'",
+  "job_name": "<extracted job_name or empty string>",
+  "parent_mutation_id": "",
+  "delta": {}
+}
+```
+
+*(The command field above is an example — substitute actual resolved values.)*
+
+Field notes:
+- `parent_mutation_id` — optional. If empty, auto-resolved to the latest mutation on the same task + branch. Set explicitly to link to a specific parent (e.g. a sweep combo that produced the best result).
+- `delta` — optional. Include if the user mentioned specific HP or config changes for this deploy (e.g. `{"train.learning_rate": 0.003}`). Leave `{}` if unknown.
+
+3. **Write the payload** to `~/.cursor/tmp/tracker_deploy_<timestamp>.json` using the Write tool, then run:
+
+```bash
+python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py record-deploy --store-root ~/.exp-tracker --json-file ~/.cursor/tmp/tracker_deploy_<timestamp>.json
+```
+
+4. **Check the result.** Run the command without `|| true`. After execution, check the exit code. If non-zero or the output contains `"ok": false`, capture the error, emit a warning "Tracker recording failed: <error>. Deployment itself succeeded.", and proceed to the Post-Submit Report. On success (`"ok": true`), extract `task_id` and `mutation_id` for the Post-Submit Report. If the output contains `"skipped": true`, the deploy was already recorded (idempotent retry) — note this, don't treat it as an error.
+
+5. **Do NOT prompt the user or wait for confirmation** for the tracker step. This is fully automatic.
+
+### Lineage (Parent-Child Chain)
+
+Each recorded deploy becomes a mutation node linked to its parent via `derives_from` edges:
+
+- **Auto-resolution** (default): the tracker finds the most recent mutation on the same `task + branch` and links to it. This creates a linear chain: deploy_1 -> deploy_2 -> deploy_3.
+- **After a sweep**: the auto-resolved parent may point to any sweep combo (they share a timestamp). To link to a specific combo, set `parent_mutation_id` explicitly.
+- **Cross-skill lineage**: deploys from `/deploy-fuyao` and sweeps from `/sweep-fuyao` on the same branch automatically form a connected lineage graph.
+- **First deploy on a branch**: if no previous mutation exists for this task + branch, the deploy becomes a root mutation under the task (no parent).
+
+### Idempotency
+
+If `job_name` is non-empty and a mutation with the same `job_name` already exists in metadata, the deploy is skipped and the existing `mutation_id` is returned. Safe to retry.
+
+### Tracker Error Handling
+
+- If the CLI exits non-zero or returns `"ok": false`, display a warning and continue.
+- If the script is missing or Python is unavailable, skip and warn.
+- Never retry the tracker call automatically — the user can re-record manually via the policy-lineage-tracker skill.
 
 ## Post-Submit Report
 
@@ -78,7 +145,9 @@ ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --no
 - deployment status
 - returned job name/id
 - `site`, `queue`, `project`, `label`
+- **tracker:** `task_id`, `mutation_id` (if tracker recording succeeded), or "tracker recording skipped/failed"
 - follow-up commands: `fuyao info --job-name <job_name>` and `fuyao log --job-name <job_name>`
+- if tracker succeeded: "To update status when job completes: `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py set-status --node-id <mutation_id> --status completed`"
 
 ## Manual Fallback (When Skill Resolution Is Not Available)
 
@@ -91,3 +160,5 @@ if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${SSH_ALIAS}" "echo ok" >/dev/nul
 fi
 ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
+
+For multi-GPU manual fallback, append: `--distributed --nproc_per_node <N>`

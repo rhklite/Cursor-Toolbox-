@@ -30,7 +30,7 @@ Use this as the canonical execution contract for `/sweep-fuyao`.
 - `project` (default: `rc-wbc`)
 - `site` (default: `fuyao_sh_n2`)
 - `gpus_per_node` (default: `1`)
-- `gpu_type` (default: `shared`)
+- `gpu_type` (reserved; not currently passed to fuyao deploy)
 - `priority` (default: `normal`)
 - `max_parallel` (default: `4`)
 - `label_prefix` (default: `sweep`)
@@ -102,14 +102,99 @@ bash ~/.cursor/scripts/deploy_fuyao_sweep_dispatcher.sh --payload <payload_file>
 bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --once
 ```
 
+## Experiment Tracker Integration (Post-Sweep)
+
+Run this step **after a successful sweep dispatch** (Step 8 completed without errors and `run_root` was reported). Tracker failures must not cause the agent to report the sweep as failed, abort remaining steps, or omit the Post-Submit Report. Always continue to the Post-Submit Report regardless of tracker outcome.
+
+**If `dry_run` is `true`**, still record to the tracker but set `"dry_run": true` in the payload. The script will create mutations with status `"planned"` instead of `"running"`.
+
+1. **Collect per-combo data** from the run_root directory. For each combo:
+   - Read `<run_root>/status/<combo_name>.json` to get `job_name`, `combo_label`, and `status`.
+   - If the status file is missing, read `<run_root>/artifacts/<combo_name>/dispatch_receipt.json` as fallback.
+   - If no structured data is available, parse `<run_root>/logs/<combo_name>.dispatch.log` for `job_name=<value>` lines and `bifrost-\d{16,}-[A-Za-z0-9_-]+` patterns (use the **last** match).
+   - If no data source exists for a combo, include it with `job_name: ""` and emit a warning listing the combos with missing data.
+   - For combos that **failed at dispatch** (status file shows failure, or dispatch_receipt has `"submitted": false`), set `"dispatched": false` in the combo object. The tracker will record these as `"failed"` instead of `"running"`.
+
+2. **Compute delta for each combo.** Each combo represents a specific HP configuration. Parse the hp_specs and the combo's parameter values to build a `delta` dict mapping `param_name` to the specific value used for that combo (e.g., `{"train.learning_rate": 0.001, "train.entropy_coef": 0.005}`).
+
+3. **Build the tracker payload** as a JSON object. All string values must be valid JSON (escape `"`, `\`, and control characters):
+
+```json
+{
+  "task": "<resolved registered task name>",
+  "branch": "<branch>",
+  "project": "<project>",
+  "queue": "<queue>",
+  "experiment": "<experiment>",
+  "sweep_id": "<sweep_id from dispatcher output>",
+  "run_root": "<run_root>",
+  "label_prefix": "<label_prefix>",
+  "hp_specs_summary": "<original hp_specs as a human-readable string>",
+  "dry_run": false,
+  "parent_mutation_id": "",
+  "combos": [
+    {
+      "combo_name": "combo_0001",
+      "job_name": "bifrost-...",
+      "delta": {"train.learning_rate": 0.001},
+      "combo_label": "sweep-0001-lr_1e3",
+      "command": "<training command for this combo>",
+      "dispatched": true
+    },
+    {
+      "combo_name": "combo_0002",
+      "job_name": "",
+      "delta": {"train.learning_rate": 0.003},
+      "combo_label": "sweep-0002-lr_3e3",
+      "command": "",
+      "dispatched": false
+    }
+  ]
+}
+```
+
+4. **Write the payload** to `~/.cursor/tmp/tracker_sweep_<timestamp>.json` using the Write tool, then run:
+
+```bash
+python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py record-sweep --store-root ~/.exp-tracker --json-file ~/.cursor/tmp/tracker_sweep_<timestamp>.json
+```
+
+Field notes:
+- `parent_mutation_id` — optional. If empty, auto-resolved to the latest mutation on the same task + branch. Set explicitly to link the sweep to a specific parent deploy or combo.
+
+5. **Check the result.** Run the command without `|| true`. After execution, check the exit code. If non-zero or the output contains `"ok": false`, capture the error, emit a warning "Tracker recording failed: <error>. Sweep dispatch itself succeeded.", and proceed to the Post-Submit Report. On success, extract `task_id`, `sweep_id`, and per-combo `mutation_id`s. Combos with `"skipped": true` were already recorded (idempotent retry) and should be noted, not treated as errors.
+
+6. **Do NOT prompt the user or wait for confirmation** for the tracker step. This is fully automatic.
+
+### Idempotency & Deduplication
+
+- The `record-sweep` command checks for existing mutations matching `sweep_id + combo_name` in metadata. Duplicate combos are skipped, making retries safe.
+- If the agent crashes mid-recording and is re-invoked, only unrecorded combos are created.
+- Always pass the same `sweep_id` from the dispatcher output when re-running.
+
+### Store Root
+
+- Always pass `--store-root ~/.exp-tracker` (or the configured store root) to ensure recordings land in the same store as the dashboard.
+- If omitted, the CLI defaults to `~/.local/share/motion-rl-tracker`.
+
+### Tracker Error Handling
+
+- If the CLI exits non-zero or returns `"ok": false`, display a warning and continue.
+- Individual combo failures should be listed as warnings but do not block the report.
+- If the CLI script is missing or Python is unavailable, skip and warn.
+- Never retry automatically — the user can re-record manually via the policy-lineage-tracker skill.
+
 ## Post-Submit Report
 
 - selected/derived payload fields
 - `run_root`
 - dispatch status
+- **tracker:** `task_id`, per-combo `mutation_id`s (if tracker recording succeeded), or "tracker recording skipped/failed"
 - next checks:
   - `fuyao log <job_name>`
   - `bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --poll-interval 30 --max-attempts 10`
+- if tracker succeeded: "To update all combo statuses when sweep completes: `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py update-sweep-status --sweep-id <sweep_id> --status completed`"
+- if tracker succeeded: "To update a single combo: `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py set-status --node-id <mutation_id> --status completed`"
 
 ## Manual fallback behavior
 

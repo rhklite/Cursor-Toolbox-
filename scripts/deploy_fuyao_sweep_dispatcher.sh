@@ -18,7 +18,7 @@ DEFAULT_SITE="fuyao_sh_n2"
 DEFAULT_EXPERIMENT="huh8/r01"
 DEFAULT_GPUS_PER_NODE="1"
 DEFAULT_NODES="1"
-DEFAULT_GPU_TYPE="shared"
+DEFAULT_GPU_TYPE="exclusive"
 DEFAULT_PRIORITY="normal"
 DEFAULT_DOCKER_IMAGE="infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:isaacgym-250516-0347"
 DEFAULT_RL_DEVICE="cuda:0"
@@ -204,7 +204,7 @@ emit("PROJECT", s("project", "rc-wbc"))
 emit("SITE", s("site", "fuyao_sh_n2"))
 emit("NODES", s("nodes", "1"))
 emit("GPUS_PER_NODE", s("gpus_per_node", "1"))
-emit("GPU_TYPE", s("gpu_type", "shared"))
+emit("GPU_TYPE", s("gpu_type", "exclusive"))
 emit("GPU_SLICE", s("gpu_slice", ""))
 emit("PRIORITY", s("priority", "normal"))
 emit("DOCKER_IMAGE", s("docker_image", "infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:isaacgym-250516-0347"))
@@ -821,15 +821,11 @@ EOF
         --project "$PROJECT"
         --nodes "$NODES"
         --gpus-per-node "$GPUS_PER_NODE"
-        --gpu-type "$GPU_TYPE"
         --priority "$PRIORITY"
         --docker-image "$DOCKER_IMAGE"
         --rl-device "$RL_DEVICE"
         --auto-yes true
     )
-    if [ -n "$GPU_SLICE" ]; then
-        deploy_cmd+=(--gpu-slice "$GPU_SLICE")
-    fi
     if [ "$DRY_RUN" = "true" ]; then
         deploy_cmd+=(--dry-run)
     fi
