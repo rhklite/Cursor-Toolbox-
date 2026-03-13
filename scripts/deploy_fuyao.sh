@@ -325,11 +325,7 @@ DEPLOY_CMD+=(
     "--docker-image=${DOCKER_IMAGE}"
     "--nodes=${NODES}"
     "--gpus-per-node=${GPUS_PER_NODE}"
-    "--gpu-type=${GPU_TYPE}"
 )
-if [ -n "$GPU_SLICE" ]; then
-    DEPLOY_CMD+=("--gpu-slice=${GPU_SLICE}")
-fi
 DEPLOY_CMD+=(
     "--site=${SITE}"
     "--queue=${QUEUE}"
