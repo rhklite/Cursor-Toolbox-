@@ -26,6 +26,8 @@ Options:
   --skip-health   Skip container healthcheck
   --pull          Pull latest changes on remote repo (skip prompt)
   --no-pull       Do not pull (skip prompt)
+  --interactive   Use play_interactive.py (keyboard velocity/push/reset + HUD)
+  --push_vel_xy   Max push velocity for interactive keyboard push (default: 1.0)
   --help          Show this help
 EOF
   exit "${1:-0}"
@@ -42,6 +44,8 @@ LAYOUT_USER_SET=0
 TOTAL_STEPS="${DEFAULT_TOTAL_STEPS}"
 SKIP_HEALTH=0
 PULL_REPO=""
+INTERACTIVE=0
+PUSH_VEL_XY="1.0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -52,6 +56,8 @@ while [[ $# -gt 0 ]]; do
     --skip-health)   SKIP_HEALTH=1;      shift   ;;
     --pull)          PULL_REPO=1;        shift   ;;
     --no-pull)       PULL_REPO=0;        shift   ;;
+    --interactive)   INTERACTIVE=1;      shift   ;;
+    --push_vel_xy)   PUSH_VEL_XY="$2";  shift 2 ;;
     --help|-h)       usage 0                     ;;
     *)               err "Unknown arg: $1"; usage 2 ;;
   esac
@@ -159,27 +165,44 @@ else
   exit 1
 fi
 
-# ---------- 7. Launch play.py ----------
-info "Launching play.py in isaacgym container..."
+# ---------- 7. Launch play script ----------
+if [[ "${INTERACTIVE}" -eq 1 ]]; then
+  PLAY_SCRIPT="humanoid-gym/humanoid/scripts/play_interactive.py"
+  info "Launching play_interactive.py in isaacgym container..."
+else
+  PLAY_SCRIPT="humanoid-gym/humanoid/scripts/play.py"
+  info "Launching play.py in isaacgym container..."
+fi
 info "  task:       ${TASK}"
 info "  checkpoint: ${REMOTE_CKPT}"
 info "  steps:      ${TOTAL_STEPS}"
+if [[ "${INTERACTIVE}" -eq 1 ]]; then
+  info "  mode:       interactive (keyboard control)"
+  info "  push_vel:   ${PUSH_VEL_XY}"
+fi
+
+PLAY_EXTRA_ARGS=""
+if [[ "${INTERACTIVE}" -eq 1 ]]; then
+  PLAY_EXTRA_ARGS="--push_vel_xy ${PUSH_VEL_XY}"
+fi
 
 bash "${ISAACGYM_RUNNER}" \
   DISPLAY=${DISPLAY_VAR} \
-  python humanoid-gym/humanoid/scripts/play.py \
+  python "${PLAY_SCRIPT}" \
   --task "${TASK}" \
   --checkpoint_path "${REMOTE_CKPT}" \
   --resume \
-  --total_steps "${TOTAL_STEPS}" &
+  --total_steps "${TOTAL_STEPS}" \
+  ${PLAY_EXTRA_ARGS} &
 
 PLAY_BG_PID=$!
 
+PLAY_SCRIPT_BASE="$(basename "${PLAY_SCRIPT}")"
 PLAY_OK=0
 for i in 1 2 3 4 5 6 7 8 9 10; do
   sleep 3
-  if ssh "${JUMP_HOST}" "pgrep -af 'play.py.*--task' >/dev/null 2>&1"; then
-    PLAY_PID=$(ssh "${JUMP_HOST}" "pgrep -f 'play.py.*--task' | head -1")
+  if ssh "${JUMP_HOST}" "pgrep -af '${PLAY_SCRIPT_BASE}.*--task' >/dev/null 2>&1"; then
+    PLAY_PID=$(ssh "${JUMP_HOST}" "pgrep -f '${PLAY_SCRIPT_BASE}.*--task' | head -1")
     PLAY_OK=1
     break
   fi
@@ -191,9 +214,9 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 
 if [[ "${PLAY_OK}" -eq 1 ]]; then
-  ok "play.py running (PID ${PLAY_PID})"
+  ok "${PLAY_SCRIPT_BASE} running (PID ${PLAY_PID})"
 else
-  err "play.py did not start within 30s"
+  err "${PLAY_SCRIPT_BASE} did not start within 30s"
   exit 1
 fi
 
@@ -203,7 +226,7 @@ echo "=========================================="
 echo "  Play Motion RL - SUCCESS"
 echo "=========================================="
 echo "  PlotJuggler PID:  ${PJ_PID}"
-echo "  play.py PID:      ${PLAY_PID}"
+echo "  ${PLAY_SCRIPT_BASE} PID: ${PLAY_PID}"
 echo "  Task:             ${TASK}"
 echo "  Checkpoint:       ${REMOTE_CKPT}"
 echo "  Layout:           $(basename "${REMOTE_LAYOUT}")"
@@ -211,4 +234,10 @@ echo ""
 echo "  Next step:"
 echo "    In PlotJuggler: Streaming -> Start: UDP Server"
 echo "    Port: 9870, Protocol: JSON"
+if [[ "${INTERACTIVE}" -eq 1 ]]; then
+  echo ""
+  echo "  Keyboard (Isaac Gym viewer):"
+  echo "    W/S = fwd/back  A/D = left/right  Q/E = yaw"
+  echo "    0 = stop  R = reset  P = push  ESC = quit"
+fi
 echo "=========================================="
