@@ -1,71 +1,20 @@
 ---
-description: Require action/plan drafting with contract-first reviewer-subagent critique loops until convergence.
+description: Spawn critique-reviewer subagent before executing any task. Observable gate — first tool call must be a Task invocation.
 alwaysApply: true
 ---
 
-# Contract-First Critique Loop
+# Critique Loop
 
-For every user prompt, run this loop before final execution:
+For every user prompt, before execution:
 
-1. Draft response mode:
-   - `Action` when the user asks you to execute.
-   - `Plan` when execution is restricted or the user asks for planning.
-2. Classify the task:
-   - `Contractable`: code changes, config modifications, refactors, feature additions, bug fixes — anything that mutates project files with observable outcomes verifiable by inspecting code or state.
-   - `Non-contractable`: informational questions, procedural commands (git commit/push/checkout, deploy), exploratory searches, pure read tasks — where correctness is determined by command success or answer quality, not by detailed state inspection.
-   Non-contractable tasks skip contract drafting (step 3) and use only goal + constraints in the objective snapshot. The goal statement serves as the success criterion for these tasks.
-3. Write a concise objective snapshot:
-   - user goal (1 sentence),
-   - constraints (from user prompt or inferred).
-   For contractable tasks, add contracts:
-   - pre-conditions: what must be true before the change (the agent must verify these hold before proceeding),
-   - post-conditions: what must be true after the change — each as a discrete, independently verifiable statement,
-   - invariants: what must NOT change (backward compat, existing behavior),
-   - non-conditions: what is explicitly out of scope.
-   Each post-condition and invariant must be phrased as a yes/no verifiable statement.
-4. Spawn a dedicated reviewer subagent to critique the current action/plan.
-5. Reviewer must check:
-   For contractable tasks (two-phase, single pass):
-   a. Contract validity:
-      - Are contracts complete given the user's prompt?
-      - Are any post-conditions tautological (merely restating the goal)?
-      - Are any contracts missing?
-      - Are pre-conditions satisfiable and verified in the current context?
-   b. Proposed-change correctness:
-      - Does the planned change satisfy every post-condition?
-      - Does it violate any invariant?
-      - Does it touch anything listed under non-conditions?
-   For all tasks:
-   - objective alignment and completeness,
-   - constraint adherence and non-goals,
-   - dependency and sequencing gaps,
-   - hidden assumptions,
-   - outliers and gotchas the user did not mention,
-   - risk, regression, safety, and operational hazards.
-6. If reviewer reports unresolved issues, revise action/plan and rerun reviewer.
-7. Continue until convergence:
-   - every post-condition has a corresponding change in the proposed implementation,
-   - no invariant is violated,
-   - no non-condition scope creep,
-   - contract gaps identified by reviewer are resolved,
-   - critical ambiguities are resolved (or raised to the user),
-   - outliers/gotchas have mitigations (or explicit user acceptance).
-8. If not converged after 3 critique cycles, ask one focused clarification question, then continue the loop.
-9. Once converged, proceed with execution (or present the finalized plan in plan-only contexts).
-
-Use this per-iteration format:
-- Task class: `Contractable` | `Non-contractable`
-- Objective snapshot: (goal + constraints)
-- Contracts: (pre/post/invariant/non — if contractable)
-- Current action/plan:
-- Reviewer findings:
-  - Contract validity issues: (if contractable, otherwise N/A)
-  - Proposed-change issues:
-- Outliers/Gotchas + mitigations:
-- Decision: `Iterate` or `Execute`
+1. Classify: `Contractable` (mutates files with verifiable outcomes) or `Non-contractable` (read/info/procedural).
+2. Write a 1-sentence objective snapshot with constraints.
+3. For contractable tasks, draft contracts: pre-conditions, post-conditions (yes/no verifiable, not goal restatements), invariants, non-conditions.
+4. Your **first tool call** must be a `Task` invocation spawning the `critique-reviewer` agent with: task class, objective snapshot, contracts (if contractable), and proposed plan.
+5. If reviewer returns `Iterate`, revise and re-spawn. Max 3 cycles; then ask one clarification question.
+6. Execute only after reviewer returns `Execute`.
 
 Guardrails:
-- Do not skip reviewer spawn for speed.
-- Do not claim convergence while critical/high findings remain unresolved.
-- Do not accept post-conditions that merely restate the goal. Each post-condition must reference a specific observable (a return value, a config field, a file state, a function signature).
-- Keep iterations concise and deterministic.
+- Never skip the reviewer spawn. The first tool call being a `Task` spawn is the observable contract.
+- Never claim convergence while critical/high findings remain.
+- Keep iterations concise.
