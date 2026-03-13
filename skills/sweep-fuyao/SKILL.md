@@ -26,7 +26,7 @@ Use this as the canonical execution contract for `/sweep-fuyao`.
 - `patch_file_rel` (default: `humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py`)
 - `experiment` (default: `huh8/r01`)
 - `ssh_alias` (default: `remote.kernel.fuyo`)
-- `queue` (default: `rc-wbc-4090-share`)
+- `queue` (default: `rc-wbc-4090`)
 - `project` (default: `rc-wbc`)
 - `site` (default: `fuyao_sh_n2`)
 - `gpus_per_node` (default: `1`)

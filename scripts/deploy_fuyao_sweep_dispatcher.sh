@@ -12,7 +12,7 @@ DEFAULT_REMOTE_SWEEP_ROOT="/tmp/fuyao_sweeps"
 DEFAULT_RUN_ROOT_BASE="${HOME}/.cursor/tmp/deploy_fuyao_sweep_runs"
 DEFAULT_LABEL_PREFIX="sweep"
 DEFAULT_MAX_PARALLEL="4"
-DEFAULT_QUEUE="rc-wbc-4090-share"
+DEFAULT_QUEUE="rc-wbc-4090"
 DEFAULT_PROJECT="rc-wbc"
 DEFAULT_SITE="fuyao_sh_n2"
 DEFAULT_EXPERIMENT="huh8/r01"
@@ -199,7 +199,7 @@ emit("RUN_ROOT_BASE", s("run_root_base", f"{__import__('os').path.expanduser('~'
 emit("LABEL_PREFIX", s("label_prefix", "sweep"))
 emit("MAX_PARALLEL", s("max_parallel", "4"))
 emit("EXPERIMENT", s("experiment", "huh8/r01"))
-emit("QUEUE", s("queue", "rc-wbc-4090-share"))
+emit("QUEUE", s("queue", "rc-wbc-4090"))
 emit("PROJECT", s("project", "rc-wbc"))
 emit("SITE", s("site", "fuyao_sh_n2"))
 emit("NODES", s("nodes", "1"))
