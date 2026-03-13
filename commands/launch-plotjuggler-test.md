@@ -16,6 +16,9 @@ Collect from the user if not provided:
 - `--layout`: PlotJuggler layout XML on the remote host (default: `r01_plus_amp_plotjuggler_limit_inspect.xml`)
 - `--total_steps`: total play steps (default: `100000000`)
 - `--skip-health`: skip the container healthcheck if the container is known to be running
+- `--pull`: pull latest changes on the remote motion_rl repo before launching (skips interactive prompt)
+- `--no-pull`: skip the pull step (skips interactive prompt)
+- Without `--pull` or `--no-pull`, the script prompts the user interactively
 
 ## Execution
 

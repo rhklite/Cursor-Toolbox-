@@ -23,6 +23,8 @@ Options:
   --layout        PlotJuggler layout XML path on remote (default: r01_plus_amp_plotjuggler_limit_inspect.xml)
   --total_steps   Total play steps (default: 100000000)
   --skip-health   Skip container healthcheck
+  --pull          Pull latest changes on remote repo (skip prompt)
+  --no-pull       Do not pull (skip prompt)
   --help          Show this help
 EOF
   exit "${1:-0}"
@@ -37,6 +39,7 @@ CHECKPOINT=""
 LAYOUT="${DEFAULT_LAYOUT}"
 TOTAL_STEPS="${DEFAULT_TOTAL_STEPS}"
 SKIP_HEALTH=0
+PULL_REPO=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,6 +48,8 @@ while [[ $# -gt 0 ]]; do
     --layout)        LAYOUT="$2";        shift 2 ;;
     --total_steps)   TOTAL_STEPS="$2";   shift 2 ;;
     --skip-health)   SKIP_HEALTH=1;      shift   ;;
+    --pull)          PULL_REPO=1;        shift   ;;
+    --no-pull)       PULL_REPO=0;        shift   ;;
     --help|-h)       usage 0                     ;;
     *)               err "Unknown arg: $1"; usage 2 ;;
   esac
@@ -66,7 +71,27 @@ else
   info "Skipping container healthcheck (--skip-health)"
 fi
 
-# ---------- 2. Resolve checkpoint ----------
+# ---------- 2. Pull latest changes ----------
+if [[ -z "${PULL_REPO}" ]]; then
+  if [[ -t 0 ]]; then
+    read -rp $'\033[1;34m[INFO]\033[0m  Pull latest changes for motion_rl on remote? [y/N] ' pull_answer
+    [[ "${pull_answer}" =~ ^[Yy]$ ]] && PULL_REPO=1 || PULL_REPO=0
+  else
+    PULL_REPO=0
+  fi
+fi
+if [[ "${PULL_REPO}" -eq 1 ]]; then
+  info "Pulling latest changes on ${JUMP_HOST}:${REMOTE_WORKDIR}..."
+  if ssh "${JUMP_HOST}" "git -C '${REMOTE_WORKDIR}' pull --ff-only"; then
+    ok "Repo updated"
+  else
+    err "git pull --ff-only failed (divergent or uncommitted changes?). Continuing with current state."
+  fi
+else
+  info "Skipping repo pull"
+fi
+
+# ---------- 3. Resolve checkpoint ----------
 REMOTE_CKPT=""
 if [[ -f "${CHECKPOINT}" ]]; then
   BASENAME="$(basename "${CHECKPOINT}")"
@@ -85,12 +110,12 @@ else
   fi
 fi
 
-# ---------- 3. Kill existing PlotJuggler ----------
+# ---------- 4. Kill existing PlotJuggler ----------
 info "Stopping any existing PlotJuggler on ${JUMP_HOST}..."
 ssh "${JUMP_HOST}" "pkill -f plotjuggler 2>/dev/null || true"
 sleep 1
 
-# ---------- 4. Launch PlotJuggler ----------
+# ---------- 5. Launch PlotJuggler ----------
 info "Launching PlotJuggler on ${JUMP_HOST} (layout: $(basename "${LAYOUT}"))..."
 ssh "${JUMP_HOST}" "DISPLAY=${DISPLAY_VAR} nohup plotjuggler --nosplash --layout '${LAYOUT}' > ${PJ_LOG} 2>&1 &"
 
@@ -113,7 +138,7 @@ else
   exit 1
 fi
 
-# ---------- 5. Launch play.py ----------
+# ---------- 6. Launch play.py ----------
 info "Launching play.py in isaacgym container..."
 info "  task:       ${TASK}"
 info "  checkpoint: ${REMOTE_CKPT}"
@@ -151,7 +176,7 @@ else
   exit 1
 fi
 
-# ---------- 6. Summary ----------
+# ---------- 7. Summary ----------
 echo ""
 echo "=========================================="
 echo "  PlotJuggler Test Launch - SUCCESS"
