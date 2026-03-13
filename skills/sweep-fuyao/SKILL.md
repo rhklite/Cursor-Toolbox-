@@ -25,7 +25,7 @@ Use this as the canonical execution contract for `/sweep-fuyao`.
 
 - `patch_file_rel` (default: `humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py`)
 - `experiment` (default: `huh8/r01`)
-- `ssh_alias` (default: `Huh8.remote_kernel.fuyao`)
+- `ssh_alias` (default: `remote.kernel.fuyo`)
 - `queue` (default: `rc-wbc-4090`)
 - `project` (default: `rc-wbc`)
 - `site` (default: `fuyao_sh_n2`)
@@ -94,7 +94,7 @@ Prompt order when multiple required inputs are missing:
 ## Deterministic Workflow
 
 1. Pre-flight: verify SSH alias exists:
-   - Run `ssh -G <ssh_alias> >/dev/null 2>&1` (default: `Huh8.remote_kernel.fuyao`)
+   - Run `ssh -G <ssh_alias> >/dev/null 2>&1` (default: `remote.kernel.fuyo`)
    - If it fails, stop and tell the user: "SSH alias `<ssh_alias>` is not configured in `~/.ssh/config`. Add it before sweeping."
 2. Resolve `branch`, `task`, and `hp_specs` through the prompt contract above.
 3. Resolve optional overrides only when explicitly requested.

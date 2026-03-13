@@ -48,10 +48,10 @@ This skill should be treated as mandatory instruction; only fallback is manual m
    - set upstream `origin/<branch>` if needed
    - `git push` that branch to origin
 6. Pre-flight: verify SSH alias exists:
-   - Run `ssh -G Huh8.remote_kernel.fuyao >/dev/null 2>&1`
-   - If it fails, stop and tell the user: "SSH alias `Huh8.remote_kernel.fuyao` is not configured in `~/.ssh/config`. Add it before deploying."
+   - Run `ssh -G remote.kernel.fuyo >/dev/null 2>&1`
+   - If it fails, stop and tell the user: "SSH alias `remote.kernel.fuyo` is not configured in `~/.ssh/config`. Add it before deploying."
 7. Ensure remote kernel SSH target:
-   - Use `Huh8.remote_kernel.fuyao`
+   - Use `remote.kernel.fuyo`
    - `cd /root/motion_rl`
    - `git fetch origin`
    - checkout `<branch>` or create from `origin/<branch>`
@@ -60,7 +60,7 @@ This skill should be treated as mandatory instruction; only fallback is manual m
 9. Execute exactly:
 
 ```bash
-SSH_ALIAS="Huh8.remote_kernel.fuyao"
+SSH_ALIAS="remote.kernel.fuyo"
 ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
 
@@ -95,7 +95,7 @@ Run this step **after a successful deploy** (Step 8 exits 0 and output does not 
   "queue": "<queue>",
   "site": "<site if known, else empty>",
   "experiment": "<experiment>",
-  "command": "ssh Huh8.remote_kernel.fuyao 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project rc-wbc --label dev_r01_v12 --task HuhR01V12SAAmpV0 --experiment huh8/r01 --queue rc-wbc-4090 --yes'",
+  "command": "ssh remote.kernel.fuyo 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project rc-wbc --label dev_r01_v12 --task HuhR01V12SAAmpV0 --experiment huh8/r01 --queue rc-wbc-4090 --yes'",
   "job_name": "<extracted job_name or empty string>",
   "parent_mutation_id": "",
   "delta": {}
@@ -170,7 +170,7 @@ This step is non-blocking. If it fails, warn and continue to the Post-Submit Rep
 Use this exact command only if you cannot invoke the skill contract:
 
 ```bash
-SSH_ALIAS="Huh8.remote_kernel.fuyao"
+SSH_ALIAS="remote.kernel.fuyo"
 ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
 

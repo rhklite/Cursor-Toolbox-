@@ -4,7 +4,7 @@ Synchronize Cursor toolbox assets (`rules`, `commands`, `skills`, `agents` for s
 - local machine
 - `huh.desktop.us`
 - `isaacgym`
-- `Huh8.remote_kernel.fuyao`
+- `remote.kernel.fuyo`
 
 Use `~/.ssh/config` aliases as the source of host definitions.
 

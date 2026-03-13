@@ -95,7 +95,7 @@ git checkout "${BRANCH}" \
 fi
 git push -u origin "${BRANCH}"
 
-SSH_ALIAS="Huh8.remote_kernel.fuyao"
+SSH_ALIAS="remote.kernel.fuyo"
 ssh "${SSH_ALIAS}" "cd /root/motion_rl && \
   git fetch origin && \
   if git show-ref --verify --quiet refs/heads/\"${BRANCH}\"; then \
@@ -165,7 +165,7 @@ Use these defaults unless user explicitly overrides:
 
 Report:
 
-- execution path: `ssh->Huh8.remote_kernel.fuyao`
+- execution path: `ssh->remote.kernel.fuyo`
 - workdir used: `/root/motion_rl`
 - branch used
 - submission status (success/failure)
