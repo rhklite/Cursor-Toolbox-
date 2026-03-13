@@ -1,55 +1,56 @@
 # Play Motion RL
 
-Run Motion RL commands with automatic routing from local, `huh.desktop.us`, or inside the `isaacgym` container.
+Launch a PlotJuggler + Isaac Gym play.py session for UDP telemetry visualization testing.
 
-Invoke as `/play-motion-rl <command> [args...]`.
+Invoke as `/play-motion-rl`.
 
-## Routing behavior
+## Required inputs
 
-- If already inside container context, run directly in:
-  - `/home/huh/software/motion_rl`
-- If running on host machine with local Docker `isaacgym` container, run via:
-  - `docker exec -u huh isaacgym /bin/bash -lc "..."`
-- Otherwise, route through SSH alias `isaacgym`:
-  - `bash ~/.cursor/skills/motion-rl-isaacgym-exec/scripts/run-in-isaacgym-motion-rl.sh ...`
+Collect from the user if not provided:
 
-The command prints a route line:
-- `route: direct-container`
-- `route: host-docker-exec`
-- `route: ssh-routed (isaacgym)`
+- `--task`: task name from the registry (e.g. `r01_v12_amp_with_4dof_arms_and_head_full_scenes`)
+- `--checkpoint`: path to a `.pt` checkpoint file (local Mac path or remote path on huh.desktop.us)
 
-## Runner command
+## Optional inputs
 
-Use:
+- `--layout`: PlotJuggler layout XML (local Mac path or remote path; default: `r01_plus_amp_plotjuggler_limit_inspect.xml`). Local files are auto-copied to the remote.
+- `--total_steps`: total play steps (default: `100000000`)
+- `--skip-health`: skip the container healthcheck if the container is known to be running
+- `--pull`: pull latest changes on the remote motion_rl repo before launching (skips interactive prompt)
+- `--no-pull`: skip the pull step (skips interactive prompt)
+- Without `--pull` or `--no-pull`, the script prompts the user interactively
 
-```bash
-bash ~/.cursor/scripts/play_motion_rl.sh <command> [args...]
-```
+## Execution
 
-## `play.py` policy
-
-For `humanoid-gym/humanoid/scripts/play.py` only:
-- auto-add defaults if absent:
-  - `DISPLAY=:1`
-  - `--resume`
-  - `--total_steps 100000000`
-- require:
-  - `--task <value>`
-  - `--load_run <value>`
-
-If required `play.py` args are missing, command exits with a clear error.
-
-## Examples
+1. Run the orchestrator script (background it since play.py is long-running):
 
 ```bash
-bash ~/.cursor/scripts/play_motion_rl.sh pwd
-bash ~/.cursor/scripts/play_motion_rl.sh python -V
-bash ~/.cursor/scripts/play_motion_rl.sh ls -la
-bash ~/.cursor/scripts/play_motion_rl.sh python humanoid-gym/humanoid/scripts/play.py --task r01_v12_sa_amp_with_4dof_arms_and_head_full_scenes --load_run huh_onboard
+bash ~/.cursor/scripts/play_motion_rl.sh \
+  --task <task> \
+  --checkpoint <path> \
+  [--layout <xml>] \
+  [--total_steps <n>] \
+  [--skip-health] \
+  [--pull | --no-pull]
 ```
+
+2. Monitor the output. The script runs these steps sequentially:
+   - Container healthcheck (restart + sshd + GPU + display)
+   - Interactive pull prompt (unless `--pull` or `--no-pull`)
+   - Checkpoint resolution (local -> SCP, remote -> validate)
+   - Layout resolution (local -> SCP, remote -> validate, or use default)
+   - PlotJuggler launch (--nosplash, no --publish)
+   - play.py launch in isaacgym container
+
+3. Report pass/fail for each step.
+
+4. On success, remind the user:
+   - In PlotJuggler: **Streaming -> Start: UDP Server**, port **9870**, protocol **JSON**
+   - Plots may need manual signal drag if layout signal names don't match the current UDP schema
 
 ## Failure hints
 
-- If SSH route fails, run:
-  - `bash ~/.cursor/skills/isaacgym-ssh-recovery/scripts/recover-isaacgym-ssh.sh`
-- If Docker route fails on host, verify `isaacgym` container is running.
+- Container healthcheck failure: run `/restart-isaacgym` separately to debug
+- PlotJuggler crash: check `/tmp/plotjuggler.log` on huh.desktop.us
+- play.py crash: check terminal output for Python traceback
+- SSH connection refused: container sshd may not be up; the healthcheck should handle this
