@@ -1,0 +1,46 @@
+---
+description: Enforce angle-bracketed type-tag prefix on all commit messages.
+alwaysApply: true
+---
+
+# Commit Message Format
+
+## Format
+
+`<type> Imperative summary` — first line under ~72 chars.
+
+Optional body: blank line, then details if the commit warrants explanation.
+
+## Workflow
+
+1. Run `git diff --staged` (or `git status` if nothing staged) to infer changes.
+2. Pick the single best-matching tag from the table below.
+3. Write the message in imperative mood ("Add" not "Added", "Fix" not "Fixed").
+
+## Tags
+
+| Tag | Use when |
+| --- | --- |
+| `feature` | New behavior, capability, or user-facing functionality |
+| `bug-fix` | Correcting incorrect behavior or regressions |
+| `docs` | Documentation-only changes |
+| `refactor` | Code restructure without behavior change |
+| `test` | Adding or improving tests |
+| `chore` | Maintenance (tooling, configs, housekeeping) |
+
+## Examples
+
+- `<feature> Add configurable reward shaping for jump landing`
+- `<bug-fix> Correct foot contact detection on uneven terrain`
+- `<docs> Document training flags for full-state observations`
+- `<refactor> Simplify action clipping logic in legged robot`
+- `<test> Add regression test for observation normalization`
+- `<chore> Update pre-commit hooks for lint consistency`
+
+## Validation
+
+Before finalizing, verify:
+- Message starts with `<type> `.
+- `type` is one of: `feature`, `bug-fix`, `docs`, `refactor`, `test`, `chore`.
+- No colon after the tag (`<type> Message`, not `<type>: Message`).
+- Summary is clear and specific to the change intent.

@@ -25,7 +25,7 @@ Use this as the canonical execution contract for `/sweep-fuyao`.
 
 - `patch_file_rel` (default: `humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py`)
 - `experiment` (default: `huh8/r01`)
-- `ssh_alias` (default: `remote.kernel.fuyo`)
+- `ssh_alias` (default: `Huh8.remote_kernel.fuyao`)
 - `queue` (default: `rc-wbc-4090`)
 - `project` (default: `rc-wbc`)
 - `site` (default: `fuyao_sh_n2`)
@@ -82,21 +82,24 @@ Prompt order when multiple required inputs are missing:
 
 ## Deterministic Workflow
 
-1. Resolve `branch`, `task`, and `hp_specs` through the prompt contract above.
-2. Resolve optional overrides only when explicitly requested.
-3. Validate resolved task through `humanoid-gym/humanoid/envs/__init__.py` using exact/case-insensitive/substring matching.
-4. Build payload at `~/.cursor/tmp/sweep_payloads/<timestamp>.json`.
-5. Build and show sweep preview (combo count, combo list, resource estimate).
-6. Ask for explicit confirmation. Do not dispatch on cancel/unclear confirmation.
-7. On confirmation, set payload field `confirm_dispatch: true`.
-8. Execute:
+1. Pre-flight: verify SSH alias exists:
+   - Run `ssh -G <ssh_alias> >/dev/null 2>&1` (default: `Huh8.remote_kernel.fuyao`)
+   - If it fails, stop and tell the user: "SSH alias `<ssh_alias>` is not configured in `~/.ssh/config`. Add it before sweeping."
+2. Resolve `branch`, `task`, and `hp_specs` through the prompt contract above.
+3. Resolve optional overrides only when explicitly requested.
+4. Validate resolved task through `humanoid-gym/humanoid/envs/__init__.py` using exact/case-insensitive/substring matching.
+5. Build payload at `~/.cursor/tmp/sweep_payloads/<timestamp>.json`.
+6. Build and show sweep preview (combo count, combo list, resource estimate).
+7. Ask for explicit confirmation. Do not dispatch on cancel/unclear confirmation.
+8. On confirmation, set payload field `confirm_dispatch: true`.
+9. Execute:
 
 ```bash
 bash ~/.cursor/scripts/deploy_fuyao_sweep_dispatcher.sh --payload <payload_file>
 ```
 
-9. Report `run_root`.
-10. Verify training actually started (mandatory, not skippable):
+10. Report `run_root`.
+11. Verify training actually started (mandatory, not skippable):
 
 ```bash
 bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --check-artifacts --poll-interval 60 --max-attempts 15

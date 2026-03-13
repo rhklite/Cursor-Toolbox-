@@ -1,0 +1,34 @@
+---
+description: Enforce huh8/ branch prefix on checkout and branch creation.
+alwaysApply: true
+---
+
+# Checkout for huh8
+
+## Branch Naming Rule
+
+1. Canonical prefix: `huh8/`.
+2. If source branch already starts with `huh8/`, preserve it and check out normally.
+3. If source branch does not start with `huh8/`:
+   - Derive suffix: strip everything through the first `/` (or use full name if no `/`).
+   - Target: `huh8/<suffix>`.
+4. New branch from an existing `huh8/` branch: require an explicit new suffix from the user.
+
+Examples:
+- `alice/feature-x` -> `huh8/feature-x`
+- `main` -> `huh8/main`
+- `huh8/feature-x` (normal checkout) -> `huh8/feature-x` (preserved)
+- `huh8/feature-x` (new branch, suffix `hotfix-1`) -> `huh8/hotfix-1`
+
+## Checkout Workflow
+
+1. Verify repo: `git rev-parse --is-inside-work-tree`
+2. Get source: `git rev-parse --abbrev-ref HEAD`
+3. Compute target with naming rule above.
+4. If local target exists: `git checkout <target>`. Otherwise: `git checkout -b <target>`.
+5. Report: source branch, derived suffix, final target branch.
+
+## Guardrails
+
+- If in detached HEAD or suffix is empty after derivation, ask for explicit suffix.
+- If source is `huh8/` and user wants a new branch, require explicit suffix.

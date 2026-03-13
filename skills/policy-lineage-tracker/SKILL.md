@@ -22,15 +22,22 @@ If unsure whether the user intends tracker work, ask:
 
 ---
 
+## Configuration
+
+| Variable | Default |
+|---|---|
+| `TRACKER_DIR` | `/Users/HanHu/software/policy-lineage-tracker` |
+| Store root | `~/.local/share/motion-rl-tracker` |
+
+All commands below use `${TRACKER_DIR}`. Override if the tracker is installed elsewhere.
+Always pass `--store-root` if the user specifies a custom store location.
+
 ## Executables
 
 | Purpose | Command |
 |---|---|
-| CLI | `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py` |
-| Dashboard | `python3 /Users/HanHu/software/policy-lineage-tracker/dashboard_server.py` |
-
-Store root default: `~/.local/share/motion-rl-tracker`
-Always pass `--store-root` if the user specifies a custom location.
+| CLI | `python3 ${TRACKER_DIR}/tracker_cli.py` |
+| Dashboard | `python3 ${TRACKER_DIR}/dashboard_server.py` |
 
 ---
 
@@ -40,7 +47,7 @@ Always pass `--store-root` if the user specifies a custom location.
 run the graph-summary command to understand current state:
 
 ```bash
-python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py graph-summary
+python3 ${TRACKER_DIR}/tracker_cli.py graph-summary
 ```
 
 Then present a one-line status to the user:
@@ -170,7 +177,7 @@ If the user wants changes, adjust and re-display the summary.
 Run the CLI:
 
 ```bash
-python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py apply-intent --intent-json '<json>'
+python3 ${TRACKER_DIR}/tracker_cli.py apply-intent --intent-json '<json>'
 ```
 
 Read the JSON response from stdout.
@@ -181,7 +188,7 @@ Read the JSON response from stdout.
 
 2. Auto-export by running:
    ```bash
-   python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py apply-intent --intent-json '{"action":"export_all"}'
+   python3 ${TRACKER_DIR}/tracker_cli.py apply-intent --intent-json '{"action":"export_all"}'
    ```
 
 3. Read the exported mermaid file at `~/.local/share/motion-rl-tracker/exports/lineage.md`
@@ -346,7 +353,7 @@ Always propose the ID to the user and let them accept or modify.
 To launch the web dashboard:
 
 ```bash
-python3 /Users/HanHu/software/policy-lineage-tracker/dashboard_server.py
+python3 ${TRACKER_DIR}/dashboard_server.py
 ```
 
 Opens at `http://127.0.0.1:8765`. Or double-click `Launch Dashboard.command`
@@ -357,4 +364,4 @@ in the project folder.
 ## Graph model
 
 For full node/edge schema and DAG rules, see
-`/Users/HanHu/software/policy-lineage-tracker/SCHEMA.md`.
+`${TRACKER_DIR}/SCHEMA.md`.

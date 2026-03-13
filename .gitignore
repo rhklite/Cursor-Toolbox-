@@ -41,3 +41,12 @@ projects/*/*
 # User-level cursor rules
 !rules/
 !rules/**
+# Sub-agent definitions
+!agents/
+!agents/**
+# Toolbox scripts
+!scripts/
+!scripts/**
+# Gitignore itself
+!.gitignore
+# Temporary/generated files stay ignored (caught by top-level *)

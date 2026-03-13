@@ -56,27 +56,3 @@ bash ~/.cursor/skills/motion-rl-isaacgym-exec/scripts/run-in-isaacgym-motion-rl.
 bash ~/.cursor/skills/motion-rl-isaacgym-exec/scripts/run-in-isaacgym-motion-rl.sh ls -la
 bash ~/.cursor/skills/motion-rl-isaacgym-exec/scripts/run-in-isaacgym-motion-rl.sh DISPLAY=:1 python humanoid-gym/humanoid/scripts/play.py --task r01_v12_sa_amp_with_4dof_arms_and_head_full_scenes --resume --load_run huh_onboard --total_steps 100000000
 ```
-
-## If container SSH is down
-
-If `ssh isaacgym` fails, first run:
-
-```bash
-bash ~/.cursor/skills/isaacgym-ssh-recovery/scripts/recover-isaacgym-ssh.sh
-```
-
-Then retry the Motion RL command.
-
-If the user asks to restart/reboot/bring up the isaacgym container, route that request to the merged recovery skill entrypoint:
-
-```bash
-bash ~/.cursor/skills/isaacgym-ssh-recovery/scripts/recover-isaacgym-ssh.sh
-```
-
-Note: the command runner already auto-invokes:
-
-```bash
-bash ~/.cursor/skills/isaacgym-ssh-recovery/scripts/ensure-isaacgym-ssh.sh
-```
-
-before connecting, so explicit recovery is usually only needed for troubleshooting.

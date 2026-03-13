@@ -15,8 +15,8 @@ Optional:
 
 - `patch_file_rel` (default: `humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py`)
 - `experiment` (default: `huh8/r01`)
-- `ssh_alias` (default: `remote.kernel.fuyo`)
-- `queue` (default: `rc-wbc-4090-share`)
+- `ssh_alias` (default: `Huh8.remote_kernel.fuyao`)
+- `queue` (default: `rc-wbc-4090`)
 - `project` (default: `rc-wbc`)
 - `site` (default: `fuyao_sh_n2`)
 - `gpus_per_node` (default: `1`)
@@ -109,8 +109,8 @@ Use these defaults unless user explicitly overrides:
 
 - `patch_file_rel=humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py`
 - `experiment=huh8/r01`
-- `ssh_alias=remote.kernel.fuyo`
-- `queue=rc-wbc-4090-share`
+- `ssh_alias=Huh8.remote_kernel.fuyao`
+- `queue=rc-wbc-4090`
 - `project=rc-wbc`
 - `site=fuyao_sh_n2`
 - `gpus_per_node=1`

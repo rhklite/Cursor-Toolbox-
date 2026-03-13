@@ -96,9 +96,6 @@ fi
 git push -u origin "${BRANCH}"
 
 SSH_ALIAS="Huh8.remote_kernel.fuyao"
-if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${SSH_ALIAS}" "echo ok >/dev/null" >/dev/null 2>&1; then
-  SSH_ALIAS="remote.kernel.fuyo"
-fi
 ssh "${SSH_ALIAS}" "cd /root/motion_rl && \
   git fetch origin && \
   if git show-ref --verify --quiet refs/heads/\"${BRANCH}\"; then \
@@ -168,7 +165,7 @@ Use these defaults unless user explicitly overrides:
 
 Report:
 
-- execution path: `ssh->(resolved deploy alias)` where `Huh8.remote_kernel.fuyao` is preferred and `remote.kernel.fuyo` is fallback
+- execution path: `ssh->Huh8.remote_kernel.fuyao`
 - workdir used: `/root/motion_rl`
 - branch used
 - submission status (success/failure)

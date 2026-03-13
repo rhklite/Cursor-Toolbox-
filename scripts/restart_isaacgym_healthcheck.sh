@@ -19,9 +19,7 @@ ssh_ok=0
 gpu_ok=0
 display_ok=0
 
-if docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true; then
-  :
-fi
+docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 if docker start "${CONTAINER_NAME}" >/dev/null 2>&1; then
   if docker ps --format '{{.Names}}' | awk -v n="${CONTAINER_NAME}" '$1==n{ok=1} END{exit ok?0:1}'; then
     restart_ok=1

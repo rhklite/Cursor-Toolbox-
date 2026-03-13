@@ -1,0 +1,13 @@
+---
+description: Format Python code with Black when the user asks to format, blacken, or style Python files.
+alwaysApply: true
+---
+
+# Format with Black
+
+When formatting Python code:
+
+1. Run from repo root: `black .` (or `black <path>` for a subset).
+2. If `pyproject.toml` has `[tool.black]`, Black uses it automatically — do not duplicate options.
+3. Use `--check` for dry-run (CI) or `--diff` to preview changes.
+4. If Black is not installed, recommend `pip install black`.

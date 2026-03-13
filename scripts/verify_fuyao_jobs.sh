@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Verify that Fuyao training jobs from an orchestrator sweep are actually running.
+# Verify that Fuyao training jobs from a sweep are actually running.
 # Polls fuyao info/log via SSH to confirm training has started.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,7 +17,7 @@ Usage:
   verify_fuyao_jobs.sh --job-names <name1,name2,...> [options]
 
 Modes:
-  --run-root <path>          Read job info from orchestrator run directory
+  --run-root <path>          Read job info from sweep run directory
   --job-names <csv>          Directly specify comma-separated fuyao job names
 
 Options:
@@ -30,7 +30,7 @@ Options:
 EOF
 }
 
-# Extract fuyao job names from orchestrator dispatch logs.
+# Extract fuyao job names from sweep dispatch logs.
 # Looks for patterns like: bifrost-YYYYMMDDHHMMSSNN-username
 extract_job_names_from_run_root() {
     local run_root="$1"

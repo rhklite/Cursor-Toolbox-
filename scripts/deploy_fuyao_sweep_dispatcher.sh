@@ -6,7 +6,6 @@ DEPLOY_SCRIPT="${SCRIPT_DIR}/deploy_fuyao.sh"
 
 DEFAULT_ENVS_INIT_REL="humanoid-gym/humanoid/envs/__init__.py"
 DEFAULT_PATCH_FILE_REL="humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py"
-DEFAULT_SSH_ALIAS="remote.kernel.fuyo"
 DEFAULT_REMOTE_ROOT="/root/motion_rl"
 DEFAULT_REMOTE_SWEEP_ROOT="/tmp/fuyao_sweeps"
 DEFAULT_RUN_ROOT_BASE="${HOME}/.cursor/tmp/deploy_fuyao_sweep_runs"
@@ -192,7 +191,7 @@ emit("BRANCH", s("branch", ""))
 emit("LOCAL_ROOT", s("local_root", ""))
 emit("ENVS_INIT_REL", s("envs_init_rel", "humanoid-gym/humanoid/envs/__init__.py"))
 emit("PATCH_FILE_REL", s("patch_file_rel", "humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py"))
-emit("SSH_ALIAS", s("ssh_alias", "remote.kernel.fuyo"))
+emit("SSH_ALIAS", s("ssh_alias", "Huh8.remote_kernel.fuyao"))
 emit("REMOTE_ROOT", s("remote_root", "/root/motion_rl"))
 emit("REMOTE_SWEEP_ROOT", s("remote_sweep_root", "/tmp/fuyao_sweeps"))
 emit("RUN_ROOT_BASE", s("run_root_base", f"{__import__('os').path.expanduser('~')}/.cursor/tmp/deploy_fuyao_sweep_runs"))
@@ -452,7 +451,6 @@ run_label_alias_regression() {
     )
     local -a combos=()
     local -a suffix_seen_keys=()
-    local -a suffix_seen_values=()
     local combo suffix
     local index_seen
 
@@ -489,7 +487,6 @@ run_label_alias_regression() {
             return 1
         fi
         suffix_seen_keys+=("$suffix")
-        suffix_seen_values+=("$combo")
         echo "  ${combo} -> ${suffix}"
     done
 
@@ -1170,10 +1167,9 @@ FETCH_DEPS
     local -a combo_names=()
     local -a combo_labels=()
     local -a running_pids=()
-    local -a running_names=()
     local -a used_label_suffixes_keys=()
     local -a used_label_suffixes_counts=()
-    local idx combo_name combo_label combo_suffix combo_dir dispatch_log status_path combo_payload artifact_dir payload_dir
+    local idx combo_name combo_label combo_suffix combo_dir dispatch_log status_path combo_payload artifact_dir
     local start_idx=0
     local match_idx
 
@@ -1227,7 +1223,6 @@ EOF
         run_combo "$combo_name" "$combo_suffix" "$combo_label" "$combo_dir" "$dispatch_log" "$status_path" "$combo_payload" "$artifact_dir" >> "$dispatch_log" 2>&1 &
         local combo_pid=$!
         running_pids+=("$combo_pid")
-        running_names+=("$combo_name")
     done
 
     for pid in "${running_pids[@]}"; do

@@ -7,7 +7,7 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # Defaults
 # -----------------------------------------------------------------------------
-SSH_ALIAS_DEFAULT="remote.kernel.fuyo"
+SSH_ALIAS_DEFAULT="Huh8.remote_kernel.fuyao"
 REMOTE_ROOT_DEFAULT="/root/motion_rl"
 
 DOCKER_IMAGE_DEFAULT="infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:isaacgym-250516-0347"
@@ -114,7 +114,7 @@ derive_label_from_branch() {
 # -----------------------------------------------------------------------------
 # Runtime values (CLI-overridable)
 # -----------------------------------------------------------------------------
-SSH_ALIAS="$SSH_ALIAS_DEFAULT"       # default: Huh8.remote_kernel.fuyao
+SSH_ALIAS="$SSH_ALIAS_DEFAULT"
 REMOTE_ROOT="$REMOTE_ROOT_DEFAULT"   # default: /root/motion_rl
 LOCAL_ROOT=""                        # default: auto-detected from workspace
 BRANCH=""                            # default: current local branch

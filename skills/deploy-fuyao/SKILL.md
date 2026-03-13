@@ -47,20 +47,20 @@ This skill should be treated as mandatory instruction; only fallback is manual m
    - if uncommitted changes exist in training code, **stop and warn the user**. Do NOT proceed with deploy until the user commits or discards them. Deploying with uncommitted changes means the remote will not match the local working directory.
    - set upstream `origin/<branch>` if needed
    - `git push` that branch to origin
-6. Ensure remote kernel SSH target:
-   - Prefer `Huh8.remote_kernel.fuyao`, fallback to `remote.kernel.fuyo`
+6. Pre-flight: verify SSH alias exists:
+   - Run `ssh -G Huh8.remote_kernel.fuyao >/dev/null 2>&1`
+   - If it fails, stop and tell the user: "SSH alias `Huh8.remote_kernel.fuyao` is not configured in `~/.ssh/config`. Add it before deploying."
+7. Ensure remote kernel SSH target:
+   - Use `Huh8.remote_kernel.fuyao`
    - `cd /root/motion_rl`
    - `git fetch origin`
    - checkout `<branch>` or create from `origin/<branch>`
    - `git reset --hard origin/<branch>`
-7. Ask for explicit confirmation to submit before running SSH deploy command.
-8. Execute exactly:
+8. Ask for explicit confirmation to submit before running SSH deploy command.
+9. Execute exactly:
 
 ```bash
 SSH_ALIAS="Huh8.remote_kernel.fuyao"
-if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${SSH_ALIAS}" "echo ok" >/dev/null 2>&1; then
-  SSH_ALIAS="remote.kernel.fuyo"
-fi
 ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
 
@@ -155,9 +155,6 @@ Use this exact command only if you cannot invoke the skill contract:
 
 ```bash
 SSH_ALIAS="Huh8.remote_kernel.fuyao"
-if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${SSH_ALIAS}" "echo ok" >/dev/null 2>&1; then
-  SSH_ALIAS="remote.kernel.fuyo"
-fi
 ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
 

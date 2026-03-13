@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STATE_DIR_DEFAULT="${HOME}/.cursor/scripts/.sync_toolbox_state"
+STATE_DIR_DEFAULT="${HOME}/.cursor/tmp/sync_toolbox_state"
 CONFLICTS_DEFAULT="${STATE_DIR_DEFAULT}/latest_conflicts.json"
 RESOLUTIONS_DEFAULT="${STATE_DIR_DEFAULT}/latest_resolutions.json"
 DIFF_HELPER="${HOME}/.cursor/scripts/sync_toolbox_diff_summary.py"
-BACKUP_ROOT_LOCAL="${HOME}/.cursor/.sync_toolbox_backups"
+BACKUP_ROOT_LOCAL="${HOME}/.cursor/tmp/sync_toolbox_backups"
 
-TARGET_ALIASES=("huh.desktop.us" "isaacgym" "remote.kernel.fuyo")
+TARGET_ALIASES=("huh.desktop.us" "isaacgym" "Huh8.remote_kernel.fuyao")
 CATEGORIES=("rules" "commands" "skills" "agents" "scripts")
 TOOLBOX_REPO_DIR="${HOME}/.cursor"
 TOOLBOX_GIT_REMOTE="origin"
@@ -200,10 +200,6 @@ script_suffixes = (".sh", ".bash")
 def include_entry(category: str, relpath: str) -> bool:
     if category != "scripts":
         return True
-    if relpath.startswith(".sync_toolbox_state/"):
-        return False
-    if relpath.startswith(".sync_toolbox_backups/"):
-        return False
     return relpath.endswith(script_suffixes)
 
 entries = []
@@ -267,10 +263,6 @@ script_suffixes = ('.sh', '.bash')
 def include_entry(category: str, relpath: str) -> bool:
     if category != 'scripts':
         return True
-    if relpath.startswith('.sync_toolbox_state/'):
-        return False
-    if relpath.startswith('.sync_toolbox_backups/'):
-        return False
     return relpath.endswith(script_suffixes)
 entries = []
 for category in categories:
@@ -326,7 +318,7 @@ import sys
 
 manifests_dir = pathlib.Path(sys.argv[1]).expanduser()
 out_file = pathlib.Path(sys.argv[2]).expanduser()
-ordered_sources = ["local", "huh.desktop.us", "isaacgym", "remote.kernel.fuyo"]
+ordered_sources = ["local", "huh.desktop.us", "isaacgym", "Huh8.remote_kernel.fuyao"]
 
 source_payloads = {}
 for mf in sorted(manifests_dir.glob("manifest_*.json")):
@@ -498,7 +490,7 @@ backup_destination_if_exists() {
   fi
 
   ssh -n -o BatchMode=yes "${destination}" \
-    "dst=\"\$HOME/.cursor/${category}/${relpath}\"; bak=\"\$HOME/.cursor/.sync_toolbox_backups/${stamp}/${destination}/${category}/${relpath}\"; if [ -f \"\$dst\" ]; then mkdir -p \"\$(dirname \"\$bak\")\" && cp \"\$dst\" \"\$bak\"; fi; true" >/dev/null
+    "dst=\"\$HOME/.cursor/${category}/${relpath}\"; bak=\"\$HOME/.cursor/tmp/sync_toolbox_backups/${stamp}/${destination}/${category}/${relpath}\"; if [ -f \"\$dst\" ]; then mkdir -p \"\$(dirname \"\$bak\")\" && cp \"\$dst\" \"\$bak\"; fi; true" >/dev/null
 }
 
 copy_file_between_sources() {

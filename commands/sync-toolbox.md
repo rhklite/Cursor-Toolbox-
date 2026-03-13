@@ -4,7 +4,7 @@ Synchronize Cursor toolbox assets (`rules`, `commands`, `skills`, `agents` for s
 - local machine
 - `huh.desktop.us`
 - `isaacgym`
-- `remote.kernel.fuyo`
+- `Huh8.remote_kernel.fuyao`
 
 Use `~/.ssh/config` aliases as the source of host definitions.
 
@@ -17,7 +17,7 @@ Use `~/.ssh/config` aliases as the source of host definitions.
 ## Agent workflow
 
 1. Run:
-   - `bash ~/.cursor/scripts/sync_toolbox.sh discover --json-out ~/.cursor/scripts/.sync_toolbox_state/latest_conflicts.json`
+   - `bash ~/.cursor/scripts/sync_toolbox.sh discover --json-out ~/.cursor/tmp/sync_toolbox_state/latest_conflicts.json`
 2. Read the generated conflict report.
 3. For each conflict:
    - Show per-source short differences.
