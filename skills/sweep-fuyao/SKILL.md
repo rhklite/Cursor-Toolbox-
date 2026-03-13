@@ -96,11 +96,15 @@ bash ~/.cursor/scripts/deploy_fuyao_sweep_dispatcher.sh --payload <payload_file>
 ```
 
 9. Report `run_root`.
-10. Run one of:
+10. Verify training actually started (mandatory, not skippable):
 
 ```bash
-bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --once
+bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --check-artifacts --poll-interval 60 --max-attempts 15
 ```
+
+The skill must NOT report sweep success unless at least `TRAINING` verdict is reached for all jobs.
+If any job stays in `SETUP`/`PENDING`/`WAITING` after polling completes, report a warning with
+`fuyao log` commands for each unconfirmed job.
 
 ## Experiment Tracker Integration (Post-Sweep)
 
@@ -192,7 +196,7 @@ Field notes:
 - **tracker:** `task_id`, per-combo `mutation_id`s (if tracker recording succeeded), or "tracker recording skipped/failed"
 - next checks:
   - `fuyao log <job_name>`
-  - `bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --poll-interval 30 --max-attempts 10`
+  - `bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --check-artifacts --poll-interval 60 --max-attempts 15`
 - if tracker succeeded: "To update all combo statuses when sweep completes: `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py update-sweep-status --sweep-id <sweep_id> --status completed`"
 - if tracker succeeded: "To update a single combo: `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py set-status --node-id <mutation_id> --status completed`"
 

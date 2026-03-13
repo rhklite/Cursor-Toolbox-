@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-DEFAULT_SSH_ALIAS="remote.kernel.fuyo"
+DEFAULT_SSH_ALIAS="Huh8.remote_kernel.fuyao"
 DEFAULT_POLL_INTERVAL=30
 DEFAULT_MAX_ATTEMPTS=20
 
@@ -25,6 +25,7 @@ Options:
   --poll-interval <seconds>  Seconds between polls (default: 30)
   --max-attempts <n>         Max poll attempts per job (default: 20)
   --once                     Check once without polling (no retries)
+  --check-artifacts          Also check OSS for model checkpoint artifacts
   -h, --help                 Show this help
 EOF
 }
@@ -108,19 +109,24 @@ check_training_started() {
     fi
 
     python3 -c "
-import sys
+import re, sys
 log_text = sys.argv[1]
 
 training_markers = [
     'num_learning_iterations', 'Mean reward', 'mean_reward',
     'AverageReturn', 'ep_rew_mean', 'reward_mean', 'Episode reward',
     'value_loss', 'policy_loss', 'surrogate_loss',
-    'ppo_runner.learn', 'Starting training',
+    'Uploaded file to RTD',
+]
+training_patterns = [
+    r'model_\d+\.pt',
+    r'Learning iteration \d+',
 ]
 setup_markers = [
     'auto register tasks', 'tasks registered',
     'Loading extension module gymtorch', 'pip install',
     'Loading AMP', 'Loading motion',
+    'ppo_runner.learn', 'Starting training',
 ]
 failed_markers = [
     'Traceback', 'RuntimeError', 'CUDA out of memory', 'OOM',
@@ -128,7 +134,7 @@ failed_markers = [
     'ImportError', 'FileNotFoundError',
 ]
 
-has_training = any(m in log_text for m in training_markers)
+has_training = any(m in log_text for m in training_markers) or any(re.search(p, log_text) for p in training_patterns)
 has_setup = any(m in log_text for m in setup_markers)
 has_failure = any(m in log_text for m in failed_markers)
 
@@ -143,6 +149,45 @@ else:
 " "$log_output"
 }
 
+# Check OSS artifacts for model checkpoint files.
+# Extracts username from job_name, constructs the OSS URL, and curls it
+# from the remote kernel SSH machine. Falls back to log-based detection.
+check_artifacts() {
+    local ssh_alias="$1"
+    local job_name="$2"
+
+    python3 - "$job_name" "$ssh_alias" <<'PYART'
+import re, subprocess, sys
+
+job_name = sys.argv[1]
+ssh_alias = sys.argv[2]
+
+m = re.search(r'^[^-]+-[^-]+-(.+)$', job_name)
+if not m:
+    print('artifacts_check_failed')
+    sys.exit(0)
+
+user = m.group(1)
+oss_url = f'https://xrobot.xiaopeng.link/resource/xrobot-log/user-upload/fuyao/{user}/{job_name}/'
+
+try:
+    result = subprocess.run(
+        ['ssh', ssh_alias, f'curl -sf --max-time 10 "{oss_url}"'],
+        capture_output=True, text=True, timeout=30,
+    )
+    if result.returncode != 0:
+        print('artifacts_check_failed')
+        sys.exit(0)
+    response = result.stdout
+    if re.search(r'model_\d+\.pt', response):
+        print('artifacts_found')
+    else:
+        print('no_artifacts')
+except Exception:
+    print('artifacts_check_failed')
+PYART
+}
+
 main() {
     local run_root=""
     local job_names_csv=""
@@ -150,6 +195,7 @@ main() {
     local poll_interval="$DEFAULT_POLL_INTERVAL"
     local max_attempts="$DEFAULT_MAX_ATTEMPTS"
     local once=false
+    local check_artifacts_flag=false
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -159,6 +205,7 @@ main() {
             --poll-interval) poll_interval="$2"; shift 2 ;;
             --max-attempts) max_attempts="$2"; shift 2 ;;
             --once) once=true; shift ;;
+            --check-artifacts) check_artifacts_flag=true; shift ;;
             -h|--help) usage; exit 0 ;;
             *) echo "Unknown option: $1" >&2; usage; exit 2 ;;
         esac
@@ -218,9 +265,11 @@ main() {
     # Poll loop
     local -a final_status=()
     local -a final_training=()
+    local -a final_artifacts=()
     for i in "${!job_names[@]}"; do
         final_status+=("unknown")
         final_training+=("unknown")
+        final_artifacts+=("unchecked")
     done
 
     local all_resolved=false
@@ -250,12 +299,22 @@ main() {
             final_status[$i]="$status"
 
             local training="n/a"
+            local artifacts="n/a"
             if [ "$status" = "running" ] || [ "$status" = "succeeded" ]; then
                 training="$(check_training_started "$ssh_alias" "$job")"
                 final_training[$i]="$training"
+
+                if [ "$check_artifacts_flag" = "true" ] && [ "$training" = "training_confirmed" ]; then
+                    artifacts="$(check_artifacts "$ssh_alias" "$job")"
+                    final_artifacts[$i]="$artifacts"
+                fi
             fi
 
-            printf "  %-20s %-40s status=%-12s training=%s\n" "$label" "$job" "$status" "$training"
+            if [ "$check_artifacts_flag" = "true" ]; then
+                printf "  %-20s %-40s status=%-12s training=%-20s artifacts=%s\n" "$label" "$job" "$status" "$training" "$artifacts"
+            else
+                printf "  %-20s %-40s status=%-12s training=%s\n" "$label" "$job" "$status" "$training"
+            fi
 
             if [ "$status" = "failed" ] || [ "$status" = "not_found" ] || [ "$status" = "cancelled" ]; then
                 final_training[$i]="$status"
@@ -274,15 +333,20 @@ main() {
 
     echo
     echo "=== Verification Summary ==="
-    local confirmed=0 setup=0 pending=0 failed=0 other=0
+    local confirmed=0 confirmed_with_artifacts=0 setup=0 pending=0 failed=0 other=0
     for i in "${!job_names[@]}"; do
         local label="${combo_labels[$i]}"
         local job="${job_names[$i]}"
         local st="${final_status[$i]}"
         local tr="${final_training[$i]}"
+        local ar="${final_artifacts[$i]}"
         local verdict="UNKNOWN"
 
-        if [ "$tr" = "training_confirmed" ]; then
+        if [ "$tr" = "training_confirmed" ] && [ "$ar" = "artifacts_found" ]; then
+            verdict="TRAINING_WITH_ARTIFACTS"
+            confirmed_with_artifacts=$((confirmed_with_artifacts + 1))
+            confirmed=$((confirmed + 1))
+        elif [ "$tr" = "training_confirmed" ]; then
             verdict="TRAINING"
             confirmed=$((confirmed + 1))
         elif [ "$tr" = "setup_in_progress" ]; then
@@ -306,13 +370,16 @@ main() {
 
         if [ -n "$verify_dir" ]; then
             cat > "${verify_dir}/${label}.json" <<VJSON
-{"combo": "${label}", "job_name": "${job}", "job_status": "${st}", "training_status": "${tr}", "verdict": "${verdict}"}
+{"combo": "${label}", "job_name": "${job}", "job_status": "${st}", "training_status": "${tr}", "artifact_status": "${ar}", "verdict": "${verdict}"}
 VJSON
         fi
     done
 
     echo
     echo "Training confirmed: ${confirmed}"
+    if [ "$check_artifacts_flag" = "true" ]; then
+        echo "  with artifacts:   ${confirmed_with_artifacts}"
+    fi
     echo "Setup in progress:  ${setup}"
     echo "Pending/queued:     ${pending}"
     echo "Failed/gone:        ${failed}"

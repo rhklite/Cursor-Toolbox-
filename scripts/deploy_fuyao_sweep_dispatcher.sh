@@ -236,6 +236,8 @@ class_map = data.get("hp_class_map", {})
 if class_map is None:
     class_map = {}
 emit("HP_CLASS_MAP_B64", base64.b64encode(json.dumps(class_map, sort_keys=True).encode("utf-8")).decode("ascii"))
+emit("RESUME", s("resume", "false"))
+emit("CHECKPOINT_PATH", s("checkpoint_path", ""))
 emit("CONFIRM_DISPATCH", s("confirm_dispatch", "false"))
 PY
     )"
@@ -587,6 +589,10 @@ fi
 
 git worktree add --force "$COMBO_DIR" "origin/${BRANCH}" >/dev/null
 
+if [ -d /tmp/fuyao_deps ]; then
+    cp -r /tmp/fuyao_deps/* "$COMBO_DIR/" 2>/dev/null || true
+fi
+
 PATCH_TARGET="${COMBO_DIR}/${PATCH_FILE_REL}"
 if [ ! -f "$PATCH_TARGET" ]; then
     echo "Error: patch target not found: ${PATCH_TARGET}" >&2
@@ -808,11 +814,21 @@ EOF
         return "$rc"
     fi
 
+    if [ "$RESUME" = "true" ] && [ -n "$CHECKPOINT_REMOTE_FULL" ]; then
+        if ! ssh "$SSH_ALIAS" "cp '${CHECKPOINT_REMOTE_FULL}' '${combo_dir}/'" >>"$dispatch_log" 2>&1; then
+            rc=$?
+            reason="checkpoint_copy_failed"
+            write_status "$status_path" "failed" "$reason" "$combo_name" "$combo_label" "$job_name" "$combo_dir"
+            return "$rc"
+        fi
+    fi
+
     local -a deploy_cmd=(
         "$DEPLOY_SCRIPT"
         --skip-git-sync true
         --ssh-alias "$SSH_ALIAS"
         --remote-root "$combo_dir"
+        --remote-kernel false
         --task "$TASK"
         --label "$combo_label"
         --experiment "$EXPERIMENT"
@@ -826,6 +842,9 @@ EOF
         --rl-device "$RL_DEVICE"
         --auto-yes true
     )
+    if [ "$RESUME" = "true" ]; then
+        deploy_cmd+=(--resume true --checkpoint-path "$CHECKPOINT_BASENAME")
+    fi
     if [ "$DRY_RUN" = "true" ]; then
         deploy_cmd+=(--dry-run)
     fi
@@ -981,6 +1000,27 @@ case "$DRY_RUN" in
             ;;
     esac
 
+    case "$RESUME" in
+        true)
+            RESUME="true"
+            if [ -z "$CHECKPOINT_PATH" ]; then
+                echo "Error: checkpoint_path is required when resume=true." >&2
+                exit 1
+            fi
+            if [ "$DRY_RUN" != "true" ] && [ ! -f "$CHECKPOINT_PATH" ]; then
+                echo "Error: checkpoint file not found: $CHECKPOINT_PATH" >&2
+                exit 1
+            fi
+            ;;
+        false|"")
+            RESUME="false"
+            ;;
+        *)
+            echo "Error: resume must be a boolean true/false." >&2
+            exit 1
+            ;;
+    esac
+
     if ! [[ "$MAX_PARALLEL" =~ ^[1-9][0-9]*$ ]]; then
         echo "Error: max_parallel must be a positive integer." >&2
         exit 1
@@ -1070,6 +1110,13 @@ case "$DRY_RUN" in
     ARTIFACTS_DIR="${RUN_ROOT}/artifacts"
     mkdir -p "$PAYLOADS_DIR" "$LOGS_DIR" "$STATUS_DIR" "$ARTIFACTS_DIR"
 
+    local manifest_resume_block=""
+    if [ "$RESUME" = "true" ]; then
+        manifest_resume_block="\"resume\": true, \"checkpoint_path\": \"${CHECKPOINT_PATH}\","
+    else
+        manifest_resume_block="\"resume\": false,"
+    fi
+
     write_json_file "${RUN_ROOT}/run_manifest.json" "{
   \"sweep_id\": \"${sweep_id}\",
   \"task\": \"${TASK}\",
@@ -1079,9 +1126,46 @@ case "$DRY_RUN" in
   \"label_alias_map_version\": \"${HP_ALIAS_MAP_VERSION}\",
   \"total_combos\": ${#combos[@]},
   \"max_parallel\": ${MAX_PARALLEL},
+  ${manifest_resume_block}
   \"dry_run\": ${DRY_RUN},
   \"continue_on_error\": ${CONTINUE_ON_ERROR}
 }"
+
+    if [ "$DRY_RUN" != "true" ]; then
+        echo "Fetching repo dependencies on remote kernel..."
+        if ssh "$SSH_ALIAS" "bash -s" -- "$REMOTE_ROOT" <<'FETCH_DEPS'
+set -euo pipefail
+cd "$1"
+rm -rf /tmp/fuyao_deps
+mkdir -p /tmp/fuyao_deps
+if [ -f scripts/update_repo_deps.sh ]; then
+    bash scripts/update_repo_deps.sh --prefix /tmp/fuyao_deps
+else
+    echo "No update_repo_deps.sh found; skipping dependency fetch."
+fi
+FETCH_DEPS
+        then
+            echo "Dependencies fetched."
+        else
+            echo "Warning: dependency fetch failed (exit $?). Proceeding with existing repo resources."
+        fi
+    fi
+
+    CHECKPOINT_BASENAME=""
+    CHECKPOINT_REMOTE_FULL=""
+    if [ "$RESUME" = "true" ]; then
+        CHECKPOINT_BASENAME="$(basename "$CHECKPOINT_PATH")"
+        local ckpt_remote_dir="/tmp/fuyao_sweep_checkpoints/${sweep_id}"
+        CHECKPOINT_REMOTE_FULL="${ckpt_remote_dir}/${CHECKPOINT_BASENAME}"
+        if [ "$DRY_RUN" != "true" ]; then
+            echo "Uploading checkpoint to remote: ${CHECKPOINT_REMOTE_FULL}"
+            ssh "$SSH_ALIAS" "mkdir -p '${ckpt_remote_dir}'"
+            scp "$CHECKPOINT_PATH" "${SSH_ALIAS}:${CHECKPOINT_REMOTE_FULL}"
+            echo "Checkpoint uploaded."
+        else
+            echo "DRY_RUN: would upload checkpoint to ${CHECKPOINT_REMOTE_FULL}"
+        fi
+    fi
 
     local -a combo_names=()
     local -a combo_labels=()

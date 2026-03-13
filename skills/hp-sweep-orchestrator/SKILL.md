@@ -114,19 +114,17 @@ Capture the output. Extract the `Run root:` line and share with user.
 
 ## Step 5: Verify Training
 
-After dispatch completes, verify jobs are training:
+After dispatch completes, verify jobs are actually training (mandatory, not skippable):
 
 ```bash
-bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --once
+bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --check-artifacts --poll-interval 60 --max-attempts 15
 ```
 
-If some jobs are still pending or in setup:
+Do NOT report sweep success unless at least `TRAINING` verdict is reached for all jobs.
+If any job stays in `SETUP`/`PENDING`/`WAITING` after polling completes, report a warning with
+`fuyao log` commands for each unconfirmed job.
 
-```bash
-bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --poll-interval 30 --max-attempts 10
-```
-
-Report to user which jobs are confirmed training, which are pending, and which failed.
+Report to user which jobs are confirmed training (with or without artifacts), which are pending, and which failed.
 
 ## Step 6: Cancel notes
 
