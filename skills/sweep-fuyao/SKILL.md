@@ -33,7 +33,7 @@ Use this as the canonical execution contract for `/sweep-fuyao`.
 - `gpu_type` (reserved; not currently passed to fuyao deploy)
 - `priority` (default: `normal`)
 - `max_parallel` (default: `4`)
-- `label_prefix` (default: `sweep`)
+- `label_prefix` (default: `auto` — auto-derived from task name, user-confirmed via prompt contract below)
 - `continue_on_error` (default: `true`)
 - `dry_run` (default: `false`)
 - `hp_class_map` (default: empty)
@@ -53,6 +53,7 @@ Prompt order when multiple required inputs are missing:
 1. `branch`
 2. `task`
 3. `hp_specs`
+4. `label_prefix`
 
 ### `branch` prompt contract
 
@@ -79,6 +80,16 @@ Prompt order when multiple required inputs are missing:
 - On custom, ask one follow-up free-form question for `param=value1,value2`.
 - Reject malformed specs and re-prompt that step.
 - Continue prompting until at least one valid spec is confirmed and user chooses to stop adding more.
+
+### `label_prefix` prompt contract
+
+- After `task` is resolved, auto-derive a suggested label by: splitting the task name on `_`, dropping noise words (`with`, `and`, `full`, `scenes`, `the`, `for`, `plus`, `a`, `an`), joining the first 5 remaining segments with `-`, and truncating to 24 characters.
+  Example: `r01_v12_sa_amp_with_4dof_arms_and_head_full_scenes` produces `r01-v12-sa-amp-4dof`.
+- Present a single-select prompt with:
+  1. The auto-derived label as the first option.
+  2. `Enter custom label`.
+- If custom is chosen, ask one follow-up free-form question and require a non-empty value.
+- If the user already provided `label_prefix` explicitly in the invocation, skip this prompt.
 
 ## Deterministic Workflow
 
@@ -144,7 +155,7 @@ Run this step **after a successful sweep dispatch** (Step 8 completed without er
       "combo_name": "combo_0001",
       "job_name": "bifrost-...",
       "delta": {"train.learning_rate": 0.001},
-      "combo_label": "sweep-0001-lr_1e3",
+      "combo_label": "r01-v12-sa-amp-4dof-0001-lr_1e3",
       "command": "<training command for this combo>",
       "dispatched": true
     },
@@ -152,7 +163,7 @@ Run this step **after a successful sweep dispatch** (Step 8 completed without er
       "combo_name": "combo_0002",
       "job_name": "",
       "delta": {"train.learning_rate": 0.003},
-      "combo_label": "sweep-0002-lr_3e3",
+      "combo_label": "r01-v12-sa-amp-4dof-0002-lr_3e3",
       "command": "",
       "dispatched": false
     }
@@ -191,12 +202,28 @@ Field notes:
 - If the CLI script is missing or Python is unavailable, skip and warn.
 - Never retry automatically — the user can re-record manually via the policy-lineage-tracker skill.
 
+## Job Registry Integration (Post-Sweep)
+
+After a successful sweep dispatch, register all successfully dispatched combos in the local job registry. For each combo with a valid `job_name`:
+
+```bash
+python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add <job_name> \
+  --sweep-id "<sweep_id>" \
+  --label "<combo_label>" \
+  --task "<task>" \
+  --queue "<queue>" \
+  --gpus "<gpus_per_node>"
+```
+
+This step is non-blocking. If it fails for any combo, warn and continue. Do NOT skip the Post-Submit Report.
+
 ## Post-Submit Report
 
 - selected/derived payload fields
 - `run_root`
 - dispatch status
 - **tracker:** `task_id`, per-combo `mutation_id`s (if tracker recording succeeded), or "tracker recording skipped/failed"
+- **registry:** N jobs registered / skipped / failed
 - next checks:
   - `fuyao log <job_name>`
   - `bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --check-artifacts --poll-interval 60 --max-attempts 15`

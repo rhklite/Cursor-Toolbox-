@@ -137,6 +137,21 @@ If `job_name` is non-empty and a mutation with the same `job_name` already exist
 - If the script is missing or Python is unavailable, skip and warn.
 - Never retry the tracker call automatically — the user can re-record manually via the policy-lineage-tracker skill.
 
+## Job Registry Integration (Post-Deploy)
+
+After a successful deploy, register the job in the local registry so `fuyao-job-manager` can track and protect it:
+
+```bash
+python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add <job_name> \
+  --sweep-id "" \
+  --label "<label>" \
+  --task "<task>" \
+  --queue "<queue>" \
+  --gpus "<gpus_per_node>"
+```
+
+This step is non-blocking. If it fails, warn and continue to the Post-Submit Report.
+
 ## Post-Submit Report
 
 - execution path used (`ssh->(resolved deploy alias)`)
@@ -146,6 +161,7 @@ If `job_name` is non-empty and a mutation with the same `job_name` already exist
 - returned job name/id
 - `site`, `queue`, `project`, `label`
 - **tracker:** `task_id`, `mutation_id` (if tracker recording succeeded), or "tracker recording skipped/failed"
+- **registry:** registered / skipped / failed
 - follow-up commands: `fuyao info --job-name <job_name>` and `fuyao log --job-name <job_name>`
 - if tracker succeeded: "To update status when job completes: `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py set-status --node-id <mutation_id> --status completed`"
 

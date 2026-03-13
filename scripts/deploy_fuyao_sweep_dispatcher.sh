@@ -9,7 +9,7 @@ DEFAULT_PATCH_FILE_REL="humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config
 DEFAULT_REMOTE_ROOT="/root/motion_rl"
 DEFAULT_REMOTE_SWEEP_ROOT="/tmp/fuyao_sweeps"
 DEFAULT_RUN_ROOT_BASE="${HOME}/.cursor/tmp/deploy_fuyao_sweep_runs"
-DEFAULT_LABEL_PREFIX="sweep"
+DEFAULT_LABEL_PREFIX="auto"
 DEFAULT_MAX_PARALLEL="4"
 DEFAULT_QUEUE="rc-wbc-4090"
 DEFAULT_PROJECT="rc-wbc"
@@ -397,6 +397,23 @@ hp_alias() {
         return 0
     fi
     printf "%s" "$(sanitize_alias_key "$normalized")"
+}
+
+derive_sweep_label_prefix() {
+    local task="$1"
+    python3 - "$task" <<'PY'
+import sys
+
+task = sys.argv[1]
+noise = {"with", "and", "full", "scenes", "the", "for", "plus", "a", "an"}
+parts = [p for p in task.split("_") if p.lower() not in noise and p]
+slug = "-".join(parts[:5])
+if len(slug) > 24:
+    slug = slug[:24].rstrip("-")
+if not slug:
+    slug = "sweep"
+print(slug)
+PY
 }
 
 print_label_map() {
@@ -812,9 +829,10 @@ EOF
     fi
 
     if [ "$RESUME" = "true" ] && [ -n "$CHECKPOINT_REMOTE_FULL" ]; then
-        if ! ssh "$SSH_ALIAS" "cp '${CHECKPOINT_REMOTE_FULL}' '${combo_dir}/'" >>"$dispatch_log" 2>&1; then
+        if ! ssh "$SSH_ALIAS" "cp '${CHECKPOINT_REMOTE_FULL}' '${combo_dir}/humanoid-gym/' && test -f '${combo_dir}/humanoid-gym/${CHECKPOINT_BASENAME}'" >>"$dispatch_log" 2>&1; then
             rc=$?
             reason="checkpoint_copy_failed"
+            echo "Error: checkpoint not found at ${combo_dir}/humanoid-gym/${CHECKPOINT_BASENAME} after copy" >>"$dispatch_log"
             write_status "$status_path" "failed" "$reason" "$combo_name" "$combo_label" "$job_name" "$combo_dir"
             return "$rc"
         fi
@@ -1045,6 +1063,11 @@ case "$DRY_RUN" in
 
     validate_task_registered "$envs_init_abs" "$TASK"
 
+    if [ "$LABEL_PREFIX" = "auto" ]; then
+        LABEL_PREFIX="$(derive_sweep_label_prefix "$TASK")"
+        echo "Auto-derived label prefix: ${LABEL_PREFIX}"
+    fi
+
     HP_SPECS=()
     while IFS= read -r line || [ -n "$line" ]; do
         if [ -n "$line" ]; then
@@ -1152,13 +1175,26 @@ FETCH_DEPS
     CHECKPOINT_REMOTE_FULL=""
     if [ "$RESUME" = "true" ]; then
         CHECKPOINT_BASENAME="$(basename "$CHECKPOINT_PATH")"
+        local ckpt_size
+        ckpt_size="$(stat -f%z "$CHECKPOINT_PATH" 2>/dev/null || stat -c%s "$CHECKPOINT_PATH" 2>/dev/null || echo 0)"
+        if [ "$ckpt_size" -lt 1024 ]; then
+            echo "Error: checkpoint file too small (${ckpt_size} bytes): $CHECKPOINT_PATH" >&2
+            exit 1
+        fi
+        echo "Checkpoint: ${CHECKPOINT_BASENAME} ($(( ckpt_size / 1024 / 1024 )) MB)"
+        echo "  Note: fuyao_train.sh runs from humanoid-gym/; checkpoint will be placed there."
+
         local ckpt_remote_dir="/tmp/fuyao_sweep_checkpoints/${sweep_id}"
         CHECKPOINT_REMOTE_FULL="${ckpt_remote_dir}/${CHECKPOINT_BASENAME}"
         if [ "$DRY_RUN" != "true" ]; then
             echo "Uploading checkpoint to remote: ${CHECKPOINT_REMOTE_FULL}"
             ssh "$SSH_ALIAS" "mkdir -p '${ckpt_remote_dir}'"
             scp "$CHECKPOINT_PATH" "${SSH_ALIAS}:${CHECKPOINT_REMOTE_FULL}"
-            echo "Checkpoint uploaded."
+            ssh "$SSH_ALIAS" "test -f '${CHECKPOINT_REMOTE_FULL}'" || {
+                echo "Error: checkpoint upload verification failed." >&2
+                exit 1
+            }
+            echo "Checkpoint uploaded and verified."
         else
             echo "DRY_RUN: would upload checkpoint to ${CHECKPOINT_REMOTE_FULL}"
         fi
@@ -1214,7 +1250,7 @@ EOF
                     wait "${running_pids[$i]}" || true
                 fi
             done
-            running_pids=("${next_running[@]}")
+            running_pids=(${next_running[@]+"${next_running[@]}"})
             if [ "${#running_pids[@]}" -ge "$MAX_PARALLEL" ]; then
                 sleep 1
             fi
