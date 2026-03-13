@@ -40,8 +40,7 @@ bash ~/.cursor/scripts/play_motion_rl.sh \
   [--skip-health] \
   [--pull | --no-pull] \
   [--replace | --refresh] \
-  [--interactive] \
-  [--push_vel_xy <value>]
+  [--interactive]
 ```
 
 Background the command since play.py is long-running. Monitor output and report pass/fail for each step.
@@ -67,8 +66,7 @@ Only required for fresh launch or replace (not refresh):
 - `--pull` / `--no-pull`: pull latest changes on remote repo (or skip). Without either flag, the script prompts interactively (falls through to skip when agent runs it).
 - `--replace`: kill existing play.py and launch new one (bypasses prompt)
 - `--refresh`: keep existing play.py, just refresh PlotJuggler (bypasses prompt)
-- `--interactive`: use play_interactive.py with keyboard control
-- `--push_vel_xy`: max push velocity for interactive mode (default: 1.0)
+- `--interactive`: use play_interactive.py with modal keyboard control (1=push, 2=failure, 3=velocity, P=apply, Tab=reset)
 
 ## Failure hints
 

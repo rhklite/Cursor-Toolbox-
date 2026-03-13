@@ -28,8 +28,7 @@ Options:
   --no-pull       Do not pull (skip prompt)
   --replace       Kill existing play.py and launch new one (skip prompt)
   --refresh       Keep existing play.py, just refresh PlotJuggler (skip prompt)
-  --interactive   Use play_interactive.py (keyboard velocity/push/reset + HUD)
-  --push_vel_xy   Max push velocity for interactive keyboard push (default: 1.0)
+  --interactive   Use play_interactive.py (modal disturbance controls + HUD)
   --help          Show this help
 EOF
   exit "${1:-0}"
@@ -48,7 +47,6 @@ SKIP_HEALTH=0
 PULL_REPO=""
 PROCESS_ACTION=""
 INTERACTIVE=0
-PUSH_VEL_XY="1.0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -62,7 +60,6 @@ while [[ $# -gt 0 ]]; do
     --replace)       PROCESS_ACTION="replace"; shift ;;
     --refresh)       PROCESS_ACTION="refresh"; shift ;;
     --interactive)   INTERACTIVE=1;      shift   ;;
-    --push_vel_xy)   PUSH_VEL_XY="$2";  shift 2 ;;
     --help|-h)       usage 0                     ;;
     *)               err "Unknown arg: $1"; usage 2 ;;
   esac
@@ -251,13 +248,7 @@ info "  task:       ${TASK}"
 info "  checkpoint: ${REMOTE_CKPT}"
 info "  steps:      ${TOTAL_STEPS}"
 if [[ "${INTERACTIVE}" -eq 1 ]]; then
-  info "  mode:       interactive (keyboard control)"
-  info "  push_vel:   ${PUSH_VEL_XY}"
-fi
-
-PLAY_EXTRA_ARGS=""
-if [[ "${INTERACTIVE}" -eq 1 ]]; then
-  PLAY_EXTRA_ARGS="--push_vel_xy ${PUSH_VEL_XY}"
+  info "  mode:       interactive (modal disturbance controls)"
 fi
 
 bash "${ISAACGYM_RUNNER}" \
@@ -266,8 +257,7 @@ bash "${ISAACGYM_RUNNER}" \
   --task "${TASK}" \
   --checkpoint_path "${REMOTE_CKPT}" \
   --resume \
-  --total_steps "${TOTAL_STEPS}" \
-  ${PLAY_EXTRA_ARGS} &
+  --total_steps "${TOTAL_STEPS}" &
 
 PLAY_BG_PID=$!
 
@@ -310,8 +300,7 @@ echo "    In PlotJuggler: Streaming -> Start: UDP Server"
 echo "    Port: 9870, Protocol: JSON"
 if [[ "${INTERACTIVE}" -eq 1 ]]; then
   echo ""
-  echo "  Keyboard (Isaac Gym viewer):"
-  echo "    W/S = fwd/back  A/D = left/right  Q/E = yaw"
-  echo "    0 = stop  R = reset  P = push  ESC = quit"
+  echo "  Modes: 1=push  2=failure  3=velocity"
+  echo "  P=apply disturbances  Tab=full reset  R=clear mode"
 fi
 echo "=========================================="
