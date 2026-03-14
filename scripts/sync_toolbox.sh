@@ -7,7 +7,7 @@ RESOLUTIONS_DEFAULT="${STATE_DIR_DEFAULT}/latest_resolutions.json"
 DIFF_HELPER="${HOME}/.cursor/scripts/sync_toolbox_diff_summary.py"
 BACKUP_ROOT_LOCAL="${HOME}/.cursor/tmp/sync_toolbox_backups"
 
-TARGET_ALIASES=("huh.desktop.us" "isaacgym" "Huh8.remote_kernel.fuyao")
+TARGET_ALIASES=("huh.desktop.us" "isaacgym")
 CATEGORIES=("rules" "commands" "skills" "agents" "scripts")
 TOOLBOX_REPO_DIR="${HOME}/.cursor"
 TOOLBOX_GIT_REMOTE="origin"
@@ -164,6 +164,9 @@ sync_toolbox_destination() {
 
   if [[ "${destination}" == "local" ]]; then
     sync_toolbox_repo_local "${TOOLBOX_REPO_DIR}"
+  elif is_self "${destination}"; then
+    log "Skipping self-sync: ${destination} resolves to this host ($(hostname))"
+    return 0
   else
     sync_toolbox_repo_remote "${destination}"
   fi
@@ -182,6 +185,16 @@ ensure_prereqs() {
     err "ssh is required."
     exit 1
   }
+}
+
+is_self() {
+  local alias_name="$1"
+  local resolved_host
+  resolved_host="$(ssh -G "${alias_name}" 2>/dev/null | awk '/^hostname / {print $2}')"
+  local self_host
+  self_host="$(hostname)"
+  [[ "${resolved_host}" == "${self_host}" ]] && return 0
+  return 1
 }
 
 validate_alias_exists() {
@@ -328,7 +341,7 @@ import sys
 
 manifests_dir = pathlib.Path(sys.argv[1]).expanduser()
 out_file = pathlib.Path(sys.argv[2]).expanduser()
-ordered_sources = ["local", "huh.desktop.us", "isaacgym", "Huh8.remote_kernel.fuyao"]
+ordered_sources = ["local", "huh.desktop.us", "isaacgym"]
 
 source_payloads = {}
 for mf in sorted(manifests_dir.glob("manifest_*.json")):

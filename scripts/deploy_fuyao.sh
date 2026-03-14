@@ -234,6 +234,16 @@ if [ "$RESUME" = "true" ] && [ -z "$CHECKPOINT_PATH" ]; then
     exit 1
 fi
 
+if [ "$RESUME" = "true" ] && [ -n "$CHECKPOINT_PATH" ]; then
+    CKPT_BASENAME="$(basename "$CHECKPOINT_PATH")"
+    if [ "$CHECKPOINT_PATH" != "$CKPT_BASENAME" ]; then
+        echo "Warning: --checkpoint-path contains a directory component: $CHECKPOINT_PATH" >&2
+        echo "  fuyao_train.sh runs from humanoid-gym/, so relative paths resolve from there." >&2
+        echo "  Stripping to basename: $CKPT_BASENAME" >&2
+        CHECKPOINT_PATH="$CKPT_BASENAME"
+    fi
+fi
+
 # -----------------------------------------------------------------------------
 # Step 1/3: SSH connectivity
 # -----------------------------------------------------------------------------
