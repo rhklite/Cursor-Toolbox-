@@ -110,7 +110,7 @@ sync_toolbox_repo_local() {
 sync_toolbox_repo_remote() {
   local destination="$1"
 
-  if ! ssh -o BatchMode=yes "${destination}" 'bash -s' <<'REMOTE_SYNC'
+  if ! ssh -o BatchMode=yes -o ConnectTimeout=10 "${destination}" 'bash -s' <<'REMOTE_SYNC'
 set -euo pipefail
 repo="${HOME}/.cursor"
 remote_name="origin"
@@ -277,7 +277,7 @@ PY
     return 0
   fi
 
-  if ssh -o BatchMode=yes "${alias_name}" "python3 - <<'PY'
+  if ssh -o BatchMode=yes -o ConnectTimeout=10 "${alias_name}" "python3 - <<'PY'
 import hashlib
 import json
 import pathlib
@@ -498,7 +498,7 @@ materialize_file_from_source() {
     return 0
   fi
 
-  if ssh -n -o BatchMode=yes "${source_name}" "cat \"\$HOME/.cursor/${category}/${relpath}\"" > "${out_path}" 2>/dev/null; then
+  if ssh -n -o BatchMode=yes -o ConnectTimeout=10 "${source_name}" "cat \"\$HOME/.cursor/${category}/${relpath}\"" > "${out_path}" 2>/dev/null; then
     return 0
   fi
   return 1
@@ -520,7 +520,7 @@ backup_destination_if_exists() {
     return 0
   fi
 
-  ssh -n -o BatchMode=yes "${destination}" \
+  ssh -n -o BatchMode=yes -o ConnectTimeout=10 "${destination}" \
     "dst=\"\$HOME/.cursor/${category}/${relpath}\"; bak=\"\$HOME/.cursor/tmp/sync_toolbox_backups/${stamp}/${destination}/${category}/${relpath}\"; if [ -f \"\$dst\" ]; then mkdir -p \"\$(dirname \"\$bak\")\" && cp \"\$dst\" \"\$bak\"; fi; true" >/dev/null
 }
 
@@ -563,7 +563,7 @@ copy_file_between_sources() {
     return 0
   fi
 
-  if ssh -o BatchMode=yes "${destination}" "dst=\"\$HOME/.cursor/${category}/${relpath}\"; mkdir -p \"\$(dirname \"\$dst\")\" && cat > \"\$dst\"" < "${tmp_file}"; then
+  if ssh -o BatchMode=yes -o ConnectTimeout=10 "${destination}" "dst=\"\$HOME/.cursor/${category}/${relpath}\"; mkdir -p \"\$(dirname \"\$dst\")\" && cat > \"\$dst\"" < "${tmp_file}"; then
     log "Copied ${src_desc} -> ${dst_desc}"
     rm -f "${tmp_file}"
     return 0
