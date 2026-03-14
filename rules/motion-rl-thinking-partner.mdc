@@ -1,0 +1,7 @@
+---
+description: Auto-invokes the rl-thinking-partner skill when working in the motion_rl repository.
+globs: "/home/huh/software/motion_rl/**"
+alwaysApply: false
+---
+
+When the user is working in the motion_rl repository, read and apply the rl-thinking-partner skill from ~/.cursor/skills/rl-thinking-partner/SKILL.md.
