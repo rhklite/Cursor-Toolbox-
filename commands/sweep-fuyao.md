@@ -20,7 +20,6 @@ Optional:
 - `project` (default: `rc-wbc`)
 - `site` (default: `fuyao_sh_n2`)
 - `gpus_per_node` (default: `1`)
-- `gpu_type` (default: `shared`)
 - `priority` (default: `normal`)
 - `max_parallel` (default: `4`)
 - `label_prefix` (default: `sweep`)
@@ -114,7 +113,6 @@ Use these defaults unless user explicitly overrides:
 - `project=rc-wbc`
 - `site=fuyao_sh_n2`
 - `gpus_per_node=1`
-- `gpu_type=shared`
 - `priority=normal`
 - `max_parallel=4`
 - `label_prefix=sweep`
@@ -123,7 +121,6 @@ Use these defaults unless user explicitly overrides:
 - `hp_class_map=<empty>`
 - fixed defaults:
   - `nodes=1`
-  - `gpu_slice=<empty>`
   - `local_root=<auto-detected git root>`
   - `envs_init_rel=humanoid-gym/humanoid/envs/__init__.py`
   - `remote_root=/root/motion_rl`

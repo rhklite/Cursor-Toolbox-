@@ -30,7 +30,6 @@ Use this as the canonical execution contract for `/sweep-fuyao`.
 - `project` (default: `rc-wbc`)
 - `site` (default: `fuyao_sh_n2`)
 - `gpus_per_node` (default: `1`)
-- `gpu_type` (reserved; not currently passed to fuyao deploy)
 - `priority` (default: `normal`)
 - `max_parallel` (default: `4`)
 - `label_prefix` (default: `auto` — auto-derived from task name, user-confirmed via prompt contract below)

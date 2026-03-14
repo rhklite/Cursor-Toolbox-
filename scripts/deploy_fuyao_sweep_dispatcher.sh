@@ -17,7 +17,6 @@ DEFAULT_SITE="fuyao_sh_n2"
 DEFAULT_EXPERIMENT="huh8/r01"
 DEFAULT_GPUS_PER_NODE="1"
 DEFAULT_NODES="1"
-DEFAULT_GPU_TYPE="exclusive"
 DEFAULT_PRIORITY="normal"
 DEFAULT_DOCKER_IMAGE="infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:isaacgym-250516-0347"
 DEFAULT_RL_DEVICE="cuda:0"
@@ -113,7 +112,7 @@ Payload schema (minimum):
 Optional:
   local_root, envs_init_rel, patch_file_rel, ssh_alias, remote_root, remote_sweep_root,
   run_root_base, max_parallel, label_prefix, queue, project, site, nodes,
-  gpus_per_node, gpu_type, gpu_slice, priority, docker_image, rl_device,
+  gpus_per_node, priority, docker_image, rl_device,
   dry_run, continue_on_error, confirm_dispatch, experiment, hp_class_map
 Special:
   --print-label-map        Print canonical hyperparameter alias map and exit
@@ -203,8 +202,6 @@ emit("PROJECT", s("project", "rc-wbc"))
 emit("SITE", s("site", "fuyao_sh_n2"))
 emit("NODES", s("nodes", "1"))
 emit("GPUS_PER_NODE", s("gpus_per_node", "1"))
-emit("GPU_TYPE", s("gpu_type", "exclusive"))
-emit("GPU_SLICE", s("gpu_slice", ""))
 emit("PRIORITY", s("priority", "normal"))
 emit("DOCKER_IMAGE", s("docker_image", "infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:isaacgym-250516-0347"))
 emit("RL_DEVICE", s("rl_device", "cuda:0"))
