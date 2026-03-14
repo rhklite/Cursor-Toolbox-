@@ -7,28 +7,29 @@ HEALTHCHECK_SCRIPT="${HOME}/.cursor/scripts/restart_isaacgym_healthcheck.sh"
 REMOTE_WORKDIR="/home/huh/software/motion_rl"
 REMOTE_CKPT_DIR="${REMOTE_WORKDIR}"
 REMOTE_LAYOUT_DIR="${REMOTE_WORKDIR}"
-DEFAULT_LAYOUT="${REMOTE_WORKDIR}/humanoid-gym/datasets/tool/config/r01_plus_amp_plotjuggler_limit_inspect.xml"
+DEFAULT_TASK="r01_v12_amp_with_4dof_arms_and_head_full_scenes"
+DEFAULT_LAYOUT="${REMOTE_WORKDIR}/humanoid-gym/datasets/tool/config/r01_plotjuggler_full.xml"
 DEFAULT_TOTAL_STEPS="100000000"
 DISPLAY_VAR=":1"
 PJ_LOG="/tmp/plotjuggler.log"
 
 usage() {
   cat <<'EOF'
-Usage: play_motion_rl.sh --task <name> --checkpoint <path> [OPTIONS]
+Usage: play_motion_rl.sh --checkpoint <path> [OPTIONS]
 
 Required:
-  --task          Task name from the registry
   --checkpoint    Path to .pt checkpoint (local or remote path)
 
 Options:
-  --layout        PlotJuggler layout XML (local or remote path; default: r01_plus_amp_plotjuggler_limit_inspect.xml)
+  --task          Task name from the registry (default: r01_v12_amp_with_4dof_arms_and_head_full_scenes)
+  --layout        PlotJuggler layout XML (local or remote path; default: r01_plotjuggler_full.xml)
   --total_steps   Total play steps (default: 100000000)
   --skip-health   Skip container healthcheck
   --pull          Pull latest changes on remote repo (skip prompt)
   --no-pull       Do not pull (skip prompt)
   --replace       Kill existing play.py and launch new one (skip prompt)
   --refresh       Keep existing play.py, just refresh PlotJuggler (skip prompt)
-  --interactive   Use play_interactive.py (modal disturbance controls + HUD)
+  --interactive   Use play_interactive.py (modal disturbance controls + HUD; default: enabled)
   --help          Show this help
 EOF
   exit "${1:-0}"
@@ -38,7 +39,7 @@ info()  { printf '\033[1;34m[INFO]\033[0m  %s\n' "$*"; }
 ok()    { printf '\033[1;32m[OK]\033[0m    %s\n' "$*"; }
 err()   { printf '\033[1;31m[FAIL]\033[0m  %s\n' "$*" >&2; }
 
-TASK=""
+TASK="${DEFAULT_TASK}"
 CHECKPOINT=""
 LAYOUT="${DEFAULT_LAYOUT}"
 LAYOUT_USER_SET=0
@@ -46,7 +47,7 @@ TOTAL_STEPS="${DEFAULT_TOTAL_STEPS}"
 SKIP_HEALTH=0
 PULL_REPO=""
 PROCESS_ACTION=""
-INTERACTIVE=0
+INTERACTIVE=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -107,7 +108,6 @@ elif [[ "${PROCESS_ACTION}" == "refresh" ]]; then
 fi
 
 if [[ "${REFRESH_ONLY}" -eq 0 ]]; then
-  [[ -z "${TASK}" ]]       && { err "Missing --task";       usage 2; }
   [[ -z "${CHECKPOINT}" ]] && { err "Missing --checkpoint"; usage 2; }
 fi
 
