@@ -23,6 +23,7 @@ docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 if docker start "${CONTAINER_NAME}" >/dev/null 2>&1; then
   if docker ps --format '{{.Names}}' | awk -v n="${CONTAINER_NAME}" '$1==n{ok=1} END{exit ok?0:1}'; then
     restart_ok=1
+    docker exec -u 0 "${CONTAINER_NAME}" hostname "$(hostname)" 2>/dev/null || true
     pass "container restart: ${CONTAINER_NAME}"
   else
     fail "container restart: ${CONTAINER_NAME} not running"
