@@ -10,7 +10,7 @@ alwaysApply: true
 
 Before reporting "done" or completing any task, the agent MUST:
 1. Check: did this session create or modify any file under ~/.cursor/skills/, ~/.cursor/commands/, ~/.cursor/rules/, or ~/.cursor/scripts/?
-2. If YES and sync has not been run yet in this session: STOP. Do not report done. Run the sync workflow (steps 1-11 below) first.
+2. If YES and sync has not been run yet in this session: STOP. Do not report done. Run the sync workflow (steps 1-12 below) first.
 3. If NO: proceed normally.
 
 This gate is non-negotiable. The agent must NOT:
@@ -27,21 +27,22 @@ Sync model: the toolbox is a git repo. Changes are committed and pushed to GitHu
 1. Finish the requested edit first.
 2. Detect whether toolbox files actually changed.
 3. If none changed, skip sync and state that explicitly.
-4. If changed, commit and push to GitHub, then invoke `SyncOrchestrator` with committed diffs. The orchestrator owns the host registry and reviewer dispatch.
-5. Enforce gating outcomes:
+4. Before staging and committing, run `git pull --rebase origin main` in the toolbox repo (`~/.cursor`) to incorporate any concurrent changes. If rebase conflicts occur, resolve them before proceeding.
+5. If changed, commit and push to GitHub, then invoke `SyncOrchestrator` with committed diffs. The orchestrator owns the host registry and reviewer dispatch.
+6. Enforce gating outcomes:
    - `skip`: exclude host
    - `prompt`: require explicit user confirmation; include a `mark all` option to approve all prompt-gated hosts at once
    - `apply`: approved
-6. Sync approved hosts (git pull) only:
+7. Sync approved hosts (git pull) only:
    - `bash ~/.cursor/scripts/sync_toolbox.sh apply --destinations <csv_hosts> --async`
-7. After apply, output destinations with first line exactly:
+8. After apply, output destinations with first line exactly:
    - `successfully synced to`
-8. Report short counts:
+9. Report short counts:
    - `identical`, `partial`, `conflicts`, `unreachable`
-9. End with:
-   - `Office Sync Action: <1-2 sentence sync outcome>`
-10. Print a concise sync result summary in the chat so the user sees it without scrolling (include destinations synced, counts, and any failures).
-11. The sync script also fires an OS desktop notification automatically (macOS and Linux; no-op on unsupported systems).
+10. End with:
+    - `Office Sync Action: <1-2 sentence sync outcome>`
+11. Print a concise sync result summary in the chat so the user sees it without scrolling (include destinations synced, counts, and any failures).
+12. The sync script also fires an OS desktop notification automatically (macOS and Linux; no-op on unsupported systems).
 
 Guardrails:
 - Do not hardcode hostnames, IPs, or ports.
