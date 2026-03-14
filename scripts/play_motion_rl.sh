@@ -181,31 +181,41 @@ if [[ "${LAYOUT_USER_SET}" -eq 1 && -f "${LAYOUT}" ]]; then
   scp "${LAYOUT}" "${JUMP_HOST}:${REMOTE_LAYOUT_DIR}/"
   REMOTE_LAYOUT="${REMOTE_LAYOUT_DIR}/${BASENAME}"
   ok "Layout uploaded: ${REMOTE_LAYOUT}"
-elif [[ "${LAYOUT_USER_SET}" -eq 1 ]]; then
-  info "Treating layout as remote path: ${LAYOUT}"
+else
+  info "Using layout path on ${JUMP_HOST}: ${LAYOUT}"
   if ssh "${JUMP_HOST}" "test -f '${LAYOUT}'"; then
     REMOTE_LAYOUT="${LAYOUT}"
     ok "Remote layout verified: ${REMOTE_LAYOUT}"
   else
-    err "Layout not found locally or on ${JUMP_HOST}: ${LAYOUT}"
+    err "Layout path not found on local or ${JUMP_HOST}: ${LAYOUT}"
     exit 1
   fi
 fi
 
 # ---------- 6. Kill existing PlotJuggler ----------
 info "Stopping any existing PlotJuggler on ${JUMP_HOST}..."
-ssh "${JUMP_HOST}" "pkill -f plotjuggler 2>/dev/null || true"
+ssh "${JUMP_HOST}" "pkill -u \"\$(whoami)\" -f '[p]lotjuggler' 2>/dev/null || true"
 sleep 1
 
+if [[ -n "${PJ_LOG}" ]]; then
+  info "PlotJuggler log: ${PJ_LOG}"
+fi
+
 # ---------- 7. Launch PlotJuggler ----------
-info "Launching PlotJuggler on ${JUMP_HOST} (layout: $(basename "${REMOTE_LAYOUT}"))..."
-ssh "${JUMP_HOST}" "DISPLAY=${DISPLAY_VAR} nohup plotjuggler --nosplash --layout '${REMOTE_LAYOUT}' > ${PJ_LOG} 2>&1 &"
+info "Launching PlotJuggler on ${JUMP_HOST} with layout: ${REMOTE_LAYOUT}"
+
+REMOTE_LAYOUT_ESCAPED="$(printf "%q" "${REMOTE_LAYOUT}")"
+PJ_PID=$(ssh "${JUMP_HOST}" "DISPLAY=${DISPLAY_VAR} nohup plotjuggler --nosplash --layout ${REMOTE_LAYOUT_ESCAPED} > ${PJ_LOG} 2>&1 & echo \$!")
+if [[ ! "${PJ_PID}" =~ ^[0-9]+$ ]]; then
+  err "Failed to capture PlotJuggler PID"
+  exit 1
+fi
+ok "PlotJuggler launch requested (PID ${PJ_PID})"
 
 PJ_OK=0
 for i in 1 2 3 4 5; do
   sleep 1
-  if ssh "${JUMP_HOST}" "pgrep -f plotjuggler >/dev/null 2>&1"; then
-    PJ_PID=$(ssh "${JUMP_HOST}" "pgrep -f 'plotjuggler.*--layout' | head -1")
+  if ssh "${JUMP_HOST}" "kill -0 ${PJ_PID} >/dev/null 2>&1"; then
     PJ_OK=1
     break
   fi
@@ -215,7 +225,7 @@ if [[ "${PJ_OK}" -eq 1 ]]; then
   ok "PlotJuggler running (PID ${PJ_PID})"
 else
   CRASH_LOG=$(ssh "${JUMP_HOST}" "cat ${PJ_LOG} 2>/dev/null | tail -10")
-  err "PlotJuggler failed to start. Log:"
+  err "PlotJuggler PID ${PJ_PID} died before becoming ready. Log (last 10 lines):"
   echo "${CRASH_LOG}" >&2
   exit 1
 fi
