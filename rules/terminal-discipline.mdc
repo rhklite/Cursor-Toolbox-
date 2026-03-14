@@ -20,7 +20,13 @@ State clearly in your response:
 
 ## Active terminal nudge
 
-On your first response in a new conversation, if you notice more than 3 active terminals (no `exit_code` in footer, `running_for_ms` present in header), mention once:
-> "There are N active terminal processes. Run `/clean-up-orphans` if you'd like to review and clean them up."
+On your first response in a new conversation, if you notice more than 3 active terminals (no `exit_code` in footer, `running_for_ms` present in header):
+
+1. Fire a desktop notification:
+   ```
+   bash ~/.cursor/scripts/cursor_notify.sh "Cursor: Terminal Cleanup" "N active terminal processes detected. Run /clean-up-orphans to review."
+   ```
+2. Also include in your chat response:
+   > "There are N active terminal processes. Run `/clean-up-orphans` if you'd like to review and clean them up."
 
 Do not repeat this nudge later in the same conversation.
