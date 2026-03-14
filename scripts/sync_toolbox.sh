@@ -7,7 +7,7 @@ RESOLUTIONS_DEFAULT="${STATE_DIR_DEFAULT}/latest_resolutions.json"
 DIFF_HELPER="${HOME}/.cursor/scripts/sync_toolbox_diff_summary.py"
 BACKUP_ROOT_LOCAL="${HOME}/.cursor/tmp/sync_toolbox_backups"
 
-TARGET_ALIASES=("huh.desktop.us" "isaacgym")
+TARGET_ALIASES=("huh.desktop.us" "isaacgym" "Huh8.remote_kernel.fuyao")
 CATEGORIES=("rules" "commands" "skills" "agents" "scripts")
 TOOLBOX_REPO_DIR="${HOME}/.cursor"
 TOOLBOX_GIT_REMOTE="origin"
@@ -18,6 +18,16 @@ log() {
 
 err() {
   printf '[sync-toolbox] ERROR: %s\n' "$*" >&2
+}
+
+notify() {
+  local title="$1"
+  local body="$2"
+  if command -v osascript >/dev/null 2>&1; then
+    osascript -e "display notification \"${body}\" with title \"${title}\"" 2>/dev/null || true
+  elif command -v notify-send >/dev/null 2>&1; then
+    notify-send "${title}" "${body}" 2>/dev/null || true
+  fi
 }
 
 usage() {
@@ -69,7 +79,7 @@ sync_toolbox_repo_by_git() {
     return 1
   fi
 
-  if [[ -n "$(git -C "${repo_dir}" status --short)" ]]; then
+  if [[ -n "$(git -C "${repo_dir}" status --short --untracked-files=no)" ]]; then
     err "Uncommitted changes detected in ${repo_dir}; aborting git sync."
     return 1
   fi
@@ -121,7 +131,7 @@ if [ -z "${branch}" ] || [ "${branch}" = "HEAD" ]; then
   exit 3
 fi
 
-if [ -n "$(git -C "${repo}" status --short)" ]; then
+if [ -n "$(git -C "${repo}" status --short --untracked-files=no)" ]; then
   echo "[sync-toolbox] remote destination has uncommitted changes in ${repo}" >&2
   exit 4
 fi
@@ -154,9 +164,6 @@ sync_toolbox_destination() {
 
   if [[ "${destination}" == "local" ]]; then
     sync_toolbox_repo_local "${TOOLBOX_REPO_DIR}"
-  elif is_self "${destination}"; then
-    log "Skipping self-sync: ${destination} resolves to this host ($(hostname))"
-    return 0
   else
     sync_toolbox_repo_remote "${destination}"
   fi
@@ -183,16 +190,6 @@ validate_alias_exists() {
     return 1
   fi
   return 0
-}
-
-is_self() {
-  local alias_name="$1"
-  local resolved_host
-  resolved_host="$(ssh -G "${alias_name}" 2>/dev/null | awk '/^hostname / {print $2}')"
-  local self_host
-  self_host="$(hostname)"
-  [[ "${resolved_host}" == "${self_host}" ]] && return 0
-  return 1
 }
 
 collect_manifest_local() {
@@ -331,7 +328,7 @@ import sys
 
 manifests_dir = pathlib.Path(sys.argv[1]).expanduser()
 out_file = pathlib.Path(sys.argv[2]).expanduser()
-ordered_sources = ["local", "huh.desktop.us", "isaacgym"]
+ordered_sources = ["local", "huh.desktop.us", "isaacgym", "Huh8.remote_kernel.fuyao"]
 
 source_payloads = {}
 for mf in sorted(manifests_dir.glob("manifest_*.json")):
@@ -1079,11 +1076,18 @@ PY
 
       local ops_json="${state_dir}/operations.json"
       build_operation_plan "${json_out}" "${resolution_tsv}" "${ops_json}" "${destinations}"
-      apply_operations "${ops_json}" "${dry_run}" "${async_mode}"
+      local apply_rc=0
+      apply_operations "${ops_json}" "${dry_run}" "${async_mode}" || apply_rc=$?
 
       local verify_json="${state_dir}/post_apply_report.json"
       run_verify "${state_dir}" "${verify_json}" || true
       emit_apply_report "${ops_json}" "${verify_json}"
+
+      if [[ "${apply_rc}" -eq 0 ]]; then
+        notify "Toolbox Sync" "Sync completed successfully."
+      else
+        notify "Toolbox Sync" "Sync finished with errors."
+      fi
       log "Apply flow complete."
       ;;
     *)

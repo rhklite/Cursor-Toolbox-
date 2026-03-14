@@ -1,0 +1,26 @@
+---
+description: Reduces orphaned terminal processes by guiding agent behavior around persistent commands.
+alwaysApply: true
+---
+
+# Terminal Discipline
+
+## Persistent process policy
+
+1. **Default to one-shot commands** for verification. Prefer `curl`, `npm run build`, `pytest`, `python -m py_compile` over starting dev servers or watchers to check work.
+2. **Only start persistent processes** (dev servers, watchers, `tail -f`) when the task logically requires them to stay running — e.g., "run the app," "start the dev server," "watch for changes."
+3. **When ambiguous, ask.** If it's unclear whether a persistent process is needed, ask the user before starting one. One question is cheaper than an orphaned process.
+
+## When starting a persistent process
+
+State clearly in your response:
+- What you started (e.g., "dev server on port 3000")
+- Which terminal it's in
+- How to stop it (e.g., "kill PID 12345" or "Ctrl+C in terminal 3")
+
+## Active terminal nudge
+
+On your first response in a new conversation, if you notice more than 3 active terminals (no `exit_code` in footer, `running_for_ms` present in header), mention once:
+> "There are N active terminal processes. Run `/clean-up-orphans` if you'd like to review and clean them up."
+
+Do not repeat this nudge later in the same conversation.
