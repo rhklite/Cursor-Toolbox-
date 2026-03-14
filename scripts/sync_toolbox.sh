@@ -191,9 +191,13 @@ is_self() {
   local alias_name="$1"
   local resolved_host
   resolved_host="$(ssh -G "${alias_name}" 2>/dev/null | awk '/^hostname / {print $2}')"
-  local self_host
-  self_host="$(hostname)"
-  [[ "${resolved_host}" == "${self_host}" ]] && return 0
+  [[ -z "${resolved_host}" ]] && return 1
+  [[ "${resolved_host}" == "$(hostname)" ]] && return 0
+  if command -v ifconfig >/dev/null 2>&1; then
+    ifconfig 2>/dev/null | grep -qw "${resolved_host}" && return 0
+  elif command -v ip >/dev/null 2>&1; then
+    ip addr 2>/dev/null | grep -qw "${resolved_host}" && return 0
+  fi
   return 1
 }
 
@@ -441,6 +445,10 @@ run_discover() {
   collect_manifest_local "${manifests_dir}/manifest_local.json"
 
   for alias_name in "${TARGET_ALIASES[@]}"; do
+    if is_self "${alias_name}"; then
+      log "Skipping self for remote manifest: ${alias_name}"
+      continue
+    fi
     log "Collecting remote manifest: ${alias_name}"
     collect_manifest_remote "${alias_name}" "${manifests_dir}/manifest_$(safe_name "${alias_name}").json"
   done
