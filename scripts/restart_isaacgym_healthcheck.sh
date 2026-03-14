@@ -38,7 +38,18 @@ if [ ! -x /usr/sbin/sshd ]; then
   echo "sshd missing – installing openssh-server + openssh-client ..." >&2
   apt-get update -qq >/dev/null 2>&1
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    openssh-server openssh-client >/dev/null 2>&1
+    openssh-server openssh-client 2>/dev/null || true
+  if [ ! -x /usr/sbin/sshd ]; then
+    # /etc/group may be bind-mounted read-only, causing groupadd in the
+    # openssh-client postinst to fail. Work around by skipping the postinst
+    # and retrying dpkg --configure.
+    if [ -f /var/lib/dpkg/info/openssh-client.postinst ]; then
+      cp /var/lib/dpkg/info/openssh-client.postinst /var/lib/dpkg/info/openssh-client.postinst.bak
+      printf "#!/bin/sh\nexit 0\n" > /var/lib/dpkg/info/openssh-client.postinst
+      dpkg --configure -a >/dev/null 2>&1 || true
+      mv /var/lib/dpkg/info/openssh-client.postinst.bak /var/lib/dpkg/info/openssh-client.postinst
+    fi
+  fi
   if [ ! -x /usr/sbin/sshd ]; then
     echo "Failed to install openssh-server" >&2
     exit 11
