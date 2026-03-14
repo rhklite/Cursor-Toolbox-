@@ -35,8 +35,15 @@ if [[ "${restart_ok}" -eq 1 ]]; then
   if docker exec -u 0 "${CONTAINER_NAME}" sh -lc '
 set -e
 if [ ! -x /usr/sbin/sshd ]; then
-  echo "Missing /usr/sbin/sshd" >&2
-  exit 11
+  echo "sshd missing – installing openssh-server + openssh-client ..." >&2
+  apt-get update -qq >/dev/null 2>&1
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    openssh-server openssh-client >/dev/null 2>&1
+  if [ ! -x /usr/sbin/sshd ]; then
+    echo "Failed to install openssh-server" >&2
+    exit 11
+  fi
+  echo "openssh-server installed successfully" >&2
 fi
 if [ ! -e /usr/bin/zsh ]; then
   ln -s /bin/bash /usr/bin/zsh
