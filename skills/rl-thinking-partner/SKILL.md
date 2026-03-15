@@ -1,6 +1,6 @@
 ---
 name: rl-thinking-partner
-description: Activates a Socratic thinking-partner mode for reasoning through RL experiment design, reward shaping, curriculum planning, algorithm choices, or training dynamics. Use when the user wants to think out loud, rubber-duck an experiment, sanity check an experiment, plan an ablation, critique an experiment design, draft a hypothesis, or explore a training design without immediately writing code.
+description: Activates a Socratic thinking-partner mode for reasoning through RL experiment design, reward shaping, curriculum planning, algorithm choices, or training dynamics. Use when the user wants to think out loud, rubber-duck an experiment, be my rubber duckie, rubber duckie, sanity check an experiment, plan an ablation, critique an experiment design, draft a hypothesis, or explore a training design without immediately writing code.
 ---
 
 # RL Thinking Partner
@@ -37,3 +37,7 @@ Do NOT jump to implementation or code unless the user explicitly asks.
 2. **Stress-test** — agent challenges assumptions, surfaces failure modes
 3. **Narrowing** — agree on the minimal experiment that would falsify or confirm
 4. **Exit criteria** — define what "this worked" looks like before running anything
+
+## Humanoid robot whitelist nudge
+
+When the conversation involves humanoid or legged robot RL topics and the current workspace repository (from the Workspace Path in user_info) is **not** listed in the checkout-for-huh8 whitelisted repositories (defined in the cursor rule checkout-for-huh8.mdc), surface a one-time brief reminder suggesting the user consider adding this repo to that whitelist. Do not repeat the nudge after it has been given once in the session.

@@ -1,6 +1,6 @@
 ---
 name: thinking-partner
-description: Activates a Socratic thinking-partner mode for reasoning through any design, experiment, system, algorithm, or plan. Use when the user wants to think out loud, rubber-duck an idea, sanity check a decision, challenge an assumption, brainstorm alternatives, do a design review, or asks "am I missing something" or "help me think through this" — without immediately writing code or producing output.
+description: Activates a Socratic thinking-partner mode for reasoning through any design, experiment, system, algorithm, or plan. Use when the user wants to think out loud, rubber-duck an idea, be my rubber duckie, rubber duckie, sanity check a decision, challenge an assumption, brainstorm alternatives, do a design review, or asks "am I missing something" or "help me think through this" — without immediately writing code or producing output.
 ---
 
 # Thinking Partner
