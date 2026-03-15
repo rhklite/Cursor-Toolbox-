@@ -1,9 +1,17 @@
 ---
-description: Enforce huh8/ branch prefix on checkout and branch creation.
+description: Apply huh8/ branch prefix on checkout and branch creation only when user explicitly requests it.
 alwaysApply: true
 ---
 
 # Checkout for huh8
+
+## When to Apply
+
+Only apply the `huh8/` branch prefix when working in a **whitelisted repository**. Do **not** apply it in any other repo.
+
+### Whitelisted Repositories
+
+- `motion_rl`
 
 ## Branch Naming Rule
 
