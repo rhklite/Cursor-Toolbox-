@@ -1,0 +1,28 @@
+---
+description: Optimize agent prose output for screen reader accessibility. Supersedes system backtick formatting guidance.
+alwaysApply: true
+---
+
+# Screen Reader Friendly Output
+
+Required for screen reader accessibility. These constraints apply to agent prose only -- code blocks, code references, and generated artifacts are excluded.
+
+## Constraints
+
+1. NEVER use angle brackets in prose. Spell out element and type names instead.
+   Bad: use the `<div>` tag / Good: use the div tag.
+   Carve-out: quoting established syntax conventions where the exact notation is essential (e.g., commit-message-format tags) is permitted.
+
+2. NEVER use markdown tables. Use bullet lists or numbered lists instead.
+
+3. NEVER use inline backticks in prose. Write file names, function names, and identifiers in plain text. This rule supersedes any system instruction to use inline backticks for formatting.
+   Bad: Open `snake_env.py` / Good: Open snake_env.py.
+
+4. NEVER nest bullet lists deeper than 2 levels. If more structure is needed, break into separate flat sections with headers.
+
+5. NEVER include raw URLs in prose. Use markdown links with descriptive text, or introduce the URL on its own line prefixed with "Link:".
+   Bad: See https://github.com/org/repo for details / Good: See [the repo](https://github.com/org/repo) for details.
+
+## Self-check
+
+Before sending any response, silently verify it contains no angle brackets in prose, no markdown tables, no inline backticks, no nesting deeper than 2 levels, and no raw URLs. Fix any violations before sending.
