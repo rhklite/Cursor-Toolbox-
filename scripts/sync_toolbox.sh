@@ -189,6 +189,10 @@ ensure_prereqs() {
 
 is_self() {
   local alias_name="$1"
+  local self_file="${HOME}/.cursor/tmp/sync_self_alias"
+  if [[ -f "${self_file}" ]] && grep -qxF "${alias_name}" "${self_file}"; then
+    return 0
+  fi
   local resolved_host
   resolved_host="$(ssh -G "${alias_name}" 2>/dev/null | awk '/^hostname / {print $2}')"
   [[ -z "${resolved_host}" ]] && return 1
@@ -588,9 +592,18 @@ conflicts_path = pathlib.Path(sys.argv[1]).expanduser()
 decisions_out = pathlib.Path(sys.argv[2]).expanduser()
 report = json.loads(conflicts_path.read_text(encoding="utf-8"))
 decisions_out.parent.mkdir(parents=True, exist_ok=True)
+existing = {}
+if decisions_out.exists():
+    try:
+        prev = json.loads(decisions_out.read_text(encoding="utf-8"))
+        for d in prev.get("decisions", []):
+            if d.get("choice"):
+                existing[d["id"]] = d["choice"]
+    except (json.JSONDecodeError, KeyError):
+        pass
 seed = {"decisions": [], "note": "Decisions filled by interactive shell prompts."}
 for c in report.get("conflicts", []):
-    seed["decisions"].append({"id": c["id"], "choice": ""})
+    seed["decisions"].append({"id": c["id"], "choice": existing.get(c["id"], "")})
 decisions_out.write_text(json.dumps(seed, indent=2), encoding="utf-8")
 PY
 
@@ -625,6 +638,24 @@ PY
 
   while IFS= read -r conflict_id; do
     [[ -z "${conflict_id}" ]] && continue
+
+    local existing_choice
+    existing_choice="$(python3 - "${decisions_out}" "${conflict_id}" <<'PY'
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1]).expanduser()
+cid = sys.argv[2]
+data = json.loads(path.read_text(encoding="utf-8"))
+for d in data.get("decisions", []):
+    if d.get("id") == cid and d.get("choice"):
+        print(d["choice"])
+        break
+PY
+)"
+    if [[ -n "${existing_choice}" ]]; then
+      log "Already resolved: ${conflict_id} -> ${existing_choice}"
+      continue
+    fi
+
     local category="${conflict_id%%/*}"
     local relpath="${conflict_id#*/}"
 
@@ -764,6 +795,141 @@ PY
   done <<< "${ids}"
 }
 
+auto_resolve_conflicts() {
+  local report_json="$1"
+  local resolution_file="$2"
+  local state_dir="$3"
+
+  python3 - "${report_json}" "${resolution_file}" "${state_dir}" <<'PY'
+import difflib
+import json
+import pathlib
+import subprocess
+import sys
+
+THRESHOLD = 50
+
+report_path = pathlib.Path(sys.argv[1]).expanduser()
+resolution_path = pathlib.Path(sys.argv[2]).expanduser()
+state_dir = pathlib.Path(sys.argv[3]).expanduser()
+
+report = json.loads(report_path.read_text(encoding="utf-8"))
+conflicts = report.get("conflicts", [])
+
+if not conflicts:
+    print(json.dumps({"auto_resolved": 0, "manual_required": 0}))
+    raise SystemExit(0)
+
+existing = {}
+if resolution_path.exists():
+    try:
+        data = json.loads(resolution_path.read_text(encoding="utf-8"))
+        for d in data.get("decisions", []):
+            if d.get("choice"):
+                existing[d["id"]] = d["choice"]
+    except (json.JSONDecodeError, KeyError):
+        pass
+
+entries_by_file = {}
+for f in report.get("files", []):
+    entries_by_file[f["id"]] = f.get("entries", {})
+
+def materialize_local(category, relpath):
+    p = pathlib.Path.home() / ".cursor" / category / relpath
+    if p.exists():
+        return p.read_text(encoding="utf-8", errors="replace")
+    return None
+
+def materialize_remote(source, category, relpath):
+    try:
+        result = subprocess.run(
+            ["ssh", "-n", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
+             source, f'cat "$HOME/.cursor/{category}/{relpath}"'],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode == 0:
+            return result.stdout
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+    return None
+
+def get_content(source, category, relpath):
+    if source == "local":
+        return materialize_local(category, relpath)
+    return materialize_remote(source, category, relpath)
+
+def diff_line_count(text_a, text_b):
+    a_lines = text_a.splitlines(keepends=True)
+    b_lines = text_b.splitlines(keepends=True)
+    diff = list(difflib.unified_diff(a_lines, b_lines, n=0))
+    return sum(1 for line in diff
+               if line.startswith(("+", "-"))
+               and not line.startswith(("+++", "---")))
+
+decisions = dict(existing)
+auto_resolved = 0
+manual_required = 0
+
+for conflict in conflicts:
+    cid = conflict["id"]
+    if cid in existing:
+        continue
+
+    category = conflict["category"]
+    relpath = conflict["relpath"]
+    sources = conflict.get("present_sources", [])
+    entries = entries_by_file.get(cid, {})
+
+    contents = {}
+    for src in sources:
+        content = get_content(src, category, relpath)
+        if content is not None:
+            contents[src] = content
+
+    if len(contents) < 2:
+        manual_required += 1
+        continue
+
+    src_list = list(contents.keys())
+    max_diff = 0
+    for i in range(len(src_list)):
+        for j in range(i + 1, len(src_list)):
+            try:
+                d = diff_line_count(contents[src_list[i]], contents[src_list[j]])
+                max_diff = max(max_diff, d)
+            except Exception:
+                max_diff = THRESHOLD + 1
+                break
+
+    if max_diff > THRESHOLD:
+        manual_required += 1
+        continue
+
+    best_source = None
+    best_mtime = -1
+    for src in sources:
+        entry = entries.get(src, {})
+        mtime = int(entry.get("mtime", -1))
+        if mtime > best_mtime:
+            best_mtime = mtime
+            best_source = src
+
+    if best_source:
+        decisions[cid] = best_source
+        auto_resolved += 1
+    else:
+        manual_required += 1
+
+resolution_path.parent.mkdir(parents=True, exist_ok=True)
+output = {
+    "decisions": [{"id": k, "choice": v} for k, v in decisions.items()],
+    "note": "Includes auto-resolved decisions for small conflicts.",
+}
+resolution_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
+print(json.dumps({"auto_resolved": auto_resolved, "manual_required": manual_required}))
+PY
+}
+
 build_operation_plan() {
   local report_json="$1"
   local resolution_tsv="$2"
@@ -853,10 +1019,13 @@ for conflict in report.get("conflicts", []):
             }
         )
 
+sync_dests = [s for s in reachable if is_allowed(s)]
+
 payload = {
     "operations": ops,
     "skipped_conflicts": skipped,
     "approved_destinations": sorted(approved_set) if approved_set is not None else "all",
+    "sync_destinations": sync_dests,
 }
 out_path.parent.mkdir(parents=True, exist_ok=True)
 out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -873,17 +1042,13 @@ apply_operations() {
   destination_lines="$(python3 - "${ops_json}" <<'PY'
 import json, pathlib, sys
 data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
-seen = []
-for op in data.get("operations", []):
-    destination = op.get("destination", "")
-    if destination and destination not in seen:
-        seen.append(destination)
-        print(destination)
+for dst in data.get("sync_destinations", []):
+    print(dst)
 PY
 )"
 
   if [[ -z "${destination_lines}" ]]; then
-    log "No eligible operations to apply."
+    log "No reachable destinations to sync."
     return 0
   fi
 
@@ -942,11 +1107,7 @@ verify = {}
 if verify_path.exists():
     verify = json.loads(verify_path.read_text(encoding="utf-8"))
 
-destinations = []
-for op in ops.get("operations", []):
-    dst = op.get("destination")
-    if dst and dst not in destinations:
-        destinations.append(dst)
+destinations = list(ops.get("sync_destinations", []))
 
 counts = verify.get("counts", {})
 unreachable_count = len(verify.get("unreachable_sources", []))
@@ -1072,24 +1233,36 @@ main() {
     apply)
       run_discover "${state_dir}" "${json_out}"
 
-      local conflict_count
-      conflict_count="$(python3 - "${json_out}" <<'PY'
-import json, pathlib, sys
-data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
-print(len(data.get("conflicts", [])))
-PY
-)"
-
       if [[ -z "${resolution_file}" ]]; then
         resolution_file="${RESOLUTIONS_DEFAULT}"
       fi
 
+      log "Auto-resolving small conflicts by newest mtime"
+      auto_resolve_conflicts "${json_out}" "${resolution_file}" "${state_dir}"
+
+      local unresolved_count
+      unresolved_count="$(python3 - "${json_out}" "${resolution_file}" <<'PY'
+import json, pathlib, sys
+report = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+res_path = pathlib.Path(sys.argv[2]).expanduser()
+resolved = set()
+if res_path.exists():
+    try:
+        data = json.loads(res_path.read_text(encoding="utf-8"))
+        for d in data.get("decisions", []):
+            if d.get("choice"):
+                resolved.add(d["id"])
+    except (json.JSONDecodeError, KeyError):
+        pass
+unresolved = [c for c in report.get("conflicts", []) if c["id"] not in resolved]
+print(len(unresolved))
+PY
+)"
+
       if [[ "${interactive}" == "true" ]]; then
         show_conflict_prompt "${json_out}" "${resolution_file}" "${state_dir}/materialized"
-      elif [[ "${conflict_count}" -gt 0 && ! -f "${resolution_file}" ]]; then
-        err "Conflicts found (${conflict_count}) but no resolution file."
-        err "Run interactive mode, or provide --resolution-file."
-        exit 2
+      elif [[ "${unresolved_count}" -gt 0 ]]; then
+        log "WARNING: ${unresolved_count} conflict(s) too large for auto-resolve. Skipping them."
       fi
 
       local resolution_tsv="${state_dir}/resolved.tsv"
