@@ -1,0 +1,63 @@
+---
+pid: 20534
+cwd: "/Users/HanHu"
+command: "ssh huh.desktop.us 'docker exec -u 0 isaacgym bash -lc \"/usr/sbin/sshd -d -p 22022 -f /etc/ssh/sshd_config_cursor\"'"
+started_at: 2026-03-05T01:25:26.612Z
+running_for_seconds: 8     
+---
+debug1: sshd version OpenSSH_8.2, OpenSSL 1.1.1f  31 Mar 2020
+debug1: private host key #0: ssh-ed25519 SHA256:9Rlzn2Bv/jaSL+6Xtg29BvhWM8jsEuA0Y36Jyot2F4w
+debug1: rexec_argv[0]='/usr/sbin/sshd'
+debug1: rexec_argv[1]='-d'
+debug1: rexec_argv[2]='-p'
+debug1: rexec_argv[3]='22022'
+debug1: rexec_argv[4]='-f'
+debug1: rexec_argv[5]='/etc/ssh/sshd_config_cursor'
+debug1: Set /proc/self/oom_score_adj from 0 to -1000
+debug1: Bind to port 22022 on 0.0.0.0.
+Server listening on 0.0.0.0 port 22022.
+debug1: Server will not fork when running in debugging mode.
+debug1: rexec start in 4 out 4 newsock 4 pipe -1 sock 7
+debug1: sshd version OpenSSH_8.2, OpenSSL 1.1.1f  31 Mar 2020
+debug1: private host key #0: ssh-ed25519 SHA256:9Rlzn2Bv/jaSL+6Xtg29BvhWM8jsEuA0Y36Jyot2F4w
+debug1: inetd sockets after dupping: 3, 3
+Connection from 10.160.240.145 port 54440 on 10.160.64.142 port 22022 rdomain ""
+debug1: Local version string SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.13
+debug1: Remote protocol version 2.0, remote software version OpenSSH_10.2
+debug1: match: OpenSSH_10.2 pat OpenSSH* compat 0x04000000
+debug1: permanently_set_uid: 129/65534 [preauth]
+debug1: list_hostkey_types: ssh-ed25519 [preauth]
+debug1: SSH2_MSG_KEXINIT sent [preauth]
+debug1: SSH2_MSG_KEXINIT received [preauth]
+debug1: kex: algorithm: ecdh-sha2-nistp256 [preauth]
+debug1: kex: host key algorithm: ssh-ed25519 [preauth]
+debug1: kex: client->server cipher: aes128-gcm@openssh.com MAC: <implicit> compression: none [preauth]
+debug1: kex: server->client cipher: aes128-gcm@openssh.com MAC: <implicit> compression: none [preauth]
+debug1: expecting SSH2_MSG_KEX_ECDH_INIT [preauth]
+debug1: resetting send seqnr 3 [preauth]
+debug1: rekey out after 4294967296 blocks [preauth]
+debug1: SSH2_MSG_NEWKEYS sent [preauth]
+debug1: Sending SSH2_MSG_EXT_INFO [preauth]
+debug1: expecting SSH2_MSG_NEWKEYS [preauth]
+debug1: resetting read seqnr 3 [preauth]
+debug1: SSH2_MSG_NEWKEYS received [preauth]
+debug1: rekey in after 4294967296 blocks [preauth]
+debug1: KEX done [preauth]
+debug1: userauth-request for user huh service ssh-connection method none [preauth]
+debug1: attempt 0 failures 0 [preauth]
+User huh not allowed because shell /usr/bin/zsh does not exist
+debug1: userauth-request for user huh service ssh-connection method publickey [preauth]
+debug1: attempt 1 failures 0 [preauth]
+debug1: userauth_pubkey: test pkalg ssh-ed25519 pkblob ED25519 SHA256:ZgEKzcAw+jy9yq6RC5eoMseWAPz64zvu6d2Eaf16J8k [preauth]
+Connection closed by invalid user huh 10.160.240.145 port 54440 [preauth]
+debug1: do_cleanup [preauth]
+debug1: monitor_read_log: child log fd closed
+debug1: do_cleanup
+debug1: Killing privsep child 3432
+debug1: audit_event: unhandled event 12
+
+---
+exit_code: 255
+elapsed_ms: 11049
+ended_at: 2026-03-05T01:25:37.661Z
+---

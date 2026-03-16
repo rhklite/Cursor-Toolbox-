@@ -1,0 +1,1234 @@
+commit 75a393ead54dc4ffff55199264ead9addfa9ffe7
+Author: zhangny2 <zhangny2@xiaopeng.com>
+Date:   Fri Jan 30 00:54:04 2026 +0800
+
+    feat: Add distributed training support to suyz/v12_parallel_training. Trainig tested for r01_plus_amp_with_4dof_arms_autoencoder and r01_plus_amp_with_4dof_arms_cross_attention.
+
+diff --git a/humanoid-gym/humanoid/algo/amp_ppo/amp_on_policy_runner.py b/humanoid-gym/humanoid/algo/amp_ppo/amp_on_policy_runner.py
+index a8d76386d..bd5d4eece 100755
+--- a/humanoid-gym/humanoid/algo/amp_ppo/amp_on_policy_runner.py
++++ b/humanoid-gym/humanoid/algo/amp_ppo/amp_on_policy_runner.py
+@@ -1,495 +1,544 @@
+ # SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ # SPDX-FileCopyrightText: Copyright (c) 2021 ETH Zurich, Nikita Rudin
+ # SPDX-License-Identifier: BSD-3-Clause
+ #
+ # Redistribution and use in source and binary forms, with or without
+ # modification, are permitted provided that the following conditions are met:
+ #
+ # 1. Redistributions of source code must retain the above copyright notice, this
+ # list of conditions and the following disclaimer.
+ #
+ # 2. Redistributions in binary form must reproduce the above copyright notice,
+ # this list of conditions and the following disclaimer in the documentation
+ # and/or other materials provided with the distribution.
+ #
+ # 3. Neither the name of the copyright holder nor the names of its
+ # contributors may be used to endorse or promote products derived from
+ # this software without specific prior written permission.
+ #
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ # DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ #
+ # Copyright (c) 2024 Beijing RobotEra TECHNOLOGY CO.,LTD. All rights reserved.
+ 
+ import os
+ import time
+ import torch
+ import wandb
+ import heapq
+ import statistics
+ import subprocess
+ from collections import deque
+ from datetime import datetime
+ from .amp_ppo import AMPPPO
+ from .amp_discriminator import AMPDiscriminator
+ from .utils import NormalizerTorch
+ from ..ppo.actor_critic import ActorCritic
++from ..ppo.actor_critic_heightmap_embed import ActorCriticHeightmapEmbed
++from ..ppo.actor_critic_cross_attention import ActorCriticCrossAttention
++from ..iron_turbo import SyncNormalizerTorch, broadcast_parameters, get_world_size, is_distributed, is_main_process
++from ..iron_turbo.distributed_utils import sync_tensor_dict, sync_tensor_mean
+ from humanoid.algo.vec_env import VecEnv
+ from torch.utils.tensorboard import SummaryWriter
+-
+ from humanoid.utils.rtd_artifacts_helper import RTDArtifactsHelper, save_oss_url
+ from humanoid import LEGGED_GYM_ROOT_DIR
+ 
+ FUYAO_IS_AVAILABLE = False
+ try:
+     import fuyao
+ 
+     FUYAO_IS_AVAILABLE = True
+ except ImportError:
+     print("Cannot import fuyao!")
+ 
+ 
+ class AMPOnPolicyRunner:
+-    def __init__(self, env: VecEnv, train_cfg, log_dir=None, device="cpu"):
++    def __init__(self, env: VecEnv, train_cfg, log_dir=None, device="cpu", accelerator=None):
+ 
+         self.cfg = train_cfg["runner"]
+         self.alg_cfg = train_cfg["algorithm"]
+         self.policy_cfg = train_cfg["policy"]
+         if "symmetry_cfg" in self.alg_cfg:
+             self.symmetry_cfg = self.alg_cfg["symmetry_cfg"]
+         else:
+             self.symmetry_cfg = None
+         self.all_cfg = train_cfg
+         self.enable_wandb = train_cfg.get("enable_wandb", False)
+         self.wandb_run_name = (
+             datetime.now().strftime("%b%d_%H-%M-%S")
+             + "_"
+             + train_cfg["runner"]["experiment_name"]
+             + "_"
+             + train_cfg["runner"]["run_name"]
+         )
+         self.device = device
+         self.env = env
++        self.accelerator = accelerator
++        self.alg_cfg["accelerator"] = self.accelerator
++
+         if self.symmetry_cfg is not None and hasattr(self.env, 'get_symmetric_states_actions'):
+             self.symmetry_cfg["data_augmentation_func"] = self.env.get_symmetric_states_actions
+ 
+         if self.env.num_privileged_obs is not None:
+             num_critic_obs = self.env.num_privileged_obs
+         else:
+             num_critic_obs = self.env.num_obs
+         actor_critic_class = eval(self.cfg["policy_class_name"])  # ActorCritic
+ 
+-        # to support isaaclab
+-        if hasattr(self.env, "num_single_obs"):
+-            num_single_obs = self.env.num_single_obs
+-        else:
+-            num_single_obs = self.env.cfg.env.num_single_obs
++        num_single_obs = self.env.num_single_obs
+ 
+         actor_critic: ActorCritic = actor_critic_class(
+             self.env.num_obs,
+             num_critic_obs,
+             num_single_obs,
+             self.env.num_actions,
+             symmetry_cfg=self.symmetry_cfg,
+             **self.policy_cfg,
+         ).to(self.device)
+ 
+         amp_data = self.env.amp_loader
+         amp_normalizer = NormalizerTorch(device, amp_data.observation_dim)
++        amp_normalizer = SyncNormalizerTorch(amp_normalizer)    # wrap with SyncNormalizerTorch for distributed training
++
+         discriminator = AMPDiscriminator(
+             amp_data.observation_dim * 2,
+             train_cfg['runner']['amp_reward_coef'],
+             train_cfg['runner']['amp_discr_hidden_dims'],
+             device,
+             train_cfg['runner']['amp_task_reward_lerp'],
+         ).to(self.device)
+         self.amp_add_scene_tags = train_cfg['runner']['amp_add_scene_tags']
+         self.amp_scene_tag_lists = train_cfg['runner']['amp_scene_tag_lists']
+ 
+         alg_class = eval(self.cfg["algorithm_class_name"])  # PPO
+ 
+         # min_std is not in use
+         # min_std = torch.tensor(self.cfg["min_normalized_std"], device=self.device) * (
+         #    torch.abs(self.env.dof_pos_limits[:, 1] - self.env.dof_pos_limits[:, 0])
+         # )
+ 
+         self.alg: AMPPPO = alg_class(
+             actor_critic, discriminator, amp_data, amp_normalizer, device=self.device, **self.alg_cfg
+         )
+         self.num_steps_per_env = self.cfg["num_steps_per_env"]
+         self.save_interval = self.cfg["save_interval"]
+ 
+         # init storage and model
+         self.alg.init_storage(
+             self.env.num_envs,
+             self.num_steps_per_env,
+             [self.env.num_obs],
+             [self.env.num_privileged_obs],
+             [self.env.num_actions],
+         )
+ 
+         # Logging
+         self.log_dir = log_dir
+         self.writer = None
+         self.tot_timesteps = 0
+         self.tot_time = 0
+         self.current_learning_iteration = 0
+         self.experiment_name = self.cfg['experiment_name']
+         # for saving the best k checkpoints
+         self.best_k_metric_minheap = []
+         self.best_k_metric_name = self.cfg.get('best_k_metric_name', 'rewbuffer')
+         self.best_k_metric_maxlen = self.cfg.get('best_k_metric_maxlen', 3)
+         self.best_k_metric_start_iter = self.cfg.get('best_k_metric_start_iter', 6000)
+         heapq.heapify(self.best_k_metric_minheap)
+ 
+         self.play_subprocess = None
+         self.play_script_start_iters = self.cfg.get('play_script_start_iters', -1)  # -1: disabled
+         self.play_script_verbose = self.cfg.get('play_script_verbose', False)
+         self.play_script_output_dir = self.cfg.get('play_script_output_dir', None)
+         if FUYAO_IS_AVAILABLE:
+             if self.play_script_start_iters < 0:
+                 self.play_script_start_iters = 0
+             self.play_script_verbose = False
+ 
+             self.rtd_artifacts_helper = RTDArtifactsHelper()
+             self.oss_url_file_path = save_oss_url(self.log_dir)
+ 
+         _, _ = self.env.reset()
+ 
+     def learn(self, num_learning_iterations, init_at_random_ep_len=False):
+-        # initialize writer
+-        if self.log_dir is not None and self.writer is None:
++        # initialize writer - only on main process
++        if self.log_dir is not None and self.writer is None and is_main_process(self.accelerator):
+             if self.enable_wandb:
+                 wandb.init(
+                     project="PBot",
+                     sync_tensorboard=True,
+                     name=self.wandb_run_name,
+                     config=self.all_cfg,
+                 )
+ 
+             self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
+         if init_at_random_ep_len:
+             self.env.episode_length_buf = torch.randint_like(
+                 self.env.episode_length_buf, high=int(self.env.max_episode_length)
+             )
++
++        # Ensure all processes are synchronized before starting training
++        if is_distributed():
++            self.accelerator.wait_for_everyone()
++
+         obs = self.env.get_observations()
+         privileged_obs = self.env.get_privileged_observations()
+         amp_obs = self.env.get_amp_observations()
+         critic_obs = privileged_obs if privileged_obs is not None else obs
+         obs, critic_obs = obs.to(self.device), critic_obs.to(self.device)
+         amp_obs = amp_obs.to(self.device)
+         self.alg.actor_critic.train()  # switch to train mode (for dropout for example)
+         self.alg.discriminator.train()
+ 
+         ep_infos = []
+         rewbuffer = deque(maxlen=100)
+         lenbuffer = deque(maxlen=100)
+         cur_reward_sum = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
+         cur_episode_length = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
+ 
++        # Ensure all parameters are in-synced
++        if is_distributed():
++            print(f"Synchronizing parameters for process {self.accelerator.process_index}...")
++            broadcast_parameters(self.alg.actor_critic, self.alg.discriminator)
++
+         tot_iter = self.current_learning_iteration + num_learning_iterations
+         for it in range(self.current_learning_iteration, tot_iter):
+             start = time.time()
+             # Rollout
+             with torch.inference_mode():
+                 for i in range(self.num_steps_per_env):
++                    if hasattr(self.env, 'set_iteration'):
++                        self.env.set_iteration(it)
+                     actions = self.alg.act(obs, critic_obs, amp_obs)
+                     obs, privileged_obs, rewards, dones, infos, reset_env_ids, terminal_amp_states = self.env.step(
+                         actions
+                     )
+                     next_amp_obs = self.env.get_amp_observations()
+                     critic_obs = privileged_obs if privileged_obs is not None else obs
+                     obs, critic_obs, rewards, dones = (
+                         obs.to(self.device),
+                         critic_obs.to(self.device),
+                         rewards.to(self.device),
+                         dones.to(self.device),
+                     )
+                     next_amp_obs = next_amp_obs.to(self.device)
+ 
+                     # Account for terminal states.
+                     next_amp_obs_with_term = torch.clone(next_amp_obs)
+ 
+                     # amp tag info
+                     if (
+                         self.amp_add_scene_tags
+                         and self.amp_scene_tag_lists is not None
+                         and len(self.amp_scene_tag_lists) > 0
+                     ):
+-                        # Note: here we assume the frame_scene_tags is the last one in the amp_obs
+                         amp_tag_dim = len(self.amp_scene_tag_lists)
+-                        # Ensure that the frame_scene_tags of two consecutive frames are the same
+                         next_amp_obs_with_term[:, -amp_tag_dim:] = amp_obs[:, -amp_tag_dim:]
+ 
+                     # to support isaaclab
+                     if next_amp_obs_with_term.shape != terminal_amp_states.shape:
+                         next_amp_obs_with_term[reset_env_ids] = terminal_amp_states
+                     else:
+                         next_amp_obs_with_term[reset_env_ids] = terminal_amp_states[reset_env_ids]
+ 
+                     rewards, amp_reward = self.alg.discriminator.predict_amp_reward(
+                         amp_obs,
+                         next_amp_obs_with_term,
+                         self.env.dt,
+                         rewards,
+                         curriculum_iter=it,
+                         normalizer=self.alg.amp_normalizer,
+                     )
+                     amp_obs = torch.clone(next_amp_obs)
+                     self.alg.process_env_step(rewards, dones, infos, next_amp_obs_with_term)
+ 
+                     if self.log_dir is not None:
+                         # Book keeping
+                         if "episode" in infos:
+                             ep_infos.append(infos["episode"])
+                         cur_reward_sum += rewards
+                         cur_episode_length += 1
+                         new_ids = (dones > 0).nonzero(as_tuple=False)
+                         rewbuffer.extend(cur_reward_sum[new_ids][:, 0].cpu().numpy().tolist())
+                         lenbuffer.extend(cur_episode_length[new_ids][:, 0].cpu().numpy().tolist())
+                         cur_reward_sum[new_ids] = 0
+                         cur_episode_length[new_ids] = 0
+ 
+                 stop = time.time()
+                 collection_time = stop - start
+ 
+                 # Learning step
+                 start = stop
+                 self.alg.compute_returns(critic_obs)
+ 
+             if self.amp_add_scene_tags and self.amp_scene_tag_lists is not None and len(self.amp_scene_tag_lists) > 0:
+                 for idx, tag_name in enumerate(self.amp_scene_tag_lists):
+                     tag_mask = amp_obs[:, -len(self.amp_scene_tag_lists) + idx] == 1
+                     locals()[f"{tag_name}_scene_ratio"] = torch.sum(tag_mask) / len(tag_mask)
+ 
+             loss_dict = self.alg.update(curriculum_iter=it)
+             stop = time.time()
+             learn_time = stop - start
+-            if self.log_dir is not None:
++
++            # Sync logging metrics across all ranks using iron_turbo
++            amp_reward, loss_dict = self._sync_logging_metrics(amp_reward, loss_dict)
++
++            if self.log_dir is not None and is_main_process(self.accelerator):
+                 self.log(locals())
+                 self.save_best_k_checkpoint(locals(), it)
+-            if it % self.save_interval == 0:
+-                self.save(os.path.join(self.log_dir, "model_{}.pt".format(it)))
+-            self.check_play_subprocess()
++                if it % self.save_interval == 0:
++                    self.save(os.path.join(self.log_dir, "model_{}.pt".format(it)))
++                self.check_play_subprocess()
+             ep_infos.clear()
+ 
+         self.current_learning_iteration += num_learning_iterations
+-        self.save(os.path.join(self.log_dir, "model_{}.pt".format(self.current_learning_iteration)))
++        if is_main_process(self.accelerator):
++            self.save(os.path.join(self.log_dir, "model_{}.pt".format(self.current_learning_iteration)))
+ 
+     def save_best_k_checkpoint(self, locs, iteration):
+         if len(locs["rewbuffer"]) == 0:
+             return
+ 
+         if iteration < self.best_k_metric_start_iter:
+             return
+ 
+         selected_metric_value = statistics.mean(locs[self.best_k_metric_name])
+         save_ckpt = False
+         # keep tracking the best k checkpoints
+         if len(self.best_k_metric_minheap) < self.best_k_metric_maxlen:
+             heapq.heappush(self.best_k_metric_minheap, (selected_metric_value, iteration))
+             save_ckpt = True
+         else:
+             if selected_metric_value > self.best_k_metric_minheap[0][0]:
+                 heapq.heapreplace(self.best_k_metric_minheap, (selected_metric_value, iteration))
+                 save_ckpt = True
+ 
+         # save the best k checkpoints
+         if save_ckpt:
+             self.save(os.path.join(self.log_dir, f"model_{iteration}_best_k_value={selected_metric_value:.3f}.pt"))
+             print(
+                 f"Saved best k checkpoint at iteration {iteration} based on {self.best_k_metric_name}={selected_metric_value:.3f}"
+             )
+ 
++    def _sync_logging_metrics(self, amp_reward, loss_dict):
++        """Synchronize logging metrics across all ranks for distributed training.
++
++        Uses iron_turbo helpers for backend-agnostic distributed operations.
++
++        Args:
++            amp_reward: AMP reward tensor from this rank
++            loss_dict: dict of loss values from this rank
++
++        Returns:
++            Tuple of (synced_amp_reward, synced_loss_dict)
++        """
++        if not is_distributed():
++            return amp_reward, loss_dict
++
++        # Use iron_turbo helpers for sync
++        amp_reward_synced = sync_tensor_mean(amp_reward, self.accelerator)
++        loss_dict_synced = sync_tensor_dict(loss_dict, self.accelerator, self.device)
++
++        return amp_reward_synced, loss_dict_synced
++
+     def log(self, locs, width=80, pad=35):
+-        self.tot_timesteps += self.num_steps_per_env * self.env.num_envs
++        # Only main process should log
++        if not is_main_process(self.accelerator):
++            return
++
++        # Account for all ranks in total timesteps
++        self.tot_timesteps += self.num_steps_per_env * self.env.num_envs * get_world_size()
+         self.tot_time += locs["collection_time"] + locs["learn_time"]
+         iteration_time = locs["collection_time"] + locs["learn_time"]
+ 
+         ep_string = f""
+         if locs["ep_infos"]:
+             for key in locs["ep_infos"][0]:
+                 info_tensors = []
+                 for ep_info in locs["ep_infos"]:
+                     # handle scalar and zero dimensional tensor infos
+                     if not isinstance(ep_info[key], torch.Tensor):
+                         ep_info[key] = torch.tensor([ep_info[key]])
+                     if len(ep_info[key].shape) == 0:
+                         ep_info[key] = ep_info[key].unsqueeze(0)
+                     info_tensors.append(ep_info[key].to(self.device))
+                 infotensor = torch.cat(info_tensors)
+                 value = torch.mean(infotensor)
+                 self.writer.add_scalar("Episode/" + key, value, locs["it"])
+                 ep_string += f"""{f'Mean episode {key}:':>{pad}} {value:.4f}\n"""
+ 
+         self.writer.add_scalar('Episode/' + "rew_amp", torch.mean(locs['amp_reward']), locs['it'])
+         ep_string += f"""{f'Mean episode rew_amp:':>{pad}} {torch.mean(locs['amp_reward']):.4f}\n"""
+         mean_std = self.alg.actor_critic.std.mean()
+         fps = int(self.num_steps_per_env * self.env.num_envs / (locs["collection_time"] + locs["learn_time"]))
+ 
+         for key, value in locs["loss_dict"].items():
+             self.writer.add_scalar(f"Loss/{key}", value, locs["it"])
+         self.writer.add_scalar("Loss/learning_rate", self.alg.learning_rate, locs["it"])
+         self.writer.add_scalar("Policy/mean_noise_std", mean_std.item(), locs["it"])
+         self.writer.add_scalar("Perf/total_fps", fps, locs["it"])
+         self.writer.add_scalar("Perf/collection time", locs["collection_time"], locs["it"])
+         self.writer.add_scalar("Perf/learning_time", locs["learn_time"], locs["it"])
+ 
+         # 找到locs里面以_scene_ratio结尾的key
+         scene_ratio_keys = [key for key in locs.keys() if key.endswith("_scene_ratio")]
+         for key in scene_ratio_keys:
+             self.writer.add_scalar(f"Perf/{key}", locs[key], locs["it"])
+         if len(locs["rewbuffer"]) > 0:
+             self.writer.add_scalar("Train/mean_reward", statistics.mean(locs["rewbuffer"]), locs["it"])
+             self.writer.add_scalar(
+                 "Train/mean_episode_length",
+                 statistics.mean(locs["lenbuffer"]),
+                 locs["it"],
+             )
+             self.writer.add_scalar(
+                 "Train/mean_reward/time",
+                 statistics.mean(locs["rewbuffer"]),
+                 self.tot_time,
+             )
+             self.writer.add_scalar(
+                 "Train/mean_episode_length/time",
+                 statistics.mean(locs["lenbuffer"]),
+                 self.tot_time,
+             )
+ 
+             if FUYAO_IS_AVAILABLE:
+                 fuyao.log_metric('Train/mean_reward', statistics.mean(locs["rewbuffer"]), None, locs["it"])
+                 fuyao.log_metric('Train/mean_episode_length', statistics.mean(locs["lenbuffer"]), None, locs["it"])
+                 fuyao.log_metric('Loss/learning_rate', self.alg.learning_rate, None, locs["it"])
+                 fuyao.log_metric('Policy/mean_noise_std', mean_std.item(), None, locs["it"])
+ 
+         iteration_str = f" \033[1m Learning iteration {locs['it']}/{self.current_learning_iteration + locs['num_learning_iterations']} \033[0m "
+ 
+         if len(locs["rewbuffer"]) > 0:
+             log_string = (
+                 f"""{'#' * width}\n"""
+                 f"""{iteration_str.center(width, ' ')}\n\n"""
+                 f"""{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs[
+                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
+                 f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
+                 f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""
+                 f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n"""
+             )
+             for key, value in locs["loss_dict"].items():
+                 log_string += f"""{f'Mean {key} loss:':>{pad}} {value:.4f}\n"""
+-            #   f"""{'Mean reward/step:':>{pad}} {locs['mean_reward']:.2f}\n"""
+-            #   f"""{'Mean episode length/episode:':>{pad}} {locs['mean_trajectory_length']:.2f}\n""")
+         else:
+             log_string = (
+                 f"""{'#' * width}\n"""
+                 f"""{iteration_str.center(width, ' ')}\n\n"""
+                 f"""{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs[
+                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
+                 f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
+             )
+             for key, value in locs["loss_dict"].items():
+                 log_string += f"""{f'Mean {key} loss:':>{pad}} {value:.4f}\n"""
+-            #   f"""{'Mean reward/step:':>{pad}} {locs['mean_reward']:.2f}\n"""
+-            #   f"""{'Mean episode length/episode:':>{pad}} {locs['mean_trajectory_length']:.2f}\n""")
+ 
+         log_string += ep_string
+         log_string += (
+             f"""{'-' * width}\n"""
+             f"""{'Total timesteps:':>{pad}} {self.tot_timesteps}\n"""
+             f"""{'Iteration time:':>{pad}} {iteration_time:.2f}s\n"""
+             f"""{'Total time:':>{pad}} {self.tot_time:.2f}s\n"""
+             f"""{'ETA:':>{pad}} {self.tot_time / (locs['it'] + 1) * (
+                                locs['num_learning_iterations'] - locs['it']):.1f}s\n"""
+         )
+         print(log_string)
+ 
+     def save(self, path, infos=None):
++        # Only main process should save checkpoints
++        if not is_main_process(self.accelerator):
++            return
++
+         torch.save(
+             {
+                 "model_state_dict": self.alg.actor_critic.state_dict(),
+                 "optimizer_state_dict": self.alg.optimizer.state_dict(),
+                 'discriminator_state_dict': self.alg.discriminator.state_dict(),
+                 "iter": self.current_learning_iteration,
+-                'amp_normalizer': self.alg.amp_normalizer,
++                "amp_normalizer_state_dict": self.alg.amp_normalizer.state_dict(),
+                 "infos": infos,
+             },
+             path,
+         )
+ 
+         if FUYAO_IS_AVAILABLE:
+             self.rtd_artifacts_helper.upload_artifacts_file(local_filepath=path)
+ 
+     def run_play_subprocess(self, iteration=None):
++        # Only main process should run play subprocess
++        if not is_main_process(self.accelerator):
++            return
++
+         if self.play_subprocess is None:
+             output_dir = self.log_dir
+             print(
+                 f"[amp_on_policy_runner] Run play.py script at iter-[{iteration}]. Result will be under: {output_dir}"
+             )
+             # run play.py script in a subprocess after a delay to wait for the model to be saved
+             # run the script under the time limit of 6 minutes (to avoid the script running forever)
+             self.play_subprocess = subprocess.Popen(
+                 f"""
+                 sleep 5
+                 timeout 12m python humanoid/scripts/play.py --task {self.experiment_name} --sim_device cpu --rl_device cpu --load_run {self.log_dir} --output_dir {self.play_script_output_dir} --headless --export_policy --log_data --fixed_command --record_video --output_csv
+                 """,
+                 shell=True,
+                 executable="/bin/bash",
+                 stderr=subprocess.STDOUT,
+                 stdout=subprocess.PIPE,
+             )
+         else:
+             print(f"[amp_on_policy_runner] the previous play_subprocess is still running, ignore the new request")
+ 
+     def check_play_subprocess(self):
+         if self.play_subprocess is not None:
+             if self.play_subprocess.poll() is None:
+                 if self.play_script_verbose:
+                     line = self.play_subprocess.stdout.readline()
+                     print(f"[amp_on_policy_runner][play_subprocess] {line.decode('utf-8').strip()}")
+             else:
+                 self.play_subprocess = None  # process is done, reset
+ 
+     def load(self, path, load_optimizer=True):
+         loaded_dict = torch.load(path, map_location=self.device)
+         self.alg.actor_critic.load_state_dict(loaded_dict["model_state_dict"])
+         self.alg.discriminator.load_state_dict(loaded_dict['discriminator_state_dict'])
+-        self.alg.amp_normalizer = loaded_dict['amp_normalizer']
++        self.alg.amp_normalizer.load_state_dict(loaded_dict['amp_normalizer_state_dict'])
+         if load_optimizer:
+             self.alg.optimizer.load_state_dict(loaded_dict["optimizer_state_dict"])
+         self.current_learning_iteration = loaded_dict["iter"]
+         return loaded_dict["infos"]
+ 
+     def get_amp_discriminator(self, device=None):
+         self.alg.discriminator.eval()  # switch to evaluation mode (dropout for example)
+         if device is not None:
+             self.alg.discriminator.to(device)
+         return self.alg.discriminator
+ 
+     def get_amp_normalizer(self, device=None):
+         if self.alg.amp_normalizer:
+             self.alg.amp_normalizer.eval()  # switch to evaluation mode (dropout for example)
+             if device is not None:
+                 self.alg.amp_normalizer.to(device)
+             return self.alg.amp_normalizer
+         else:
+             return None
+ 
+     def get_inference_policy(self, device=None):
+         self.alg.actor_critic.eval()  # switch to evaluation mode (dropout for example)
+         if device is not None:
+             self.alg.actor_critic.to(device)
+         return self.alg.actor_critic.act_inference
+ 
+     def get_inference_critic(self, device=None):
+         self.alg.actor_critic.eval()  # switch to evaluation mode (dropout for example)
+         if device is not None:
+             self.alg.actor_critic.to(device)
+         return self.alg.actor_critic.evaluate
+diff --git a/humanoid-gym/humanoid/algo/amp_ppo/amp_ppo.py b/humanoid-gym/humanoid/algo/amp_ppo/amp_ppo.py
+index 6fa422f1a..824935f39 100755
+--- a/humanoid-gym/humanoid/algo/amp_ppo/amp_ppo.py
++++ b/humanoid-gym/humanoid/algo/amp_ppo/amp_ppo.py
+@@ -1,412 +1,435 @@
+ # SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ # SPDX-FileCopyrightText: Copyright (c) 2021 ETH Zurich, Nikita Rudin
+ # SPDX-License-Identifier: BSD-3-Clause
+ #
+ # Redistribution and use in source and binary forms, with or without
+ # modification, are permitted provided that the following conditions are met:
+ #
+ # 1. Redistributions of source code must retain the above copyright notice, this
+ # list of conditions and the following disclaimer.
+ #
+ # 2. Redistributions in binary form must reproduce the above copyright notice,
+ # this list of conditions and the following disclaimer in the documentation
+ # and/or other materials provided with the distribution.
+ #
+ # 3. Neither the name of the copyright holder nor the names of its
+ # contributors may be used to endorse or promote products derived from
+ # this software without specific prior written permission.
+ #
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ # DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ #
+ # Copyright (c) 2024 Beijing RobotEra TECHNOLOGY CO.,LTD. All rights reserved.
+ 
++import os
++
+ import torch
+ import torch.nn as nn
+ import torch.optim as optim
++import torch.nn.functional as F
+ 
+ from .replay_buffer import ReplayBuffer
+ from ..ppo.actor_critic import ActorCritic
+ from ..ppo.rollout_storage import RolloutStorage
+-import torch.nn.functional as F
++from ..iron_turbo import sync_tensor, sync_gradients
+ 
+ 
+ class AMPPPO:
+     actor_critic: ActorCritic
+ 
+     def __init__(
+         self,
+         actor_critic,
+         discriminator,
+         amp_data,
+         amp_normalizer,
+         symmetry_cfg=None,
+         num_learning_epochs=1,
+         num_mini_batches=1,
+         clip_param=0.2,
+         gamma=0.998,
+         lam=0.95,
+         value_loss_coef=1.0,
+         entropy_coef=0.0,
+         learning_rate=1e-3,
+         max_grad_norm=1.0,
+         use_clipped_value_loss=True,
+         schedule="fixed",
+         desired_kl=0.01,
+         device='cpu',
+         amp_replay_buffer_size=100000,
+         min_std=None,
+         adaptation_loss_coef=1.0,
++        accelerator=None,
+     ):
+-
+-        self.device = device
++        self.accelerator = accelerator
++        self.device = accelerator.device if accelerator is not None else device
+ 
+         self.desired_kl = desired_kl
+         self.schedule = schedule
+         self.learning_rate = learning_rate
+         self.min_std = min_std
+ 
+         # Discriminator components
+         self.discriminator = discriminator
+         self.discriminator.to(self.device)
+         self.amp_transition = RolloutStorage.Transition()
+-        self.amp_storage = ReplayBuffer(discriminator.input_dim // 2, amp_replay_buffer_size, device)
++
++        self.amp_storage = ReplayBuffer(discriminator.input_dim // 2, amp_replay_buffer_size, self.device)
+         self.amp_data = amp_data
+         self.amp_normalizer = amp_normalizer
+ 
+         # PPO components
+         self.actor_critic = actor_critic
+         self.actor_critic.to(self.device)
+         self.storage = None  # initialized later
+ 
+         # Optimizer for policy and discriminator.
+         params = [
+             {'params': self.actor_critic.parameters(), 'name': 'actor_critic'},
+             {'params': self.discriminator.trunk.parameters(), 'weight_decay': 1e-3, 'name': 'amp_trunk'},
+             {'params': self.discriminator.amp_linear.parameters(), 'weight_decay': 1e-1, 'name': 'amp_head'},
+         ]
+         self.optimizer = optim.Adam(params, lr=learning_rate)
+-        #                                         lr=1e-5)
++
++        # Prepare models and optimizer
++        if self.accelerator is not None:
++            self.optimizer = self.accelerator.prepare(
++                self.optimizer
++            )
++
+         self.transition = RolloutStorage.Transition()
+ 
+         # Symmetry components
+         if symmetry_cfg is not None:
+             use_symmetry = symmetry_cfg.get("use_data_augmentation", False) or symmetry_cfg.get(
+                 "use_mirror_loss", False
+             )
+             if not use_symmetry:
+                 print("Symmetry not used for learning.")
+             if symmetry_cfg.get("use_data_augmentation", False) and not callable(
+                 symmetry_cfg["data_augmentation_func"]
+             ):
+                 raise ValueError(
+                     "Data augmentation enabled but the function is not callable:"
+                     f" {symmetry_cfg['data_augmentation_func']}"
+                 )
+             self.symmetry = symmetry_cfg
+         else:
+             self.symmetry = None
+ 
+         # PPO parameters
+         self.clip_param = clip_param
+         self.num_learning_epochs = num_learning_epochs
+         self.num_mini_batches = num_mini_batches
+         self.value_loss_coef = value_loss_coef
+         self.set_entropy_coef(entropy_coef)
+         self.gamma = gamma
+         self.lam = lam
+         self.max_grad_norm = max_grad_norm
+         self.use_clipped_value_loss = use_clipped_value_loss
+         self.adaptation_loss_coef = adaptation_loss_coef
+ 
+     def init_storage(self, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape):
+         self.storage = RolloutStorage(
+             num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape, self.device
+         )
+ 
+     def test_mode(self):
+         self.actor_critic.test()
+ 
+     def train_mode(self):
+         self.actor_critic.train()
+ 
+     def act(self, obs, critic_obs, amp_obs):
+         # Compute the actions and values
+         aug_obs, aug_critic_obs = obs.detach(), critic_obs.detach()
+         _, self.transition.actions = self.actor_critic.act(aug_obs)
+-        self.transition.values = self.actor_critic.evaluate(aug_critic_obs).detach()
++        value, _ = self.actor_critic.evaluate(aug_critic_obs)
++        self.transition.values = value.detach()
+         self.transition.actions_log_prob = self.actor_critic.get_actions_log_prob(self.transition.actions).detach()
+         self.transition.action_mean = self.actor_critic.action_mean.detach()
+         self.transition.action_sigma = self.actor_critic.action_std.detach()
+         # need to record obs and critic_obs before env.step()
+         self.transition.observations = obs
+         self.transition.critic_observations = critic_obs
+         self.amp_transition.observations = amp_obs
+         return self.transition.actions.detach()
+ 
+     def process_env_step(self, rewards, dones, infos, amp_obs):
+         self.transition.rewards = rewards.clone()
+         self.transition.dones = dones
+         # Bootstrapping on time outs
+         if 'time_outs' in infos:
+             self.transition.rewards += self.gamma * torch.squeeze(
+                 self.transition.values * infos['time_outs'].unsqueeze(1).to(self.device), 1
+             )
+ 
+         self.amp_storage.insert(self.amp_transition.observations, amp_obs)
+ 
+         # Record the transition
+         self.storage.add_transitions(self.transition)
+         self.transition.clear()
+         self.amp_transition.clear()
+         self.actor_critic.reset(dones)
+ 
+     def compute_returns(self, last_critic_obs):
+         aug_last_critic_obs = last_critic_obs.detach()
+-        last_values = self.actor_critic.evaluate(aug_last_critic_obs).detach()
+-        self.storage.compute_returns(last_values, self.gamma, self.lam)
++        last_values, _ = self.actor_critic.evaluate(aug_last_critic_obs)
++        last_values = last_values.detach()
++        self.storage.compute_returns(last_values, self.gamma, self.lam, accelerator=self.accelerator)
+ 
+     def update(self, curriculum_iter):
+         mean_value_loss = 0
+         mean_surrogate_loss = 0
+         mean_amp_loss = 0
+         mean_grad_pen_loss = 0
+         mean_policy_pred = 0
+         mean_expert_pred = 0
+         mean_adaptation_module_loss = 0
+ 
+         # -- Symmetry loss
+         if self.symmetry and self.symmetry["use_mirror_loss"]:
+             mean_symmetry_loss = 0
+         else:
+             mean_symmetry_loss = None
+ 
+         generator = self.storage.mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)
+         amp_policy_generator = self.amp_storage.feed_forward_generator(
+             self.num_learning_epochs * self.num_mini_batches,
+             self.storage.num_envs * self.storage.num_transitions_per_env // self.num_mini_batches,
+         )
+         amp_expert_generator = self.amp_data.feed_forward_generator(
+             self.num_learning_epochs * self.num_mini_batches,
+             self.storage.num_envs * self.storage.num_transitions_per_env // self.num_mini_batches,
+         )
+ 
+         for sample, sample_amp_policy, sample_amp_expert in zip(generator, amp_policy_generator, amp_expert_generator):
+             (
+                 obs_batch,
+                 critic_obs_batch,
+                 actions_batch,
+                 target_values_batch,
+                 advantages_batch,
+                 returns_batch,
+                 old_actions_log_prob_batch,
+                 old_mu_batch,
+                 old_sigma_batch,
+                 hid_states_batch,
+                 masks_batch,
+             ) = sample
+ 
+             original_batch_size = obs_batch.shape[0]
+             if self.symmetry and self.symmetry.get("use_data_augmentation", False):
+                 data_augmentation_func = self.symmetry["data_augmentation_func"]
+                 obs_batch, actions_batch = data_augmentation_func(
+                     obs=obs_batch, actions=actions_batch, obs_type="policy"
+                 )
+                 critic_obs_batch, _ = data_augmentation_func(obs=critic_obs_batch, actions=None, obs_type="critic")
+                 num_aug = int(obs_batch.shape[0] / original_batch_size)
+                 old_actions_log_prob_batch = old_actions_log_prob_batch.repeat(num_aug, 1)
+                 target_values_batch = target_values_batch.repeat(num_aug, 1)
+                 advantages_batch = advantages_batch.repeat(num_aug, 1)
+                 returns_batch = returns_batch.repeat(num_aug, 1)
+ 
+             aug_obs_batch = obs_batch.detach()
+             adaptation_pred, _ = self.actor_critic.act(
+                 aug_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0]
+             )
+             actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
+             aug_critic_obs_batch = critic_obs_batch.detach()
+-            value_batch = self.actor_critic.evaluate(
++            value_batch, latent = self.actor_critic.evaluate(
+                 aug_critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1]
+             )
+             # only keep the entropy of the first augmentation (the original one)
+             mu_batch = self.actor_critic.action_mean[:original_batch_size]
+             sigma_batch = self.actor_critic.action_std[:original_batch_size]
+             entropy_batch = self.actor_critic.entropy[:original_batch_size]
+ 
+-            with torch.no_grad():
+-                adaptation_target = self.actor_critic.env_factor_encoder(critic_obs_batch)
+-
++            adaptation_target = latent.detach()
+             adaptation_loss = F.mse_loss(adaptation_pred, adaptation_target)
+ 
+-            # KL
++            # Adaptive LR based on KL
+             if self.desired_kl is not None and self.schedule == 'adaptive':
+                 with torch.inference_mode():
+                     kl = torch.sum(
+                         torch.log(sigma_batch / old_sigma_batch + 1.0e-5)
+                         + (torch.square(old_sigma_batch) + torch.square(old_mu_batch - mu_batch))
+                         / (2.0 * torch.square(sigma_batch))
+                         - 0.5,
+                         axis=-1,
+                     )
+                     kl_mean = torch.mean(kl)
+ 
++                    # Sync KL mean across all processes using iron_turbo
++                    kl_mean = sync_tensor(kl_mean, self.accelerator)
++
+                     if kl_mean > self.desired_kl * 2.0:
+                         self.learning_rate = max(1e-5, self.learning_rate / 1.5)
+                     elif kl_mean < self.desired_kl / 2.0 and kl_mean > 0.0:
+                         self.learning_rate = min(1e-2, self.learning_rate * 1.5)
+ 
+                     for param_group in self.optimizer.param_groups:
+                         param_group['lr'] = self.learning_rate
+ 
+             # Surrogate loss
+             ratio = torch.exp(actions_log_prob_batch - torch.squeeze(old_actions_log_prob_batch))
+             surrogate = -torch.squeeze(advantages_batch) * ratio
+             surrogate_clipped = -torch.squeeze(advantages_batch) * torch.clamp(
+                 ratio, 1.0 - self.clip_param, 1.0 + self.clip_param
+             )
+             surrogate_loss = torch.max(surrogate, surrogate_clipped).mean()
+ 
+             # Value function loss
+             if self.use_clipped_value_loss:
+                 value_clipped = target_values_batch + (value_batch - target_values_batch).clamp(
+                     -self.clip_param, self.clip_param
+                 )
+                 value_losses = (value_batch - returns_batch).pow(2)
+                 value_losses_clipped = (value_clipped - returns_batch).pow(2)
+                 value_loss = torch.max(value_losses, value_losses_clipped).mean()
+             else:
+                 value_loss = (returns_batch - value_batch).pow(2).mean()
+ 
+             # Discriminator loss.
+             policy_state, policy_next_state = sample_amp_policy
+             expert_state, expert_next_state = sample_amp_expert
+ 
+             policy_state_unnorm = torch.clone(policy_state)
+             expert_state_unnorm = torch.clone(expert_state)
+ 
+             if self.amp_normalizer is not None:
+                 with torch.no_grad():
+                     policy_state = self.amp_normalizer.normalize(policy_state)
+                     policy_next_state = self.amp_normalizer.normalize(policy_next_state)
+                     expert_state = self.amp_normalizer.normalize(expert_state)
+                     expert_next_state = self.amp_normalizer.normalize(expert_next_state)
+             policy_d = self.discriminator(torch.cat([policy_state, policy_next_state], dim=-1))
+             expert_d = self.discriminator(torch.cat([expert_state, expert_next_state], dim=-1))
+             expert_loss = torch.nn.MSELoss()(expert_d, torch.ones(expert_d.size(), device=self.device))
+             policy_loss = torch.nn.MSELoss()(policy_d, -1 * torch.ones(policy_d.size(), device=self.device))
+             amp_loss = 0.5 * (expert_loss + policy_loss)
+             grad_pen_loss = self.discriminator.compute_grad_pen(expert_state, expert_next_state, lambda_=10)
+ 
+             # entropy_coef curriculum
+             self.entropy_coef = self._get_entropy_coef(curriculum_iter)
+ 
+             # Compute total loss.
+             loss = (
+                 surrogate_loss
+                 + self.value_loss_coef * value_loss
+                 - self.entropy_coef * entropy_batch.mean()
+                 + self.adaptation_loss_coef * adaptation_loss
+                 + amp_loss
+                 + grad_pen_loss
+             )
+ 
+             # Symmetry loss
+             if self.symmetry and self.symmetry["use_mirror_loss"]:
+                 if not self.symmetry["use_data_augmentation"]:
+                     data_augmentation_func = self.symmetry["data_augmentation_func"]
+                     obs_batch, _ = data_augmentation_func(obs=obs_batch, actions=None, obs_type="policy")
+                     num_aug = int(obs_batch.shape[0] / original_batch_size)
+                     # actions predicted by the actor for symmetrically-augmented observations
+                     self.actor_critic.update_distribution(
+                         obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0]
+                     )
+                 # compute the symmetrically augmented actions
+                 action_mean_orig = self.actor_critic.action_mean[:original_batch_size]
+                 _, actions_mean_symm_batch = data_augmentation_func(
+                     obs=None, actions=action_mean_orig, obs_type="policy"
+                 )
+ 
+                 # compute the loss
+                 mse_loss = torch.nn.MSELoss()
+                 symmetry_loss = mse_loss(
+                     self.actor_critic.action_mean[original_batch_size:],
+                     actions_mean_symm_batch.detach()[original_batch_size:],
+                 )
+                 # add the loss to the total loss
+                 loss += self.symmetry["mirror_loss_coeff"] * symmetry_loss
+ 
+             # Gradient step
+             self.optimizer.zero_grad()
+-            loss.backward()
++
++            # Backward pass (use accelerator.backward for mixed precision support)
++            if self.accelerator is not None:
++                self.accelerator.backward(loss)
++            else:
++                loss.backward()
++
++            # sync gradient across ranks
++            sync_gradients(self.actor_critic, self.discriminator)
++
+             nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
+             self.optimizer.step()
+ 
+             if self.amp_normalizer is not None:
+                 self.amp_normalizer.update(policy_state_unnorm)
+                 self.amp_normalizer.update(expert_state_unnorm)
+ 
+             mean_value_loss += value_loss.item()
+             mean_surrogate_loss += surrogate_loss.item()
+             mean_amp_loss += amp_loss.item()
+             mean_grad_pen_loss += grad_pen_loss.item()
+             mean_policy_pred += policy_d.mean().item()
+             mean_expert_pred += expert_d.mean().item()
+             mean_adaptation_module_loss += adaptation_loss.item()
+             if mean_symmetry_loss is not None:
+                 mean_symmetry_loss += symmetry_loss.item()
+ 
+         num_updates = self.num_learning_epochs * self.num_mini_batches
+         mean_value_loss /= num_updates
+         mean_surrogate_loss /= num_updates
+         mean_amp_loss /= num_updates
+         mean_grad_pen_loss /= num_updates
+         mean_policy_pred /= num_updates
+         mean_expert_pred /= num_updates
+         mean_adaptation_module_loss /= num_updates
+         if mean_symmetry_loss is not None:
+             mean_symmetry_loss /= num_updates
+         self.storage.clear()
+ 
+         loss_dict = {
+             "value_function": mean_value_loss,
+             "surrogate": mean_surrogate_loss,
+             "AMP": mean_amp_loss,
+             "AMP_grad": mean_grad_pen_loss,
+             "AMP_pred_policy": mean_policy_pred,
+             "AMP_pred_expert": mean_expert_pred,
+             "adaption": mean_adaptation_module_loss,
+         }
+         if mean_symmetry_loss is not None:
+             loss_dict["symmetry"] = mean_symmetry_loss
+ 
+         return loss_dict
+ 
+     def set_entropy_coef(self, entropy_coef):
+         if isinstance(entropy_coef, float):
+             self.entropy_coef_dict = {-1: entropy_coef}
+             self.entropy_coef_stages = []
+             self.entropy_coef_curriculum_stage_cur = -1
+         elif isinstance(entropy_coef, dict):
+             self.entropy_coef_dict = entropy_coef
+             self.entropy_coef_stages = sorted(list(entropy_coef.keys()), reverse=True)
+             self.entropy_coef_curriculum_stage_cur = self.entropy_coef_stages.pop()
+             print(f"Initial entropy_coef curriculum (iteration, value): {self.entropy_coef_dict}")
+         else:
+             raise ValueError("entropy_coef must be a float or a dictionary")
+ 
+     def _get_entropy_coef(self, curriculum_iter):
+ 
+         while curriculum_iter >= self.entropy_coef_curriculum_stage_cur and len(self.entropy_coef_stages) > 0:
+             self.entropy_coef_curriculum_stage_cur = self.entropy_coef_stages.pop()
+             entropy_coef = self.entropy_coef_dict[self.entropy_coef_curriculum_stage_cur]
+             print(f"curriculum_iter[{curriculum_iter}] Switching task_reward_lerp curriculum to {entropy_coef}")
+ 
+         return self.entropy_coef_dict[self.entropy_coef_curriculum_stage_cur]
+diff --git a/humanoid-gym/humanoid/algo/ppo/rollout_storage.py b/humanoid-gym/humanoid/algo/ppo/rollout_storage.py
+index 473debe12..04523760d 100755
+--- a/humanoid-gym/humanoid/algo/ppo/rollout_storage.py
++++ b/humanoid-gym/humanoid/algo/ppo/rollout_storage.py
+@@ -1,193 +1,195 @@
+ # SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ # SPDX-FileCopyrightText: Copyright (c) 2021 ETH Zurich, Nikita Rudin
+ # SPDX-License-Identifier: BSD-3-Clause
+ #
+ # Redistribution and use in source and binary forms, with or without
+ # modification, are permitted provided that the following conditions are met:
+ #
+ # 1. Redistributions of source code must retain the above copyright notice, this
+ # list of conditions and the following disclaimer.
+ #
+ # 2. Redistributions in binary form must reproduce the above copyright notice,
+ # this list of conditions and the following disclaimer in the documentation
+ # and/or other materials provided with the distribution.
+ #
+ # 3. Neither the name of the copyright holder nor the names of its
+ # contributors may be used to endorse or promote products derived from
+ # this software without specific prior written permission.
+ #
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ # DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ #
+ # Copyright (c) 2024 Beijing RobotEra TECHNOLOGY CO.,LTD. All rights reserved.
+ 
+ 
+ import torch
+ 
++from ..iron_turbo import standardize_tensor
++
+ 
+ class RolloutStorage:
+     class Transition:
+         def __init__(self):
+             self.observations = None
+             self.critic_observations = None
+             self.actions = None
+             self.rewards = None
+             self.dones = None
+             self.values = None
+             self.actions_log_prob = None
+             self.action_mean = None
+             self.action_sigma = None
+             self.hidden_states = None
+ 
+         def clear(self):
+             self.__init__()
+ 
+     def __init__(self, num_envs, num_transitions_per_env, obs_shape, privileged_obs_shape, actions_shape, device='cpu'):
+ 
+         self.device = device
+ 
+         self.obs_shape = obs_shape
+         self.privileged_obs_shape = privileged_obs_shape
+         self.actions_shape = actions_shape
+ 
+         # Core
+         self.observations = torch.zeros(num_transitions_per_env, num_envs, *obs_shape, device=self.device)
+         if privileged_obs_shape[0] is not None:
+             self.privileged_observations = torch.zeros(
+                 num_transitions_per_env, num_envs, *privileged_obs_shape, device=self.device
+             )
+         else:
+             self.privileged_observations = None
+         self.rewards = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
+         self.actions = torch.zeros(num_transitions_per_env, num_envs, *actions_shape, device=self.device)
+         self.dones = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device).to(torch.uint8)
+ 
+         # For PPO
+         self.actions_log_prob = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
+         self.values = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
+         self.returns = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
+         self.advantages = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
+         self.mu = torch.zeros(num_transitions_per_env, num_envs, *actions_shape, device=self.device)
+         self.sigma = torch.zeros(num_transitions_per_env, num_envs, *actions_shape, device=self.device)
+ 
+         self.num_transitions_per_env = num_transitions_per_env
+         self.num_envs = num_envs
+ 
+         # rnn
+         self.saved_hidden_states_a = None
+         self.saved_hidden_states_c = None
+ 
+         self.step = 0
+ 
+     def add_transitions(self, transition: Transition):
+         if self.step >= self.num_transitions_per_env:
+             raise AssertionError("Rollout buffer overflow")
+         self.observations[self.step].copy_(transition.observations)
+         if self.privileged_observations is not None:
+             self.privileged_observations[self.step].copy_(transition.critic_observations)
+         self.actions[self.step].copy_(transition.actions)
+         self.rewards[self.step].copy_(transition.rewards.view(-1, 1))
+         self.dones[self.step].copy_(transition.dones.view(-1, 1))
+         self.values[self.step].copy_(transition.values)
+         self.actions_log_prob[self.step].copy_(transition.actions_log_prob.view(-1, 1))
+         self.mu[self.step].copy_(transition.action_mean)
+         self.sigma[self.step].copy_(transition.action_sigma)
+         self._save_hidden_states(transition.hidden_states)
+         self.step += 1
+ 
+     def _save_hidden_states(self, hidden_states):
+         if hidden_states is None or hidden_states == (None, None):
+             return
+         # make a tuple out of GRU hidden state sto match the LSTM format
+         hid_a = hidden_states[0] if isinstance(hidden_states[0], tuple) else (hidden_states[0],)
+         hid_c = hidden_states[1] if isinstance(hidden_states[1], tuple) else (hidden_states[1],)
+ 
+         # initialize if needed
+         if self.saved_hidden_states_a is None:
+             self.saved_hidden_states_a = [
+                 torch.zeros(self.observations.shape[0], *hid_a[i].shape, device=self.device) for i in range(len(hid_a))
+             ]
+             self.saved_hidden_states_c = [
+                 torch.zeros(self.observations.shape[0], *hid_c[i].shape, device=self.device) for i in range(len(hid_c))
+             ]
+         # copy the states
+         for i in range(len(hid_a)):
+             self.saved_hidden_states_a[i][self.step].copy_(hid_a[i])
+             self.saved_hidden_states_c[i][self.step].copy_(hid_c[i])
+ 
+     def clear(self):
+         self.step = 0
+ 
+-    def compute_returns(self, last_values, gamma, lam):
++    def compute_returns(self, last_values, gamma, lam, accelerator=None):
+         advantage = 0
+         for step in reversed(range(self.num_transitions_per_env)):
+             if step == self.num_transitions_per_env - 1:
+                 next_values = last_values
+             else:
+                 next_values = self.values[step + 1]
+             next_is_not_terminal = 1.0 - self.dones[step].float()
+             delta = self.rewards[step] + next_is_not_terminal * gamma * next_values - self.values[step]
+             advantage = delta + next_is_not_terminal * gamma * lam * advantage
+             self.returns[step] = advantage + self.values[step]
+ 
+         # Compute and normalize the advantages
+         self.advantages = self.returns - self.values
+-        self.advantages = (self.advantages - self.advantages.mean()) / (self.advantages.std() + 1e-8)
++        self.advantages = standardize_tensor(self.advantages, accelerator=accelerator)
+ 
+     def get_statistics(self):
+         done = self.dones
+         done[-1] = 1
+         flat_dones = done.permute(1, 0, 2).reshape(-1, 1)
+         done_indices = torch.cat(
+             (flat_dones.new_tensor([-1], dtype=torch.int64), flat_dones.nonzero(as_tuple=False)[:, 0])
+         )
+         trajectory_lengths = done_indices[1:] - done_indices[:-1]
+         return trajectory_lengths.float().mean(), self.rewards.mean()
+ 
+     def mini_batch_generator(self, num_mini_batches, num_epochs=8):
+         batch_size = self.num_envs * self.num_transitions_per_env
+         mini_batch_size = batch_size // num_mini_batches
+         indices = torch.randperm(num_mini_batches * mini_batch_size, requires_grad=False, device=self.device)
+ 
+         observations = self.observations.flatten(0, 1)
+         if self.privileged_observations is not None:
+             critic_observations = self.privileged_observations.flatten(0, 1)
+         else:
+             critic_observations = observations
+ 
+         actions = self.actions.flatten(0, 1)
+         values = self.values.flatten(0, 1)
+         returns = self.returns.flatten(0, 1)
+         old_actions_log_prob = self.actions_log_prob.flatten(0, 1)
+         advantages = self.advantages.flatten(0, 1)
+         old_mu = self.mu.flatten(0, 1)
+         old_sigma = self.sigma.flatten(0, 1)
+ 
+         for epoch in range(num_epochs):
+             for i in range(num_mini_batches):
+ 
+                 start = i * mini_batch_size
+                 end = (i + 1) * mini_batch_size
+                 batch_idx = indices[start:end]
+ 
+                 obs_batch = observations[batch_idx]
+                 critic_observations_batch = critic_observations[batch_idx]
+                 actions_batch = actions[batch_idx]
+                 target_values_batch = values[batch_idx]
+                 returns_batch = returns[batch_idx]
+                 old_actions_log_prob_batch = old_actions_log_prob[batch_idx]
+                 advantages_batch = advantages[batch_idx]
+                 old_mu_batch = old_mu[batch_idx]
+                 old_sigma_batch = old_sigma[batch_idx]
+                 yield obs_batch, critic_observations_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, old_mu_batch, old_sigma_batch, (
+                     None,
+                     None,
+                 ), None

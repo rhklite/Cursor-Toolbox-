@@ -1,0 +1,42 @@
+---
+pid: 92776
+cwd: "/Users/HanHu/software/motion_rl"
+command: "bash ~/.cursor/skills/motion-rl-isaacgym-exec/scripts/run-in-isaacgym-motion-rl.sh DISPLAY=:1 python humanoid-gym/humanoid/scripts/play_interactive.py --task r01_v12_amp_with_4dof_arms_and_head_full_scenes --checkpoint_path /home/huh/software/motion_rl/model_9442_best_k_value=52.954.pt --resume --total_steps 100000000"
+started_at: 2026-03-13T23:44:49.032Z
+running_for_ms: 10007    
+---
+Importing module 'gym_38' (/opt/isaacgym/python/isaacgym/_bindings/linux-x86_64/gym_38.so)
+Setting GYM_USD_PLUG_INFO_PATH to /opt/isaacgym/python/isaacgym/_bindings/linux-x86_64/usd/plugInfo.json
+PyTorch version 1.14.0a0+410ce96
+Device count 2
+/opt/isaacgym/python/isaacgym/_bindings/src/gymtorch
+Using /home/huh/.cache/torch_extensions/py38_cu118 as PyTorch extensions root...
+Emitting ninja build file /home/huh/.cache/torch_extensions/py38_cu118/gymtorch/build.ninja...
+Building extension module gymtorch...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+ninja: no work to do.
+Not connected to PVD
++++ Using GPU PhysX
+Physics Engine: PhysX
+Physics Device: cuda:0
+GPU Pipeline: enabled
+Loading extension module gymtorch...
+/home/huh/software/motion_rl/humanoid-gym/humanoid/envs/r01_amp/action_filter.py:96: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at /opt/pytorch/pytorch/torch/csrc/utils/tensor_new.cpp:230.)
+  self.a = torch.tensor(self.a, device=device)
+2026-03-13 16:44:54.471 | INFO     | humanoid.envs.base.motion_loader:__init__:87 - motion_dataset_path: /home/huh/software/motion_rl/humanoid-gym/datasets/duzl_0205_hybrid_armj4_walkturn_waist_offset
+2026-03-13 16:44:54.499 | INFO     | humanoid.envs.base.motion_loader:__init__:106 - initialize the state start-end idx pairs using the first motion file ...
+2026-03-13 16:44:54.499 | INFO     | humanoid.envs.base.motion_loader:__init__:107 - state_dim_dict: {'root_lin_vel': 3, 'root_ang_vel': 3, 'foot_pos': 6, 'foot_vel': 6, 'joint_pos': 27, 'joint_vel': 27, 'root_pos': 3, 'root_quat': 4, 'projected_gravity': 3, 'torso_projected_gravity': 3, 'torso_pos_world': 3, 'torso_quat_world': 4, 'torso_lin_vel_world': 3, 'torso_ang_vel_world': 3, 'l_foot_pos_world': 3, 'l_foot_quat_world': 4, 'l_foot_lin_vel_world': 3, 'l_foot_ang_vel_world': 3, 'r_foot_pos_world': 3, 'r_foot_quat_world': 4, 'r_foot_lin_vel_world': 3, 'r_foot_ang_vel_world': 3}
+2026-03-13 16:44:54.499 | INFO     | humanoid.envs.base.motion_loader:__init__:108 - state_idx_dict: {'root_lin_vel_start_idx': 0, 'root_lin_vel_end_idx': 3, 'root_ang_vel_start_idx': 3, 'root_ang_vel_end_idx': 6, 'foot_pos_start_idx': 6, 'foot_pos_end_idx': 12, 'foot_vel_start_idx': 12, 'foot_vel_end_idx': 18, 'joint_pos_start_idx': 18, 'joint_pos_end_idx': 45, 'joint_vel_start_idx': 45, 'joint_vel_end_idx': 72, 'root_pos_start_idx': 72, 'root_pos_end_idx': 75, 'root_quat_start_idx': 75, 'root_quat_end_idx': 79, 'projected_gravity_start_idx': 79, 'projected_gravity_end_idx': 82, 'torso_projected_gravity_start_idx': 82, 'torso_projected_gravity_end_idx': 85, 'torso_pos_world_start_idx': 85, 'torso_pos_world_end_idx': 88, 'torso_quat_world_start_idx': 88, 'torso_quat_world_end_idx': 92, 'torso_lin_vel_world_start_idx': 92, 'torso_lin_vel_world_end_idx': 95, 'torso_ang_vel_world_start_idx': 95, 'torso_ang_vel_world_end_idx': 98, 'l_foot_pos_world_start_idx': 98, 'l_foot_pos_world_end_idx': 101, 'l_foot_quat_world_start_idx': 101, 'l_foot_quat_world_end_idx': 105, 'l_foot_lin_vel_world_start_idx': 105, 'l_foot_lin_vel_world_end_idx': 108, 'l_foot_ang_vel_world_start_idx': 108, 'l_foot_ang_vel_world_end_idx': 111, 'r_foot_pos_world_start_idx': 111, 'r_foot_pos_world_end_idx': 114, 'r_foot_quat_world_start_idx': 114, 'r_foot_quat_world_end_idx': 118, 'r_foot_lin_vel_world_start_idx': 118, 'r_foot_lin_vel_world_end_idx': 121, 'r_foot_ang_vel_world_start_idx': 121, 'r_foot_ang_vel_world_end_idx': 124}
+2026-03-13 16:44:54.792 | INFO     | humanoid.envs.base.motion_loader:__init__:151 - Preloading 2000000 transitions
+2026-03-13 16:44:59.892 | INFO     | humanoid.envs.base.motion_loader:__init__:215 - Finished preloading
+qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "/usr/local/lib/python3.8/dist-packages/cv2/qt/plugins" even though it was found.
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: xcb.
+
+
+---
+exit_code: 255
+elapsed_ms: 11473
+ended_at: 2026-03-13T23:45:00.505Z
+---

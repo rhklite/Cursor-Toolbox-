@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<user_query>\nCreate an SSH key.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"I’ll generate a new `ed25519` SSH key pair for you now and avoid overwriting any existing key files. First I’m checking your `~/.ssh` setup, then I’ll create the key safely.\n\n**Preparing SSH keygen setup**"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"**Preparing SSH key creation**"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"**Preparing to show public key**"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Created a new SSH key pair successfully.\n\n- **Private key:** `~/.ssh/id_ed25519`\n- **Public key:** `~/.ssh/id_ed25519.pub`\n- **Fingerprint:** `SHA256:rfuO4gq1QKqnP1zs9I2mDjBSicfsld+Qae8azT29sdw`\n\nYour public key is:\n\n```text\nssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFf80XRO6nGYKWYAOG+JIpa1Jl+jqIdNxhByNR8wDBqi HanHu@Hans-MacBook-Air.local-2026-03-05\n```\n\nNext step (if you want), I can also configure it for GitHub and test with `ssh -T git@github.com`.\n\n**Preparing final summary and next steps**"}]}}

@@ -1,0 +1,78 @@
+---
+pid: 80045
+cwd: "/Users/HanHu/software/motion_rl"
+command: "ssh remote.kernel.fuyo \"fuyao info -n bifrost-2026031103161101-huh8 2>&1; echo '===LOG==='; fuyao log --help 2>&1; echo '===CANCEL==='; fuyao cancel --help 2>&1\" 2>&1"
+started_at: 2026-03-10T19:17:05.214Z
+running_for_ms: 25010    
+---
+[93m⚠️  The new version of fuyao console will only support Python 3.10 ~ 3.12. Please upgrade your Python version to use the latest features.[0m
+Newest version (fuyao==4.6.9) available. Upgrade? [y/N]. (Default is no)Traceback (most recent call last):
+  File "/usr/local/bin/fuyao", line 8, in <module>
+    sys.exit(run())
+  File "/usr/local/lib/python3.8/dist-packages/xbigdata/fuyao/console/client.py", line 198, in run
+    _check_new_version(prompt_without_new_version=False)
+  File "/usr/local/lib/python3.8/dist-packages/xbigdata/fuyao/console/client.py", line 92, in _check_new_version
+    answer = input(
+EOFError: EOF when reading a line
+===LOG===
+[93m⚠️  The new version of fuyao console will only support Python 3.10 ~ 3.12. Please upgrade your Python version to use the latest features.[0m
+usage: fuyao log [-h] [--file FILE] [--site SITE] [--stream] [--head HEAD]
+                 [--tail TAIL] [--start-after START_AFTER]
+                 [--end-before END_BEFORE] [--timestamps] [--xmaster]
+                 [--xtrainer] [--rank-id RANK_ID] [--xdataloader] [--summary]
+                 [--ignore-job-state] [--job-name JOB_NAME] [--job-id JOB_ID]
+                 [-c CONTAINER] [--rank RANK] [--show-stderr] [--show-stdout]
+                 [--all-containers] [--all-pods] [--namespace NAMESPACE]
+                 [--no-interactive]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --file FILE           log file name . It can be found from "fuyao info"
+                        command.
+  --site SITE           Job run on the site. It can be found from "fuyao info"
+                        command.
+  --stream              log stream.
+  --head HEAD           display the first N lines. Maximum: 10000
+  --tail TAIL           Lines of recent log file to display. Maximum: 10000
+  --start-after START_AFTER
+                        log start after timestamp (ISO8601)
+  --end-before END_BEFORE
+                        log end before timestamp (ISO8601)
+  --timestamps          Add timestamp in log
+  --xmaster             [DEPRECATED] fetch xmaster's log
+  --xtrainer            [DEPRECATED] fetch xtrainer's log
+  --rank-id RANK_ID     [DEPRECATED] xtrainer's rank id
+  --xdataloader         fetch xdataloader's log
+  --summary             [DEPRECATED] help analysis failed job's log
+  --ignore-job-state    ignore job state check
+  --job-name JOB_NAME   job name
+  --job-id JOB_ID       job id
+  -c CONTAINER, --container CONTAINER
+                        Print the logs of this container. default is pytorch,
+                        may be also training-init-container
+  --rank RANK           node rank of job, if multi nodes master-0 -> 0,
+                        worker-0 -> 1, ...
+  --show-stderr         only show stderr log
+  --show-stdout         only show stdout log
+  --all-containers      show all containers' log
+  --all-pods            show all pods' log
+  --namespace NAMESPACE
+                        namespace of job, default is default
+  --no-interactive      [optional] Ignore all interactive when get logs
+===CANCEL===
+[93m⚠️  The new version of fuyao console will only support Python 3.10 ~ 3.12. Please upgrade your Python version to use the latest features.[0m
+usage: fuyao cancel [-h] [--site SITE] [--job-id JOB_ID] [--job-name JOB_NAME]
+                    [--signal SIGNAL]
+
+optional arguments:
+  -h, --help           show this help message and exit
+  --site SITE          Not necessary input, by default is fuyao
+  --job-id JOB_ID      The ID of the job to cancel
+  --job-name JOB_NAME  The job name to cancel
+  --signal SIGNAL      The job name to cancel
+
+---
+exit_code: unknown
+elapsed_ms: 27160
+ended_at: 2026-03-10T19:17:32.374Z
+---

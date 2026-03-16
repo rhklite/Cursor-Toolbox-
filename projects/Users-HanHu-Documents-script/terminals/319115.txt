@@ -1,0 +1,19 @@
+---
+pid: 47557
+cwd: "/Users/HanHu/Documents/script/MacOS-Audio-input-source.-Switch-script--main"
+command: "bash -lc 'set -euo pipefail; source \"sync/config.env\"; read -r -a SSH_OPTS_ARR <<< \"${SSH_OPTIONS}\"; TEST_FILE=\"dummy-notes.md\"; TS=\"$(date +%Y-%m-%dT%H:%M:%S%z)\"; REMOTE_FILE=\"${REMOTE_DIR}/${TEST_FILE}\"; ssh \"${SSH_OPTS_ARR[@]}\" \"${REMOTE_HOST_ALIAS}\" \"printf '\\''dummy notes sync test\\ncreated_at=${TS}\\n'\\'' > '\\''${REMOTE_FILE}'\\''\"; echo \"Created remote file: ${REMOTE_HOST_ALIAS}:${REMOTE_FILE}\"; SYNC_INTERVAL_SECONDS=5 bash \"sync/sync-wrapper.sh\" >/tmp/hanhu-sync-notes-test.log 2>&1 & WRAP_PID=$!; echo \"Started wrapper PID=${WRAP_PID}\"; success=0; for i in 1 2 3 4 5 6 7 8; do if [[ -f \"${LOCAL_DIR}/${TEST_FILE}\" ]]; then echo \"FOUND_LOCAL_FILE=${LOCAL_DIR}/${TEST_FILE}\"; cat \"${LOCAL_DIR}/${TEST_FILE}\"; success=1; break; fi; echo \"Waiting for Notes sync... (${i}/8)\"; sleep 5; done; kill \"${WRAP_PID}\" 2>/dev/null || true; wait \"${WRAP_PID}\" 2>/dev/null || true; if [[ \"${success}\" -ne 1 ]]; then echo \"MISSING_LOCAL_FILE=${LOCAL_DIR}/${TEST_FILE}\"; exit 1; fi'"
+started_at: 2026-03-05T21:18:43.144Z
+running_for_ms: 80010    
+---
+Created remote file: huh.desktop.us:/home/huh/Documents/instructions/dummy-notes.md
+Started wrapper PID=47569
+Waiting for Notes sync... (1/8)
+FOUND_LOCAL_FILE=/Users/HanHu/Notes/dummy-notes.md
+dummy notes sync test
+created_at=2026-03-05T13:18:43-0800
+
+---
+exit_code: unknown
+elapsed_ms: 82992
+ended_at: 2026-03-05T21:20:06.136Z
+---

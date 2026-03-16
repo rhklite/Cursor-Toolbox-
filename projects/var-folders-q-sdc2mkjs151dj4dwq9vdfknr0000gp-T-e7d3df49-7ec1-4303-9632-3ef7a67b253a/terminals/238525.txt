@@ -1,0 +1,13 @@
+---
+pid: 22307
+cwd: "/Users/HanHu"
+command: "nc -vz user-ssh-fuyao-sh-n2.xiaopeng.link 22"
+started_at: 2026-03-06T03:17:56.959Z
+running_for_ms: 45014    
+---
+
+---
+exit_code: unknown
+elapsed_ms: 49699
+ended_at: 2026-03-06T03:18:46.658Z
+---

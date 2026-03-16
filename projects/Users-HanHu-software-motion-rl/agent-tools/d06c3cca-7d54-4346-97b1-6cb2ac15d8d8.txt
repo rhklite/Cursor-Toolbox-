@@ -1,0 +1,658 @@
+origin	git@gitlab-adc.xiaopeng.link:robotics/motion_control/rl/motion_rl.git (fetch)
+origin	git@gitlab-adc.xiaopeng.link:robotics/motion_control/rl/motion_rl.git (push)
+---LOCAL BRANCHES---
+  huh/dev_r01_v12_sa_wholestate_female         04b9698ce [origin/huh/dev_r01_v12_sa_wholestate_female] feat: modify motion files used
+  huh/dev_r01_v12_sa_wholestate_female-balance a331a2c74 [origin/huh/dev_r01_v12_sa_wholestate_female-balance: ahead 1] chore: backup current local setup before parallel/timeout integration
+* huh8/zhangny2-parallel-timeout               e2a5037b4 [origin/huh8/zhangny2-parallel-timeout] fix: move time_outs update before early return in reset_idx to prevent stale GAE bootstrapping
+  liud/dev_r01_v12_sa_wholestate_female        04b9698ce [origin/liud/dev_r01_v12_sa_wholestate_female] feat: modify motion files used
+  robotics_motion_rl_release                   5ccec9645 [origin/robotics_motion_rl_release] Merge branch 'zhangpf/r01_v12_merge' into 'robotics_motion_rl_release'
+---REMOTE BRANCHES---
+  origin/1                                                                                              82a9d6e5e Update file __init__.py
+  origin/57-miscalculation-of-root-linear-and-angular-velocities-in-body-frame-in-process_mocap_data-py 569808bea Merge branch 'haochih/obs_heightmap' into 'master'
+  origin/CU16_wbc2                                                                                      2c551e3e5 feat: modify valiadation dataset name
+  origin/CU5_M9_2025                                                                                    a6a0843d1 Delete send_evaluate_request
+  origin/CU5_wbc2_202603                                                                                59e61bd89 Merge branch 'lishidi/Optimize-rms' into 'CU5_wbc2_202603'
+  origin/CU5_wbc2_release                                                                               ff6e70782 Merge branch 'lishidi/Squash_picks_from_master' into 'CU5_wbc2_release'
+  origin/DataEval/CU5_wbc2_202603                                                                       cb0166055 feat: enable batch evaluate and plot metrics
+  origin/HEAD                                                                                           -> origin/robotics_motion_rl_release
+  origin/add_ppodup_symmloss                                                                            05084d8cf fix ai code reviewer
+  origin/chadli/add_joint_mapping                                                                       8428f2db4 WIP: added fixed-point open-chain to closed-chain control
+  origin/chadli/bisec_Oct07_w_wrist_collision                                                           db2bb7ffe run: decreased substep to 1, kept sim dt at 2 ms
+  origin/chadli/bisect_master_Oct07                                                                     7aeb4a95b feat: applied Muhong's changes to CoM rand
+  origin/chadli/fix_mujoco_open_chain                                                                   af6b720f5 core: formatting
+  origin/chadli/generate_mujoco_video                                                                   5e6732500 fix: correctly update sim states, got a stable joint PD control
+  origin/chadli/plot_from_tb_log                                                                        efd933abb WIP: added a script to search a directory for TB log then load data
+  origin/chadli/tune_hyperparams                                                                        af4536615 run: use stop_command_prob=0.1
+  origin/chendh/add_joint_mapping                                                                       8428f2db4 WIP: added fixed-point open-chain to closed-chain control
+  origin/chendh/add_joint_mapping_rebase                                                                9c52d0c40 WIP: added fixed-point open-chain to closed-chain control
+  origin/chendh/add_joint_mapping_rebase_temp                                                           6cc085d90 fix: temp stash for debugging
+  origin/chendh/dev_r01_12                                                                              412ab9549 feat: add the training for r01_12 model with legs and waist (0123 version) (v3)
+  origin/chendh/dev_r01_sim2real                                                                        d26e45205 feat: add the sim and ctl pipelines for the unit tests (v3)
+  origin/chendh/dev_r01_v111                                                                            0f0df8e54 feat: add and adapt to r01_v111
+  origin/chendh/dev_r01_v111_standingup                                                                 ea6a88d8d feat: amp can mix facedown and situp
+  origin/chendh/dev_r01_v12                                                                             aa1c60a41 feat: add the training pipeline for r01_v12 (v4)
+  origin/chendh/dev_r01_v12_animation                                                                   68b5782bc fix: fix the model_files config
+  origin/chendh/dev_r01_v12_highspeed                                                                   1f9c7dd2a feat: update lin vel command range and tracking reward params
+  origin/chendh/dev_r01_v12_pa_w_clothes                                                                d10d2f0af feat: comp clothes
+  origin/chendh/dev_r01_v12_serial_ankle                                                                21c829857 fix: update the model_files cfg
+  origin/chendh/dev_r01_v12_sim2real                                                                    d449182d8 feat: update the r01_v12_parallel_ankle model (v2)
+  origin/chendh/dev_r01_v12_sim2real_bak                                                                6aea0e7e2 feat: improve the setting and script
+  origin/chendh/dev_r02_dv                                                                              92a7b5a06 feat: add the basic training config for the dv of r02
+  origin/chendh/dev_r02_highspeed                                                                       10a6fb33b feat: 1.5m/s for 55kg r02_v20_1 (v3)
+  origin/chendh/dev_r02_serial_ankle_dv                                                                 21c829857 fix: update the model_files cfg
+  origin/chendh/dev_r02_serial_ankle_dv_highspeed                                                       1f9c7dd2a feat: update lin vel command range and tracking reward params
+  origin/chendh/px5_baseline                                                                            49b3cb895 feat: add the URDF with the meshes of the real feet
+  origin/cyy/rl_tuning                                                                                  40dee781c update push/reward setup
+  origin/dejun/close_chain_rl                                                                           eee29a4bc test: fuyao train
+  origin/dejun/dev_recorder                                                                             984ee0a4e 114 dtof param
+  origin/dejun/grad_hmap                                                                                b5ecb318b add: hmap gradiant
+  origin/dejun/gym_test                                                                                 3a2226f89 feat: jit ankle IK
+  origin/dejun/isaaclab_test                                                                            ea7321be1 play only
+  origin/dejun/revert_footscale                                                                         1a9ba75ba fix: hmap noise when reset
+  origin/dejun/sim_friction                                                                             32096fb4e test: isaacsim friction restitution
+  origin/dejun/sim_test                                                                                 8636492fa test: diffvel=simvel
+  origin/dejun/v111_dev                                                                                 fa7337265 use embed
+  origin/dejun/v111_hmap_rand                                                                           c28720dd1 train delay
+  origin/detection_tool.merge                                                                           56e0c3fe0 test stream in isaacsim
+  origin/dev_mimic_data_cleaning                                                                        c8a415624 feat: change default queue from rc-perception-4090 to rc-wbc-4090
+  origin/dev_r01_devtest_int_0.0.1-r01-devtest-robot-rc0                                                6c08534f7 Merge branch 'lixy/release_generate_more_ckptfile' into 'robotics_release'
+  origin/dev_r01_devtest_int_0.0.1-r01-devtest-robot-rc1                                                6c08534f7 Merge branch 'lixy/release_generate_more_ckptfile' into 'robotics_release'
+  origin/dev_r01_roboticstimerci_int_0.0.1-r01-roboticstimerci-robot-rc0                                d6f745846 Merge branch 'chendh/dev_r01_v111_rebase' into 'robotics_release'
+  origin/dev_r01_roboticstimerci_int_0.0.1-r01-roboticstimerci-robot-rc2                                7b736d4c3 Merge branch 'tanms/fuyao_resume' into 'robotics_release'
+  origin/dev_r01_test_int_0.0.4-r01-test-robot-rc0                                                      d6f745846 Merge branch 'chendh/dev_r01_v111_rebase' into 'robotics_release'
+  origin/dev_r01_testmrs_int_0.0.1-r01-testmrs-robot-rc1                                                6c08534f7 Merge branch 'lixy/release_generate_more_ckptfile' into 'robotics_release'
+  origin/dev_r01_v12_dance_mimic                                                                        38c933a64 feat: clean datasets
+  origin/dev_r01_v12_mimic                                                                              9f6cc3649 feat: run fuyao job dataset on fuyao_sh_n2
+  origin/dev_r01_v12_mimic_mimitkit                                                                     43c76fe9e debug the recording issue
+  origin/dev_r01_v12_walk_mimic                                                                         a63059125 fix: fix r01_v12_walk_mimic_passive_joint config
+  origin/diaoyj/r02_arm_sim2real                                                                        799041e4a 手臂sim2real测试学习
+  origin/dongkx/teleop_successrate_eval                                                                 3690f985c updated the statistic for success rate
+  origin/fanff/external_force_estimator                                                                 4e4bfdadd feat:add the ex_forces data frame
+  origin/fanff/external_force_estimator_3dof                                                            633dd7e2f feat:update the external force to 3dof
+  origin/fanff/external_force_estimator_rebase                                                          c37fd549b feat:update the external force to 3dof
+  origin/fanff/wbc_dev                                                                                  09c2cc6dc feat:add the pelvis y command track
+  origin/fanff/wbc_dev_full                                                                             bc161c7d5 feat: update the urdf files
+  origin/fanff/wbc_dev_low_speed                                                                        131c421ee feat:add_low_velocity_mode
+  origin/fanff/wbc_dev_rebase                                                                           6fa073d24 bugfix:fix the mirror tmplates index bugs
+  origin/fanff/wbc_dev_rebase623                                                                        f69c6916c feat:add the y pose soft limit
+  origin/fanyn/add_height_control                                                                       79caa3384 add step response test
+  origin/fanyn/amp_teleop                                                                               8cbb85f10 add test disturbance, disable more random disturance in play.py
+  origin/fanyn/feat_standstill_external_cmd                                                             c009be7dd sync updated urdf from master
+  origin/fanyn/isaacsim-11plus                                                                          5b1d6b32b add reset root pose, fix sin trajectory bug
+  origin/fanyn/isaacsim_open_chain                                                                      5f405de0a refactor open chain config
+  origin/fanyn/isaacsim_test                                                                            5090b6aa7 add: openchain test script, udp tool
+  origin/fanyn/lower_amp_upper_pd                                                                       c7ce696a0 add interface for external action
+  origin/fanyn/root_height_and_arm_control                                                              f51cf24b3 add feet state in world to robot data
+  origin/fanyn/waist_control                                                                            40c9fab16 add waist test trajectory in play
+  origin/fanyn/wbc_dev                                                                                  8e9b7b14a add feet contact vel penalty
+  origin/fanyn/wbc_dev_rebase                                                                           58dff66c6 update config and play script
+  origin/fanyn/wbc_torso_control                                                                        6c686ff0c enhance waist soft limit, update urdf torque limit and waist yaw range, remove unsued training conifg
+  origin/fix/torch-rebuild-parameter-v2-compat                                                          6c6a26e6f feat: make stair platform size configurable
+  origin/fix_gym_video                                                                                  70a6c1ffd feat: save videos to logs
+  origin/fuyao/guomh/Oct07_15-12-51-rebase-2f3516f0-torsoComRand-torsoObs-500hz                         8da26fa81 set +/- 0.05 for rand_com_disp and 5s for resample_command
+  origin/fuyao/guomh/Oct07_15-12-51-rebase-2f3516f0-torsoComRand-torsoObs-500hz-ftDistance              8fe450f90 add foot_toe distance to foot_distance reward
+  origin/fuyao/guomh/Oct07_15-12-51-rebase-3849823-torsoComRand-torsoObs-500hz-toeDistancee             fb1bc19a8 add foot_toe distance to foot_distance reward
+  origin/fuyao/guomh/Oct07_15-12-51-rebase-6a37fc9-torsoComRand-torsoObs-500hz-toeDistancee             4c9d59de5 add foot_toe distance to foot_distance reward
+  origin/fuyao/guomh/Oct07_15-12-51-rebase-6a37fc9-torsoComRand-torsoObs-500hz-toeDistancee-lDofNoise   565256495 Add more noise to linear dof
+  origin/fuyao/guomh/Oct29-rebase-6a37fc9-qConstOffset                                                  d85b27497 feat: add const offset to q obs
+  origin/george/full_state                                                                              7793c791f teleop env support multi eval
+  origin/george/full_state_new                                                                          932d7827b teleop env support multi eval
+  origin/georgechen/wave_arms                                                                           7664a695e fixes for collecting data
+  origin/guomh/0.15-foot-distance-limit                                                                 07c198cd2 feat: update foot_distance_threshold to 0.15
+  origin/guomh/1230-agent                                                                               858dba582 feat: update configs of r01 amp 4dof
+  origin/guomh/1_5_vel-rebased                                                                          00d5b7289 update
+  origin/guomh/1_5_vel_v12                                                                              1f9c7dd2a feat: update lin vel command range and tracking reward params
+  origin/guomh/4dof-dev                                                                                 b64a1836e update com displacement range
+  origin/guomh/BvFvWvAmpObs                                                                             d2762fb1f feat: add base vel, foot vel, waist vel, and arm vel to amp obs
+  origin/guomh/BvLvAmpObs                                                                               668279a65 feat: add base vel and leg joint vel to amp obs
+  origin/guomh/Nov01-4dof-dev                                                                           a0d54dedf change task name to r01_plus_amp_with_4dof_arms
+  origin/guomh/Nov02-4dof-dev                                                                           2432d2cfd update max_slope
+  origin/guomh/Nov02-4dof-dev-Wav                                                                       9a5c990d3 change max lin_vel_x to 0.5
+  origin/guomh/Nov04-4dof-dev                                                                           afb51a6fd change foot_distance_threshold to 0.15
+  origin/guomh/Oct07_15-12-51                                                                           98f7f282e Backup bifrost-20241007151109050-guomh/r01_oop_amp/Oct07_15-12-51_A11+jbw_2cD.949SPVTL_5Push-WaistVel-HipPitch-AnkleRoll_SC_KdC
+  origin/guomh/Oct07_15-12-51-rebase-2f3516f0                                                           38df90f2f change damping_dof to damping in r01_plus_amp_config_with_arms.py
+  origin/guomh/Oct07_15-12-51-rebase-2f3516f0-torsoComRand                                              36af5ab29 minor fixes
+  origin/guomh/Oct07_15-12-51-rebase-2f3516f0-torsoComRand-torsoObs                                     8a4327099 add liu data
+  origin/guomh/Oct07_15-12-51-rebase-5e3cd945                                                           b04470627 deprecate r01_oop_amp in favor of r01_plus_amp
+  origin/guomh/Oct07_15-12-51-rebase-b20bda0e-random-kd                                                 f2426e86c more domain rand of kd
+  origin/guomh/Oct07_15-12-51-rebased                                                                   b04470627 deprecate r01_oop_amp in favor of r01_plus_amp
+  origin/guomh/Oct31-4dof-dev                                                                           9d482f5fc set 0.7, 0.3 lerp
+  origin/guomh/add-average-vel                                                                          a165502e8 feat: add pelvis average vel in robot data
+  origin/guomh/add-isaaclab                                                                             b5c5119a8 feat: migrate orbit to isaaclab
+  origin/guomh/add-torso-rot                                                                            84e0cb680 wip: add torso rot
+  origin/guomh/additional-joint-toques-avg-vel                                                          1f8cd2306 feat: add more datasets
+  origin/guomh/additional_joint_torques                                                                 55f25f82e fix: add r01_plus_amp_with_4dof_arms in evaluate.py
+  origin/guomh/average-vel                                                                              867cd11f9 feat: use average velocity in velocity tracking reward
+  origin/guomh/base-lin-vel-est                                                                         2287adfe0 wip: add latent data to RobotData
+  origin/guomh/chore-updates                                                                            32236cb9b feat: update the apt mirror source to tuna
+  origin/guomh/control-delay                                                                            761697b5e feat: use total torques for rewards
+  origin/guomh/debug-camera-segfault                                                                    371314f26 set graphics_device_id to -1 only for training
+  origin/guomh/dev_r01_v111                                                                             db520154c feat: add and adapt to r01_v111
+  origin/guomh/dev_r01_v111_17.5kneeVelLim                                                              cd47d383e feat: increase the vel limit of the knee joint to 17.5
+  origin/guomh/dev_r01_v12                                                                              e68a1c4ea chore: update related file for fuyao deployment
+  origin/guomh/dev_r01_v12_0910                                                                         0cc9a3a50 feat: update the get_load_path in play_catwalk_metric
+  origin/guomh/dev_r01_v12_male_walk                                                                    27d400fd1 temp commit for the latest local chanages
+  origin/guomh/dev_r01_v12_male_walk_local_frame_foot_pos                                               8b71f0ed7 feat: use foot pos in local heading frame
+  origin/guomh/dev_r01_v12_male_walk_rms                                                                1c802a00d export rms onnx in play catwalk
+  origin/guomh/dev_r01_v12_rebased                                                                      e77aa9884 feat: add r01_v12_0507 to model_files.conf
+  origin/guomh/dev_r01_v12_rebased3                                                                     694b65cd0 fix: fix bugs in process_mocap_data
+  origin/guomh/dev_r02_walk_backup_mujoco_eval                                                          9b47efd9b remove 10 max_iterations
+  origin/guomh/dof-acc                                                                                  68bc834d7 feat: add dof_acc reward
+  origin/guomh/enhancements                                                                             6f1739d48 chore: add user's local python installation to PATH
+  origin/guomh/extra-joint-torques                                                                      407d5129e fix: fix fuyao_train.sh
+  origin/guomh/extra-joint-torques-track-vel-in-world                                                   b178fdd26 fix: increase the effort limits of hip roll and hip pitch
+  origin/guomh/feature/add-orbit                                                                        61a7b3821 use orbit:2024.05.14
+  origin/guomh/feet_acc                                                                                 a7c113a2d feat: add feet_acc reward
+  origin/guomh/fix-arm-link-names                                                                       111a74ce5 fix: fix the typo of arm link names in terminate_after_contacts_on
+  origin/guomh/fix-play-on-fuyao                                                                        413eca8ad fix: address AI comments
+  origin/guomh/fuyao-mujoco                                                                             62703f8b9 feat: update mujoco evaluation
+  origin/guomh/humanoid-gym-wasabi                                                                      dd404b537 add wasabi loss and reward
+  origin/guomh/increase-hip-roll-pitch-effort                                                           caee2c4ea fix: increase the effort limits of hip pitch and hip roll
+  origin/guomh/integrate_model_files                                                                    f04effd2f fix: change the target_prefix of model_files to model_files/
+  origin/guomh/kp-adjustment                                                                            d6f745846 Merge branch 'chendh/dev_r01_v111_rebase' into 'robotics_release'
+  origin/guomh/kp-obs                                                                                   f1487b6f3 feat: random kp with symmetry
+  origin/guomh/lipsnet                                                                                  1eb7e38bf wip: try lipsnet
+  origin/guomh/many-fixes                                                                               c24ac5964 feat(r01_amp): update stiffness, damping and torque limits
+  origin/guomh/mari-kp-obs2                                                                             0d1a1eefb use mari data
+  origin/guomh/master-armVel                                                                            e5bb3d983 add arm velocities to amp obs
+  origin/guomh/mimic_v12_new_loader_with_mujoco_eval                                                    705467f98 fix: adapt to motion_rl_utils and fix the model name
+  origin/guomh/mr-self-check                                                                            49d224c9b chore: add self-check in MR template
+  origin/guomh/multi-user-container                                                                     741222af4 feat: add a Dockerfile for multi users
+  origin/guomh/no_feet_air_time                                                                         7e702a42e feat: disable the feet_air_time reward
+  origin/guomh/pos_limit                                                                                65a3f9473 feat(r01_amp): update stiffness, damping and torque limits
+  origin/guomh/preinstall-code-server                                                                   0214f5e59 feat: pre-install vscode server in the vscode extension container
+  origin/guomh/push_robot_in_pd_loop                                                                    ae222e498 feat: push robots in pd loop
+  origin/guomh/px5-minor-fix                                                                            c329580fd fix: update px5 and px5_motion_loader
+  origin/guomh/r01_amp_damping                                                                          5d9b3b292 feat(r01_amp): stand and push config
+  origin/guomh/r01_amp_damping_torque_lim                                                               e6973be01 add random dof damping
+  origin/guomh/r01_amp_debug                                                                            2bd3bd970 feat: update amp obs
+  origin/guomh/r01_amp_tmp                                                                              f5585b05a fix: fix soft dof pos limits
+  origin/guomh/r01_plus_amp_dev-iron-simplified-urdf                                                    26c1a06dc feat: update the configs for running iron_simplified_23dof
+  origin/guomh/r01_plus_amp_dev-new_urdf                                                                53a12ea73 feat: set FDL to 0.10, soft_torque_limit=0.99, feet_air_time = 0.0
+  origin/guomh/r01_plus_amp_dev_var_kd                                                                  08dc4fd90 feat: add var kd factors for different legs in actions
+  origin/guomh/r01_plus_no_waist_and_arms                                                               578e85f87 feat: add r01_plus_amp_no_waist_and_arms
+  origin/guomh/random-kd                                                                                3f25205d5 more domain rand of kd
+  origin/guomh/rebased-0210                                                                             5f9db2cc0 feat: add base vel to amp obs
+  origin/guomh/remove-damping-dof                                                                       38b4cf4ac refactor(r01_amp_env): remove damping dof and override _compute_torques
+  origin/guomh/remove-kin                                                                               9ee453ce6 wip: test feet_pos from isaacgym
+  origin/guomh/reproduce-1230                                                                           4c9c67dfa feat: change hip roll effort limit to 50
+  origin/guomh/segfault-debug                                                                           7d55603f8 set max_iterations to 5 to quickly reproduce the segfault issue
+  origin/guomh/set-last-dof-pos                                                                         b67a4ba46 fix: reset last_dof_pos in _reset_dofs_amp
+  origin/guomh/simple-mujoco-eval                                                                       0cca0d823 feat: rename mujoco eval
+  origin/guomh/standstill                                                                               323b680e7 tmp: add shixx dataset
+  origin/guomh/test-fuyao-cpu-only                                                                      c7afa37d0 feat: test fuyao cpu-only
+  origin/guomh/test-liwt                                                                                2a40a74ba fix: fic chinese CI
+  origin/guomh/update-amp-obs                                                                           4d4056354 wip: only add root vel and foot vel in amp obs
+  origin/guomh/update-camera-location                                                                   78673b53a fix: update the default camera location to be far away a bit
+  origin/guomh/update-containers                                                                        b9ce65f31 chore: fix dockerfile format issue
+  origin/guomh/update-foot-model                                                                        2deeade20 feat: no push in play.py
+  origin/guomh/update-torso-mesh                                                                        3bc9c61ba feat: update the terminate_on_contacts
+  origin/guomh/zuoj_v111                                                                                bf4aad8e3 feat: update kp
+  origin/guomh/zuoj_v111_baseAngAcc                                                                     db07af7f2 feat: add base ang acc reward
+  origin/haochih/4dof+_baseline1023                                                                     27af504dc save local change for training
+  origin/haochih/4dof+_new_data                                                                         8fd71cf34 remove arm collision for 4dof+
+  origin/haochih/add_amp_jvel                                                                           d65de8b51 add joint_vel to amp obs; update arm default joint
+  origin/haochih/backup_fix_subprocess_play                                                             5232d8618 prep for test
+  origin/haochih/clone_richard_1219                                                                     c788c8d23 train: bareboned training
+  origin/haochih/convert_fuyao_history                                                                  5f6b074fd add script for converting fuyao history
+  origin/haochih/covariance_curriculum                                                                  09ec7d0c0 add poslimit
+  origin/haochih/debug_joint_vel                                                                        dc80836cc succeed to remove curriculum
+  origin/haochih/fix_4dof+_training                                                                     936f35cad find new baseline
+  origin/haochih/guomh_best_1021                                                                        ac0f886f0 prep for sharing
+  origin/haochih/isaaclab_compare                                                                       0cb172159 fix dataset naming
+  origin/haochih/issaclab_standalone_env                                                                6b1443a27 clean code
+  origin/haochih/issaclab_test                                                                          4900b2403 code clean
+  origin/haochih/issaclab_test_backup0218                                                               8fffe9be7 backup before dof order change
+  origin/haochih/local_1029                                                                             3faac52bf change for local debug
+  origin/haochih/local_1101                                                                             19bd71971 test yebq dataset
+  origin/haochih/local_4dof+_1030                                                                       f4ae35a93 local sync for config
+  origin/haochih/local_add_amp_jvel                                                                     5084c7953 sync for training
+  origin/haochih/local_fix_4dof+_training                                                               84ebbfbd7 update urdf & config
+  origin/haochih/masked_amp                                                                             55a39ad4c fix amp pretrained descriptor loading error; vis tool check pos limit
+  origin/haochih/multi-container                                                                        f5538655e succeed to run issacsim openchain with rl control
+  origin/haochih/reproduce_humanoid_amp_20240808                                                        5242cfe9b pass fuyao test
+  origin/haochih/teleop_amp                                                                             731837769 sync for backup
+  origin/haochih/test_isaaclab_standalone_0318                                                          428d9cf20 sync
+  origin/haochih/update_4dof_urdf_with_terrian                                                          d40beef9e try heightfield for r01 base
+  origin/haochih/update_evaluate                                                                        5830ece4b prepare for MR
+  origin/haochih/verify-mocap-data                                                                      c79d37662 use config.yaml for conversion script
+  origin/haochih/verify_arm_joint3                                                                      9ba003495 push to remote for backup
+  origin/huangjy/HIMestimator                                                                           b92d1c352 tmp change
+  origin/huangjy/torch_ddp                                                                              effd64db4 4096 env
+  origin/huh/dev                                                                                        5dce57a59 wip: fixed evaluation script
+  origin/huh/dev.training                                                                               407507731 docs: fixed up mermaid script a bit, did more experiment comparison
+  origin/huh/dev_r01_v12_sa_wholestate_female                                                           04b9698ce feat: modify motion files used
+  origin/huh/dev_r01_v12_sa_wholestate_female-balance                                                   2f9f1ed24 <feature> Add torso-upright reward and stability tuning lineage
+  origin/huh/dev_r01_v12_sa_wholestate_female-cGil                                                      652698659 <bug-fix> Correct AMP discriminator regularizer center and defaults.
+  origin/huh/feat/data_cleaning                                                                         890a1a896 chore: removed accidental commits
+  origin/huh/master                                                                                     bdb33262e train: training models and chad_dda to see reproduce walkable master files
+  origin/huh/merge_yuanhl                                                                               df8192294 merge
+  origin/huh8/zhangny2-parallel-timeout                                                                 e2a5037b4 fix: move time_outs update before early return in reset_idx to prevent stale GAE bootstrapping
+  origin/iron_turbo/v12_amp-develop                                                                     422d3e94a chore: change EmpiricalNormalization according to the unmerged by will-be-merged motion_rl MR
+  origin/iron_turbo/wbc-develop                                                                         db37777e2 fix: fix wrongly passing experiment arg from fuyao_deploy to fuyao_train.py. Remove legacy l20 queue from fuyao_deploy.sh.
+  origin/iron_turbo_release                                                                             bd5034923 [XA 180141] feat: Evaluator for eval metrics using rollouts without exploration noise during training
+  origin/iron_turbo_yxc/wbc-develop-pvp                                                                 e1d88cf30 feat: simplified pvp
+  origin/jeff/feat/auto_weighted_data                                                                   b9d7d3960 update
+  origin/jeff/feat/modify_walking                                                                       e33fe6c84 feat: add angle norm & add torso buf
+  origin/jeff/feat/motion_lib                                                                           16968415b reformat
+  origin/jeff/feat/motion_lib_multiprocessing                                                           57eb7e8d5 feat: ignore motions too short
+  origin/jeff/feat/new_standstill                                                                       7cd244227 feat: change to new stand still method
+  origin/jeff/feat/new_standstill_update_urdf                                                           1eff0ae30 Merge branch 'jeff/feat/wbc_adapt_v111' into jeff/feat/new_standstill_update_urdf
+  origin/jeff/feat/remove_obs_history_in_standstill                                                     e3e11c16c fix: clear history buf
+  origin/jeff/feat/repreload_dataloader                                                                 35c61cfec feat: name amp_motion_file_names
+  origin/jeff/feat/single_disturb                                                                       07150ac33 feat: add random mask
+  origin/jeff/feat/standstill_w_vel                                                                     6aec33aba fix: add standstill z_pos_cond
+  origin/jeff/feat/symmetry_loss                                                                        6761dcfa9 feat: add symmetry for teleop job
+  origin/jeff/feat/wbc1_keypos                                                                          4d203f73e stash: history stack
+  origin/jeff/feat/wbc1_keypos_rebase                                                                   5b3b44a95 change sonic token
+  origin/jeff/feat/wbc1_keypos_rebase_change_sigma_debug                                                104f5ebfe wbc1-change reward sigma
+  origin/jeff/feat/wbc1_keypos_rebase_singleencoder_wbc1                                                ceaf0da56 change buffer length to 0.2s
+  origin/jeff/feat/wbc1_refactor                                                                        134c929bc modify play script in signal source
+  origin/jeff/feat/wbc1_refactor_r02ampwalk                                                             b600061a5 change r02 config
+  origin/jeff/feat/wbc1_update2                                                                         38341e6c1 update code
+  origin/jeff/feat/wbc_adapt_v111                                                                       4b9bdbd01 fix: change default_joint_angles to standing_joint_angles
+  origin/jeff/refactor/play_script                                                                      395c09220 [temp] update play script
+  origin/jeff/refactor/rebase_wbc2                                                                      dab5c8b87 feat: adapt amp algo with motion_lib, only for amp walk task
+  origin/jeff/refactor/unify_normalizer                                                                 f038c4b96 refactor: change normalizer name & change std calc
+  origin/jeff/teleop_dev                                                                                e802ddec0 feat: change test method
+  origin/jeff/wbc/add_symmetry                                                                          97c0c9d22 fix: bug fix
+  origin/jeff/wbc/arms_only_with_symloss                                                                67e6f238a feat: update symmetry
+  origin/jeff/wbc/dev_not_reset_buffer_in_resample                                                      8264479eb feat: not reset buffer in resample
+  origin/jeff/wbc/dev_r01_v12                                                                           a58b903c0 feat: update v12
+  origin/jeff/wbc/dev_torsorp                                                                           7cd2fbafa feat: add torso rp dof
+  origin/jeff/wbc/dev_waistyawavg                                                                       e79bbf84b feat: remove reset history in _resample_commands
+  origin/jeff/wbc/differ_rand_env                                                                       04f9b1b36 feat: add random mask
+  origin/jeff/wbc/differ_rand_env_armsonly                                                              8511e6924 feat: add random mask
+  origin/jeff/wbc/fullfunction                                                                          7d6475ad5 fix: fix dim
+  origin/jeff/wbc/modify_sample_new_z_tracking                                                          4a971fe39 [temp] change to stand only task
+  origin/jeff/wbc/resample_refactor                                                                     466a025ae feat: test resample refactor
+  origin/jeff/wbc/split_data                                                                            1ca0cdea6 feat: remove bn, add barrier func
+  origin/jeff/wbc/split_discriminator                                                                   5409fec23 feat: 2 discriminator for teleop
+  origin/jeff/wbc/split_discriminator_sym                                                               96610bea5 feat: 添加对称性增强和镜像损失功能
+  origin/jeff/wbc/teleop_arms_only/remove_amp_stand                                                     280e0edd6 feat: remove amp reward when cmd is stop
+  origin/jeff/wbc/xz_arm_stop_prob                                                                      87bca4176 refactor: 将关节力矩扰动从均匀分布改为高斯分布
+  origin/jeff/wbc/yaw_z_curriculum                                                                      06e7f03ee feat: add z cmd rand
+  origin/jeff/wbc_1/factory_fullfunction                                                                eccef21de feat: modify z_pos tracking & standstill method
+  origin/jeff/wbc_1/fix_zpos_tracking                                                                   0ca41fdbd [temp] update script
+  origin/jiaming/balance_v111                                                                           f5c7d9cba fix_Chinese_comment
+  origin/jiaming/balance_v12                                                                            0b0b40182 fix_fuyao_param
+  origin/jiaming/failure_balance_v12                                                                    ccbdf8a83 fix_fuyao_eval
+  origin/jiangy25/XA_183319_WBC_Data_Scaling                                                            2fc6d14cb misc: add scaling plot scripts for mocap
+  origin/jiangy25/cts_dev                                                                               26339762d Remove fallback logs from runner
+  origin/jiangy25/cts_oracle                                                                            6247f7351 Remove additional privileged info
+  origin/jiangy25/cts_student                                                                           4ef65b130 Use different entropy coef for t and s
+  origin/jiangy25/diffusion_data_recoder                                                                b38631c5b Modifications for collecting data without perception on fuyao
+  origin/jiangy25/iron_turbo/amp_cts_dev                                                                11869b0b3 feat: cherry pick cts to locomotion tasks
+  origin/jiangy25/iron_turbo/amp_cts_dev-oracle                                                         5486627a1 feat: modify the architecture to oracle
+  origin/jiangy25/iron_turbo/wbc_cts_dev                                                                261c05aaa WIP: cts rebase on evaluator
+  origin/jiangy25/iron_turbo_dev                                                                        ef6482365 feat: introduce iron_turbo for v111_teleop task
+  origin/jiangy25/iron_turbo_develop_evallog                                                            98b8713c0 feat: add num envs args for fuyao deploy
+  origin/jiangy25/iron_turbo_develop_evallog_cleanup                                                    22b9f97c8 feat: add num envs args for fuyao deploy
+  origin/jiangy25/pvp-dev-world                                                                         08cdebff2 feat: use layernorm for training stability
+  origin/jiangy25/pvp_dev                                                                               6e8094003 fix: evaluator log extra rewards
+  origin/jiangy25/simsiam                                                                               4f17ef94d Add and switch to world frame vels
+  origin/jiangy25/sts_dev                                                                               ce5f84aeb fix(log): sync teacher_ratio with rollout mask
+  origin/kejun/arch-analysis-docs                                                                       49a52b052 docs: add Gotchas section and Defined-in columns to baseline
+  origin/kejun/v111_sit_stand                                                                           14623a99c adding new env cfg
+  origin/lihw/balance_test_rebase                                                                       0dce74684 optimized implementation
+  origin/lihw/balancing_debug                                                                           5ed66f54d fix: play_balancing bug when agent cannot stand
+  origin/lihw/command_resample                                                                          3293fd9d3 added more speed commands in config
+  origin/lihw/data_cleaning                                                                             9cbdcd694 feat: run fuyao job dataset on fuyao_sh_n2
+  origin/lihw/dev_r01_v12_walk_mimic                                                                    540430c2e removed anchor from relative link vel tracking, added some rewards
+  origin/lihw/dev_r02_high_speed                                                                        19785ffaa feat: lower linvel tracking sigama
+  origin/lihw/dev_r02_s2r                                                                               2e6871cd7 feat: combine image to pdf
+  origin/lihw/dev_r02_walk                                                                              a466cb199 feat: update launch json, training dataset and gitignore
+  origin/lihw/dev_r02_walk_backup                                                                       a4aefa879 feat: update urdf
+  origin/lihw/dev_r02_walk_backup_para_training                                                         d810c1015 feat: para training debug and training config update
+  origin/lihw/dev_r02_walk_rebase                                                                       7ee56ad9d feat: adaption for data with torso gravity and tag ratio match
+  origin/lihw/fix_seed                                                                                  82aaaca73 fix: removed train_cfg.seed and changed env_cfg.seed
+  origin/lihw/head_vel_r01_v111                                                                         c5b351d0d reorganize the code
+  origin/lihw/heel_debug                                                                                3dd381778 added calculateion for heel position without new joint
+  origin/lihw/mimic_metric_update                                                                       043c23a1e feat: split ref and env mimic data csv
+  origin/lihw/mimic_resample_and_loader_update                                                          1f620ce24 fix: episode length
+  origin/lihw/multiple_discriminators                                                                   8616693a3 dirty implementation of 2 discriminators
+  origin/lihw/new_feet_state                                                                            b78c9fe6b feat: using simulation to generate ankle pos and vel while generating json
+  origin/lihw/new_feet_state_rebase2                                                                    457c1f9fb debug and optimization fro functions, running
+  origin/lihw/pose_follow                                                                               64dc19135 new version of validation, hung up
+  origin/lihw/r01_v12_dance_mimic_1020                                                                  f3c048178 added fuyao job to avoid conflict
+  origin/lihw/r01_v12_walk_mimic                                                                        0c42b2225 new baseline: using yaw tracking for anchor tracking and penalty for anchor roll-pitch
+  origin/lihw/r01_v12_walk_mimic_ground_tracking                                                        274732f48 added ground frame relative tracking
+  origin/lihw/sym_amp                                                                                   1679e973c backup
+  origin/lihw/traj_follow                                                                               02a4bfc87 feat: traj follow
+  origin/lihw/traj_follow_0620                                                                          449d90f6a using complex trajectory 0620
+  origin/lihw/traj_follow_stich                                                                         827c59981 debug, add visualization
+  origin/lihw/turn_optimize                                                                             f10f9a453 full play
+  origin/lihw/update_mimic_pac                                                                          42eb93128 feat: removed passive toe joint in online mujoco test
+  origin/lihw/vel_sigma_tset                                                                            c1dec8903 feat: added reward for 0 acc
+  origin/lihw/vel_sigma_tset_realtime_eval                                                              3851961c6 feat: added reward for 0 acc
+  origin/lihw/video_follow_pos                                                                          c3564f76d fixed camera rotation, dirty
+  origin/lihw/video_output                                                                              be0c277a1 cleaned the code again
+  origin/lihw3/sym_lixy                                                                                 b66e399e4 lixy backup
+  origin/lishidi/0210                                                                                   5caf6b5d5 Squash picks from master
+  origin/lishidi/Add-view-motion                                                                        81649f251 Merge branch 'lishidi/Add-view-motion' of https://gitlab-adc.xiaopeng.link/robotics/motion_control/rl/motion_rl into lishidi/Add-view-motion
+  origin/lishidi/CU5_wbc2_dev_lsd                                                                       c81271206 Revert obs_scales
+  origin/lishidi/CU5_wbc2_lsd                                                                           70bf26c43 Squash Sonic and Twist
+  origin/lishidi/CU5_wbc2_lsd_dec                                                                       ea7e2b6b3 Tune
+  origin/lishidi/CU5_wbc2_lsd_fast                                                                      d678e9412 [XA 184477] [motion-rl MR] motion_rl 中 fuyao 部分功能 对于北美同学用户名不适用 问题修复
+  origin/lishidi/CU5_wbc2_lsd_r02                                                                       34af22d19 Revert
+  origin/lishidi/Motion-lib                                                                             d86bcacfe Add comments
+  origin/lishidi/Sonic-v2.0                                                                             4134ebb0e AI suggestion
+  origin/lishidi/View-motion                                                                            6f70b8bca Add view motion
+  origin/lishidi/before-2026mr                                                                          1e05a6f01 Default volume
+  origin/lishidi/destory-amp                                                                            2c22242e7 Stash base
+  origin/lishidi/dev_add_rms_for_ac                                                                     c2075fc07 Export onnx with RMS for teleop
+  origin/lishidi/rebase                                                                                 6339a2582 [XA 184477] [motion-rl MR] motion_rl 中 fuyao 部分功能 对于北美同学用户名不适用 问题修复
+  origin/lishidi/single_encoder_stash                                                                   fd1e6ca7c Train with single encoder
+  origin/lishidi/sonic_turbo                                                                            c81e68d7a Sonic can distribute
+  origin/lishidi/v12-a                                                                                  b602b2719 Perfect RMS update after collection
+  origin/lishidi/v12-fast                                                                               3c45e04d0 Reformat
+  origin/lishidi/v12_dev                                                                                f1180dd46 Perfect RMS update after collection
+  origin/lishidi/wbc2_202603_fast                                                                       4b78fc310 Reformat
+  origin/liud/0428_agent                                                                                8662ec1d0 feat: adapt play.py to data_analyzer
+  origin/liud/a0814_sidewalk                                                                            81ad558c7 chore: improve usability
+  origin/liud/a0814_sidewalk_amp_2tag                                                                   00428e57c feat: change side walk cmd in play.py
+  origin/liud/a0814_sidewalk_amp_tag                                                                    d2202f8e4 chore: improve usability
+  origin/liud/add_neck                                                                                  2e4fa61c4 feat: add correct joint limits for neck joint positions (not implemented)
+  origin/liud/data_cleaning                                                                             3220133c5 feat: use position scales in velocity constraints
+  origin/liud/dev_r01_v111                                                                              ee49e4dcd feat: add more datasets
+  origin/liud/dev_r01_v111_rebase                                                                       c53563269 feat: add ani0619 dataset (final version of v1.11 animation data)
+  origin/liud/dev_r01_v111_symm                                                                         699b2bac0 chores: add datasets and modify play.py
+  origin/liud/dev_r01_v12_0728                                                                          779b26b23 feat: modify v1.2 mimic files downloading params
+  origin/liud/dev_r01_v12_sa_wholestate_female                                                          04b9698ce feat: modify motion files used
+  origin/liud/dev_r01_v12_walk_1204_wholestate_horse_auto_mujoco                                        81242e039 feat: pick the dataset that was finally used in shooting
+  origin/liud/dev_r01_v12_walk_1204_wholestate_male                                                     e68fc5aa8 feat: modify male walk dataset
+  origin/liud/dev_r01_v12_walk_1204_wholestate_male_partial_symm                                        6f7d88f77 WIP: do not implement symm aug for back
+  origin/liud/dev_r01_v12_walk_mimic                                                                    7dc72fa3b feat: separate upper and lower body vel tracking
+  origin/liud/improve_0613                                                                              e9b2c358c feat: change model_files branch to the uncollapsed arm j7 branch
+  origin/liud/improve_0613_addHandPos                                                                   03eea8e19 chore: modify cmds in play.py
+  origin/liud/mimic                                                                                     9f30dd59b chore: add examples to play
+  origin/liud/mocap_gym_streamer                                                                        c43c2e8a3 feat: relocate lcm message files and stream config files
+  origin/liud/mocap_gym_streamer_rebase                                                                 a4aedbfe9 feat: clean up codes
+  origin/liud/mocap_remapping                                                                           6a4c1816a feat: add mocap_data_remapping to datasets
+  origin/liud/mocap_remapping_rebase                                                                    4f92cc63b feat: add mocap_data_remapping to datasets
+  origin/liud/mocap_remapping_refactor                                                                  f7564fe25 WIP: refacotring mocap_data_remapping (v17, rename retargeting algorithm classes)
+  origin/liud/mocap_remapping_refactor_rebase                                                           0ab7c8be2 feat: add mocap_data_remapping to datasets
+  origin/liud/process_mocap_data_update                                                                 34738fc55 feat: remove arm roll offset in postprocessing config
+  origin/liud/r01_plus_amp_dev                                                                          5d9e2146f set internal False when upload
+  origin/liud/r01_plus_amp_dev_rebase                                                                   112ddeeb1 feat: add yaw-frame data
+  origin/liud/r01_plus_amp_dev_rebase_torso-grav-vec                                                    0637cde50 feat: modify play.py
+  origin/liud/r01_v12_dance_mimic_1023                                                                  6ddfaa697 chore: improve usability
+  origin/liud/r01_v12_dance_mimic_1028                                                                  8c332cd7c chore: add 1028 dance dataset
+  origin/liud/r01_v12_r02_sit_up_down                                                                   59acf8288 feat: update datasets
+  origin/liud/r02_sit_up_down                                                                           6f3076ad1 feat: adjust the approach to add offset to seat spawning positions
+  origin/liud/unity_data_training                                                                       7231459f9 feat: add animation datasets
+  origin/liud/v111_sit_up_down_refactor                                                                 0a27f859a refactor: refactor v111 mimic environments
+  origin/liud/v111_situp_beyondmimic                                                                    b68ea1564 chore: change play.py task setup
+  origin/liud/v1_11_ani-dataset-merge                                                                   28bd05fbb feat: change the model files dependency to v1.1.2
+  origin/liud/weighted_tracking_merge                                                                   cb2a9186c feat: separate upper and lower body key points tracking
+  origin/liud/weighted_tracking_rebase                                                                  927ca1a58 fix: update frame info
+  origin/liud27/add_mujoco_closed_chain                                                                 dbeff8ea5 WIP: removing redundant/unrelated code in MuJoCo sim script
+  origin/liud27/add_mujoco_open_chain_backup                                                            1014c57e3 feat: added an example scrit for saving MuJoCo sim into video files
+  origin/liud27/fix_r01_11_plus_urdf                                                                    84f25d91d feat: change origin info for arm joints in R01 1.1+ open-chain arm-fixed urdf
+  origin/liud27/plot_root_vel_est_from_onnx                                                             111a0baab refactor: refactored root velocity estimation script (v4)
+  origin/liwt/dev_r01_v12_closed_chain_obs                                                              2b423a8f2 registe v12
+  origin/liwt/dev_r01_v12_delta_net                                                                     58bf1adee fix: fix download scripts
+  origin/liwt/dev_r01_v12_rl                                                                            cc625cad4 double support / torque limit
+  origin/liwt/dev_r01_v12_rl_baseline                                                                   92e16e21f fix model_files
+  origin/liwt/dev_r01_v12_robotics_release                                                              338bee5f4 close_chain_obs(2)
+  origin/liwt/dev_r02_closed_chain                                                                      8000570ee Merge branch 'lihw/dev_r02_walk_backup_para_training' into liwt/dev_r02_closed_chain
+  origin/lixy/dev_r01_v111_wrist_sim2real                                                               4f5e82090 7 dof arm sim2real
+  origin/lixy/loco_mujoco                                                                               30a4594b5 fix: fix dockerfile and command in readme
+  origin/lixy/lxy                                                                                       887b99ae5 add some personal test tools
+  origin/lixy/master                                                                                    a08d6e4a9 Modify the learning part in robot data to align Motion RL with IMOS
+  origin/lixy/mirror_walk                                                                               ef786ae8f 0321
+  origin/lixy/produce_file_while_training                                                               54cc4b7d6 feats/properly produce onnx and video file during training
+  origin/lixy/release_new_side_walk_data                                                                390e152a1 only_y_axis_cmd
+  origin/lixy/release_sidewalkdata_dev                                                                  7a0561cd0 replace hixx_random_walk data by duzl sidewalk data
+  origin/lixy/sidewalk                                                                                  710d4bac1 x,y,yaw commands will be resampled seperately; tracking_avg_lin_vel calculate seperately lin_x and lin_y
+  origin/lixy/sym_loss                                                                                  1fbaa4aaa n
+  origin/lixy47/send_request                                                                            3cdbaea7c feat: send xbrain request when metadata updates
+  origin/lixy47/wbc2_dev                                                                                4413dd26a small modification
+  origin/lixy47/wbc2_release                                                                            56bc35b71 redo the video processor for recording both agent and ref-motion
+  origin/lixy47_4dof_dev                                                                                8632f1a54 feat: IMU DR
+  origin/lixy47_7dof_dev                                                                                a6fdab457 feat: use mean error instead of total tracking error
+  origin/lixy47_evaluate_improve                                                                        4f2224d09 fix: GPU memory leak in EvaluatorServer
+  origin/lixy47_sonic_dev                                                                               e1a31df6c fix: gravity vec to quat
+  origin/lixy47_sonic_quantizer_dim                                                                     edfcf3fcb chore: reward config in sonic
+  origin/lixy47_sonic_reconstruct                                                                       ac863ff8a feat: record reconstruct motion in video
+  origin/lixy47_turbo_4dof_dev                                                                          3426d5b69 feat: modify tracking sigma & push amplitude
+  origin/lixy47_wbc2_personal                                                                           78a38820c LXY: walking agent
+  origin/lixy47_wbc2_r02                                                                                a2c09df9a feat: first commit of R02 wbc2
+  origin/lixy47_wbc2_turbo                                                                              8650e5311 feat: introduce iron_turbo for v111_teleop task
+  origin/lixy_0630_0603_single_sidewalk                                                                 613da51a8 0603 single sidewalk
+  origin/lixy_0630_yehj_test                                                                            dc0d255d4 xrobot post request
+  origin/lixy_7dof_CU17                                                                                 c2f3e2899 chore: play.py
+  origin/lixy_7dof_CU17_CPFS                                                                            df0a97b6d tmp: use CPFS data
+  origin/lixy_7dof_CU17_quat_priv                                                                       5bc2ea8e5 feat: add target quat and base quat in priv obs
+  origin/lixy_7dof_CU17_yaw_priv                                                                        1130e3511 feat: modify tracking sigma as sonic's
+  origin/lixy_7dof_dev                                                                                  fbf9f00ee feat: use main dataset
+  origin/lixy_7dof_moiton_lib                                                                           b748e54e6 chore
+  origin/lixy_7dof_sonic                                                                                7538ace67 fix: evaluate server
+  origin/lixy_archive_single_sidewalk_0630                                                              971aaf250 nytnew_data
+  origin/lixy_baseline_playamp                                                                          a54de59d4 add amp feat during playing and add foot distance/foot height in plot states
+  origin/lixy_dizainefeetpos_distance                                                                   a3de23431 foot_dist_threshold_28 cm
+  origin/lixy_dizainefeetpos_largerpenalizefootdist                                                     23b27eb37 foot_dist_penalize_scale_minus50
+  origin/lixy_fuyao_label_selector                                                                      49d8357a5 quick test
+  origin/lixy_maris_single_sidewalk                                                                     09b46c279 amp_task_reward_lerp_0.15
+  origin/lixy_mj_retargeting_0714                                                                       80999d256 mj sidewalk 0715
+  origin/lixy_multitask_larger_collision                                                                1413e3f46 deadzone_vel0.3_ori0.05  and large_hand_collision_mesh
+  origin/lixy_taginamp_multitask_0708                                                                   98cd09b8f feat: add xrobot post request, sending the fuyao     information of the training task as an API request
+  origin/lixy_wbc2_statue                                                                               00969736e tmp changes
+  origin/lixy_wbc2_statue_rms                                                                           33129e2aa export onnx file properly for rms agent
+  origin/loco_mujoco_v101                                                                               b93c1800c add loco_mujoco v1.0.1(cd2241e6e2c4d3f0b3d0e1e202c999a4ac782cf3)
+  origin/luyz/mujoco_play                                                                               b0b3d7820 add R01 with arm urdf
+  origin/luyz/r01_sim2real_test                                                                         6f9e8774d add random dof damping
+  origin/luyz/r01_v11_plus                                                                              4feca3018 close self-collision
+  origin/lxy/multi_amp                                                                                  a3b861752 chore: rebase multi-amp to robotics_release
+  origin/lzy/embed_bug_solved_commit                                                                    f161ec99b fix video fps
+  origin/lzy/record_data_rebase2509_v111                                                                cc3c3d518 going to test num_envs limit on fuyao
+  origin/lzy/v111_main                                                                                  02ee2adc4 rebase record_data & upgrade occlusion & fix no plane
+  origin/lzy/v12_main_embed                                                                             988db613b sweep_lzy + model_files.conf simplify + new queue support + new amp dataset
+  origin/lzy/v12_main_parallel                                                                          19d97f7f6 temporary fix for step_width reset
+  origin/mask/dev_r01_v111_symm                                                                         1008fbdf7 fix orthogonal_init_scale error
+  origin/mask2/0424agent                                                                                cb5bd20a8 feat: add reward contact_vel_z_down=-0.2
+  origin/mask2/0428_agent                                                                               dbffe553d fix: fix seed set bug; add train debug in vscode task
+  origin/mask2/data_link_vel_debug                                                                      6c567fd2a check root_rot_diff_in_world_frame
+  origin/mask2/loco_mujoco                                                                              6cbb2d35e tmp_commit
+  origin/mask2/loco_mujoco_fork_mr                                                                      71120cbda feat: run bash ./scripts/format.sh
+  origin/mask2/mimic_v12                                                                                95468150a feat: remove datasets upload in gitignore
+  origin/mask2/mimic_v12_new_loader                                                                     fab0f84f7 feat: 1. use arm_link4 as hand end link; 2. align amp dr
+  origin/mask2/mj_inverse_debug                                                                         999f2d847 feat: use unify solimp and solref parameter
+  origin/mask2/mj_retargeting                                                                           3ecc4195e feat: run bash scripts/format.sh
+  origin/mask2/mj_retargeting_0716                                                                      37ec5cb83 feat: add _dof_limit_check, change deom color for collision or joint_limit violation
+  origin/mask2/mj_retargeting_debug                                                                     6f343101b fix: fix some pelling error
+  origin/mask2/mj_retargeting_old                                                                       ac46318e8 feat: run bash scripts/format.sh
+  origin/mask2/mj_retargeting_simple_csv                                                                7be8045a3 feat: config change 1. set default contact_constaint_solref to 0.1; 2. set joint_solref_limit to 0.002; change hand mocap_constaint_solref to 0.005; 3. remove useless configs
+  origin/mask2/mj_retargeting_simple_csv_mr1                                                            2749acfce feat: remove files to ensure that MR is within 6000 lines.
+  origin/mask2/mj_retargeting_simple_csv_mr2                                                            ac6b6d6d1 fix: fix ai review comment
+  origin/mask2/mj_retargeting_v1_mr1                                                                    36838a762 feat: update bvh retargeting message
+  origin/mask2/mj_retargeting_v1_mr2                                                                    162048d03 feat: add r01_v111_specific_joint_constrains config to show how to use specify_joint_params
+  origin/mask2/mj_retargeting_v2                                                                        9e3acf666 feat: add mj_retargeting conda env in isaacgym docker images
+  origin/mask2/multi_amp_critic                                                                         a5371b918 add multi-amp
+  origin/mask2/multi_amp_debug                                                                          2abcc0faa tmp_commit
+  origin/mask2/r01_v12_dance_mimic                                                                      4a5e4ced5 feat: add r01_v12-nyt-dance-badamanda-clip data
+  origin/mask2/r01_v12_dance_mimic_1020                                                                 2f534d7cb fix: fix dance mimic reward
+  origin/mask2/r01_v12_dance_mimic_1023                                                                 38c933a64 feat: clean datasets
+  origin/mask2/r01_v12_walk_mimic                                                                       a63059125 fix: fix r01_v12_walk_mimic_passive_joint config
+  origin/mask2/r01_v12_walk_mimic_mr                                                                    ba8ce55af fix: fix ai comment
+  origin/master                                                                                         984bbd8e8 Merge branch 'lihw/hotfix_for_master_185a5e78' into 'master'
+  origin/motion_rl_release                                                                              d6f745846 Merge branch 'chendh/dev_r01_v111_rebase' into 'robotics_release'
+  origin/multi_tasks_env                                                                                42671d925 feat: Add DiffusionCameraMixin and camera-enabled environments
+  origin/project/r01_v111_wbc2                                                                          0cdd45077 Merge branch 'liud/add_l250814_expert_data' into 'robotics_motion_rl_release'
+  origin/project/r01_v12_ai_day                                                                         0cdd45077 Merge branch 'liud/add_l250814_expert_data' into 'robotics_motion_rl_release'
+  origin/px5_develop                                                                                    f5c24bb01 Initial commit
+  origin/qiansl/algo_dev                                                                                92f7eae0b 增加random和扰动
+  origin/qiulm/data_cleaning_add                                                                        10903296f add diffnormalizer
+  origin/qiulm/motionlib_load_binary                                                                    325331ac5 feat: auto plotting online evaluation metrics
+  origin/release_archive_sidewalk_0630_minimum                                                          f2fd34aa8 minimum changes for training 0630 single sidewalk agent
+  origin/release_archive_sidewalk_0714                                                                  ec80aa068 archive_sidewalk_0714
+  origin/release_archive_sidewalk_0714_minimum                                                          6b2a554dd use urdf with larger hand collision
+  origin/release_detach_evaluate                                                                        7ac022d9c add some scripts
+  origin/release_evaluate_server                                                                        8b4542c52 bugfix
+  origin/robotics_motion_rl_ci_release                                                                  875213c41 Merge branch 'yeyl/test_robotices_auto_mr_ci' into 'robotics_release'
+  origin/robotics_motion_rl_release                                                                     5ccec9645 Merge branch 'zhangpf/r01_v12_merge' into 'robotics_motion_rl_release'
+  origin/robotics_release                                                                               7b736d4c3 Merge branch 'tanms/fuyao_resume' into 'robotics_release'
+  origin/rongzy/CU5_wbc2_202603_feat_v12                                                                cdeb4703d feat: add wbc2 training task for r01_v12_serial_ankle
+  origin/rongzy/wbc2_7dof_arm_dev                                                                       336820517 feat: new keypoint adaptation
+  origin/rongzy/wbc2_arm_input_ablation                                                                 439b4f7c6 feat: add cmd_profile selection with q_ee_mix
+  origin/rongzy/wbc2_as_debug                                                                           806a4abac feat: debugger for adaptive sampling
+  origin/rongzy/wbc2_as_vis                                                                             6ea8ca8e9 feat: debugger for adaptive sampling
+  origin/rongzy/wbc2_data_evaluator                                                                     325331ac5 feat: auto plotting online evaluation metrics
+  origin/rongzy/wbc2_data_roller_simplified                                                             c16da6a31 fix: GPU memory leak in EvaluatorServer
+  origin/rongzy/wbc2_dev                                                                                c0559050d chore: change fuyao site
+  origin/rongzy/wbc2_fix_push_robot                                                                     d78eebcaf feat: supports importing motion data from multiple paths
+  origin/rongzy/wbc2_keypt_world_recorder                                                               6355770a1 feat: add keybody quat in json exportation
+  origin/rongzy/wbc2_monoleg_test                                                                       4fd593a70 add: com calculator & visualizer
+  origin/rongzy/wbc2_motion_filter                                                                      d4ecd6b42 chore: modify fuyao settings
+  origin/rongzy/wbc2_pelvis_rot5d_dev                                                                   b6f8ea356 feat: final-frame padding for short motion clips
+  origin/rongzy/wbc2_pelvis_rot6d_dev                                                                   ff61b3c9e chore: modify quaternion order
+  origin/rongzy/wbc2_taichi_master_4dof_dev                                                             e03768c2f feat: modify termination conditions
+  origin/rongzy/wbc2_taichi_master_4dof_dev_world                                                       dc12a0cd1 feat: enlarge dr on com & mass, for torso and arm end effector
+  origin/rongzy/wbc2_v12                                                                                b548ccd87 add: view motion for r01_v12
+  origin/rongzy/wbc2_walk_dev                                                                           3f33c71ca feat: punish non-parallel contact state
+  origin/rongzy/wbc2_watchman_dev                                                                       ad30b3f76 feat: modify watchman train & evaluate configs
+  origin/sts_dev_cleanup                                                                                bde6f3368 WIP: cts refactor; student encoder detached
+  origin/suyz/240-cross-attention                                                                       82f18f411 move termination check to config
+  origin/suyz/8c8869f_retrain_amploader_zhuoqrhybrid_64                                                 7e908ac65 8c8869f_retrain_amploader_zhuoqrhybrid_64
+  origin/suyz/big_heightmap                                                                             b2e0ebdcc height 630 train
+  origin/suyz/compare_M7_test                                                                           276179215 remove_latent_reward compare test
+  origin/suyz/cross_attention_foothold                                                                  cb43ac7b6 small net test
+  origin/suyz/dtof_amp                                                                                  6a485f904 1. support multi-reward fuyao-deploy 2. support play.py complex path
+  origin/suyz/f6b1e67_fix_cnn_dim64                                                                     0c0d8611f using R01AMPLoader and zhuoqr-hybrid-stairs data
+  origin/suyz/itof_foothold                                                                             556e2faf1 add two parts of foot and add balls ahead of foot
+  origin/suyz/lzy_based                                                                                 f161ec99b fix video fps
+  origin/suyz/main_v111_depth_fps_test                                                                  ef9699a99 remove terrain_gate in _reward_foothold_height
+  origin/suyz/rebase_v1                                                                                 4a9656e5f try1
+  origin/suyz/reduce_landing_force                                                                      9e8cf57da close itof encoder
+  origin/suyz/reproducing_the_paper                                                                     3ee459f0e rebase wangsq_ v111_dev
+  origin/suyz/v111_attention                                                                            4a2c34433 remove terrain_gate in _reward_foothold_height
+  origin/suyz/v111_dev                                                                                  f74298f9f fix foothold reward
+  origin/suyz/v111_foothold                                                                             5d7d99565 add get_surrounding_height
+  origin/suyz/v111_terrain_level_debug                                                                  fb9de879d v111 terrain_level  debug
+  origin/suyz/v111_turn_around                                                                          3b11d6ca0 add metrics
+  origin/suyz/v12                                                                                       adb14e24a add replay tools
+  origin/suyz/v12_add_play_case                                                                         5203c413c add play_case
+  origin/suyz/v12_attention                                                                             65ad1b996 test rebase to terrain/v12_main fix bug
+  origin/suyz/v12_dev                                                                                   006071f57 modify dataset
+  origin/suyz/v12_main                                                                                  5643aa3f2 fix video fps
+  origin/suyz/v12_migrate                                                                               6cbd75b37 terrain -10
+  origin/suyz/v12_parallel_training                                                                     bdd65a783 attention
+  origin/suyz/warp_depth                                                                                e8a56be7b warp back
+  origin/tanms/fallrecovery_amp                                                                         5f9e32dfc [XA 157607] feat: fallrecovery_amp MR
+  origin/tanms/fallrecovery_mimic                                                                       07d148726 fix: fix the tag of the model_files
+  origin/tanms/fallrecovery_mimic_bak                                                                   3da96addd [XA 157566] feat: add mimic training tasks for fall recovery
+  origin/tanms/fallrecovery_mr                                                                          d49523bde feat: fallrecovery mr
+  origin/tanms/mimic                                                                                    b60f8e0fe fix: mr comment fix
+  origin/tanms/mimic_dev                                                                                e0c908625 feat: seperate on policy runner
+  origin/terrain/v111_main                                                                              bfc58d602 add slop terrain and format
+  origin/terrain/v12_main                                                                               e5a52467e fix V12 attention config
+  origin/terrain/v12_main_back_up                                                                       e5a52467e fix V12 attention config
+  origin/terrain_rebase_0310_v1                                                                         6305bb727 cherry-pick origin/iron_turbo_release 2 commit
+  origin/wangsq/dtof_seperate_stack                                                                     764b57138 adjust obs_buf order, put latent first; adjust adaptation_module dim 64 and 128
+  origin/wangsq/hm_mirror                                                                               0c8fc57f8 modify obs index
+  origin/wangsq/itof_stairs                                                                             9b44ab712 extract env into independent files
+  origin/wangsq/kick_potential_field                                                                    b89e9a899 add pf method for v111
+  origin/wangsq/kick_stair                                                                              4ef012d12 modify dataset, obstacle 0.2m
+  origin/wangsq/kick_stair_back                                                                         6c30b5409 parent 2dd1b3d2a8edd8cb5d0e32c22e76354dd5b9c5fe author wangsq14@xiaopeng.com <wangsq14@xiaopeng.com> 1743493497 +0800 committer wangsq14 <wangsq14@xiaopeng.com> 1751551265 +0800
+  origin/wangsq/kick_stair_dtof                                                                         5deb393ec add onnx dict loading
+  origin/wangsq/kick_stair_dtof_rebase                                                                  005b9a8a3 add height scale, add terrain curriculum factor
+  origin/wangsq/kick_stair_dtof_rebase_wall                                                             06ec3eb21 add wall
+  origin/wangsq/kick_target                                                                             fee6602c5 Merge branch 'mask2/add_zero_linvel_prob' into 'master'
+  origin/wangsq/partial_hmap                                                                            559fe870d disable and add log
+  origin/wangsq/r02_dev                                                                                 947868aff modify toe height
+  origin/wangsq/rebase2509                                                                              24af1bc7c modify view
+  origin/wangsq/rebase2509_v111                                                                         0134daeb6 modify terrain curriculum
+  origin/wangsq/single_latent                                                                           3ec3a8cb6 1. add landing velocity penalty 2. optimize metrics analyze 3. 0.6m  stairs width 4. remove height min sample 5. add multi-play
+  origin/wangsq/v111_dev                                                                                dad2ce493 Merge branch 'wangsq/v111_dev' of https://gitlab-adc.xiaopeng.link/robotics/motion_control/rl/motion_rl into wangsq/v111_dev
+  origin/wangsq/v111_log                                                                                7c872edd7 modify ignore add after log stop
+  origin/wangsq/v111_modify_priv_fh                                                                     321c90fcb add heel 1cm penalty, ae change to 0916
+  origin/wangsq/v111_rms                                                                                44b9fd977 refactor: add error info for ai_reviewer
+  origin/wangsq/v111_suyz_terrain                                                                       6f2aad9d5 add play stairs, log, modify fuyao_evaluate
+  origin/wangsq/v12                                                                                     0916ed4ef modify v12
+  origin/wangsq/v12_beam                                                                                fef8acc0a modify beam terrain to use given depth w/ random height
+  origin/wangsq/v12_beam_newdata                                                                        95b900d64 retrain beam correct terrain ratio
+  origin/wangsq/v12_dev                                                                                 2726518b7 remove comment
+  origin/wangsq/v12_dev_rebase                                                                          00948c857 dix bug
+  origin/wangsq/v12_main_rebase                                                                         cb09813e6 squash to 78d7aa14\
+  origin/wangsq/v12_terrain_rebase                                                                      392385f22 rebase to terrain/v111_main
+  origin/wangsq14/staris_rebase                                                                         963e487a0 rebase
+  origin/wangxz/ee_force                                                                                4136ac93c chore: modify training settings
+  origin/wangxz/mamp                                                                                    87aa8b64d feat: dual-disc and alternative actions for teleop
+  origin/wangxz/teleop_arms_only                                                                        db1a530fd chore: ablation settings (not fully verified)
+  origin/wangxz/teleop_arms_only_symm                                                                   0d6d2ed44 feat: add waist yaw dof
+  origin/wangxz/teleop_dev_sub                                                                          60c66131c update: tracking z_pos deadzone condition
+  origin/wangxz/teleop_stand_only                                                                       82f8ea015 update: in-place teleop version
+  origin/wangxz/waist_control                                                                           0f0f46be0 feat: add piecewise test case in play script
+  origin/wangxz/walk_no_arm                                                                             45e97501c add: customized play script for walk no arm
+  origin/wangxz/walk_no_arm_from_ms                                                                     73256969d chore: formatting and play script
+  origin/wangxz/walk_with_zpos                                                                          32c0b504d feat: intergrate z_pos & vel tracking
+  origin/wangxz/wbc1_dev_bak                                                                            690524e51 bugfix: reset_idx inheritance
+  origin/wangxz/wbc1_dev_exb                                                                            d12ba81d1 feat: add task r01_plus_amp_teleop_exhibition
+  origin/wangxz/wbc1_dev_him                                                                            d3a2a152c chore: logger output with latent and pred_vel
+  origin/wangxz/wbc2_dev                                                                                9141e46eb feat: implement walk-like data tracking
+  origin/wangxz/wbc2_dev_him                                                                            6ff84196d feat: hybrid internal model & actor-moe implementation
+  origin/wangxz/wbc2_dev_priv                                                                           9490d40cd feat: modify reward terms and add adaptive sampling
+  origin/wangxz/wbc_dev                                                                                 28588115a modify: deadzone settings in velocity tracking rewards
+  origin/wangxz/wbc_dev_0326                                                                            94a003fa6 update: baseline for v2820 (0413)
+  origin/wangxz/wbc_dev_0326_turn_in_place                                                              c76520746 chore: purify
+  origin/wangxz/wbc_dev_0403                                                                            b9533053c restore torque limits
+  origin/wangxz/wbc_dev_rebase                                                                          580fcfed8 chore: modify collision groups and urdf asset path
+  origin/wangxz/wbc_ff                                                                                  0b7729e47 feat: visualize com & several training configs
+  origin/wangxz/wbc_symm                                                                                78d765d07 feat: reward compensation via expectation
+  origin/wbc1_dev                                                                                       ec3a395db Revert "[temp] reset state in reset_idx"
+  origin/wbc1_dev_revert_reset                                                                          95335eb3d [XA 157206] feat: rebase teleop
+  origin/wbc2_release                                                                                   291adc301 fix: num_clip overwritten in play_mode
+  origin/wbc_dev                                                                                        4682ed754 upload test result to oss
+  origin/wbc_dev_rebase_backup                                                                          d79ebf94b add pertub joint torque to prev obs, disable it in teleop
+  origin/weiliu/test_mr                                                                                 0433ccc33 chore: add test
+  origin/yangxc/ROA                                                                                     c29a52474 fix: make the push_robot fix more robust
+  origin/yangxc/fixed_version                                                                           595107a9b feat: latent_aux
+  origin/yangxc/fixes                                                                                   bea6667dc fix: push problems
+  origin/yangxc/oracle                                                                                  3f68cbbc7 fix: oracle evallog bug
+  origin/yangxc/originalv12                                                                             1f0966e86 add: resnet connection of critic encoder
+  origin/yangxc/radicalDR                                                                               26d5a25a5 feat: radicalDR
+  origin/yangxc/teleop                                                                                  77ee53209 feat: v111_teleop
+  origin/yeyl/motion_rl_release_mrci_test                                                               02ae3407f Test Mr CI
+  origin/yuanhl/auto_record_video_background                                                            9c9e68d6c add joint pos&vel offset
+  origin/yuanhl/cloud_simulation_testing                                                                32c1f06bb 台架部署，修改启动脚本
+  origin/yuanhl/detection_data                                                                          e2db684e1 chore: standardized file path outputs
+  origin/yuanhl/detection_r01_tool                                                                      6882a911a modifie data exception in isaacsim
+  origin/yuanhl/isaacsim_r01_plus_sim2sim                                                               d30440dcf remove unused usd
+  origin/yuanhl/merge_1101                                                                              ea15fcb7d feat: add more data to robot_data
+  origin/yuanhl/multi_agent_visualize                                                                   d72e93af7 rebase master
+  origin/yxc/v12_full_scenes                                                                            5279cc241 fix: fuyao train num env arg
+  origin/yxc_temporary                                                                                  24740c712 feat: aligned structure with motion_rl
+  origin/zhangny2/fix/stale_time_out                                                                    01ce4bdf7 fix: move time_outs update before early return in reset_idx to prevent stale GAE bootstrapping
+  origin/zhangny2/iron_turbo_develop                                                                    d8c244b97 feat: complete iron_turbo (fast_rl) v0.1 implementation
+  origin/zhangny2/iron_turbo_v12_parallel_training                                                      9ba2b69e2 feat: Add distributed training support to suyz/v12_parallel_training. Trainig tested for r01_plus_amp_with_4dof_arms_autoencoder and r01_plus_amp_with_4dof_arms_cross_attention.
+  origin/zhangpf/add_simulator_abstract                                                                 d6b91f196 fix: isaacgym simulator
+  origin/zhangpf/dev_download_analyze_tool                                                              64013ac76 feat: add download and csv analyze tool
+  origin/zhangpf/dev_joystick_play                                                                      4a8dc0586 feat: add joystick play
+  origin/zhangpf/dev_r01_v12_0728                                                                       5db61edcd feat: add general amp tag
+  origin/zhangpf/dev_r01_v12_0728_amp_tag                                                               5ec7cd30c feat: add amp label
+  origin/zhangpf/dev_r01_v12_0910                                                                       8a96a9bba fix: add param fix
+  origin/zhangpf/dev_r01_v12_0929                                                                       cb88b0727 fix: play catwalk metric
+  origin/zhangpf/dev_r01_v12_sim2real                                                                   630558756 feat: add change zpf
+  origin/zhangpf/dev_r01_v12_walk_1107                                                                  92bc557cc fix: amp tag dim
+  origin/zhangpf/dev_r01_v12_walk_1203                                                                  628575430 fix: add necessary explanation
+  origin/zhangpf/dev_r01_v12_walk_1204                                                                  677b800c4 fix: add reset link info
+  origin/zhangpf/dev_r01_v12_walk_1204_wholestate                                                       39c5b7bde fix: fix arm pd
+  origin/zhangpf/dev_smp_model                                                                          fb9140687 fix: plat scripts
+  origin/zhangpf/dev_smp_model_v12                                                                      a5d9f0d58 feat: smp train code
+  origin/zhangpf/dev_v12_performance_test                                                               3c784b395 feat: add new
+  origin/zhangpf/dev_v12_train_0716                                                                     43c94b06f new change
+  origin/zhangpf/r01_v12_merge_inertial_data                                                            e9f08487b fix: change data file
+  origin/zhangpf/r01_v12_merge_parrael_train                                                            0c462451e fix: change param
+  origin/zhangpf/r01_v12_new_amp_loader                                                                 9e3acf666 feat: add mj_retargeting conda env in isaacgym docker images
+  origin/zhoujf/feat/0326_standstill                                                                    a5636e9ae Merge branch 'refs/heads/wangxz/wbc_dev_0326' into zhoujf/feat/0326_standstill
+  origin/zhoujf/feat/0326_standstill_new                                                                f2d447b6f feat: update standstill method
+  origin/zhoujf/feat/0326_turn_in_place_standstill                                                      fbc434336 feat: standstill reward adapt command without z pos
+  origin/zhoujf/feat/0413_addcmddeadzone                                                                229b3f755 feat: change params
+  origin/zhoujf/feat/0413_addsoftlimit                                                                  e870b9e48 feat: change soft limit params
+  origin/zhoujf/feat/0413_softlimit_standstill_new                                                      3837a115a feat: add check_iter_info
+  origin/zhoujf/feat/0413_softlimit_standstill_old                                                      0be03bc57 feat: add standstill
+  origin/zhoujf/feat/0413_softlimit_standstill_turn_new                                                 f3249af6a fix: remove ["rew_tracking_z_pos"] condition
+  origin/zhoujf/feat/0413_softlimit_v111urdf                                                            fc2ac5ef1 feat: change params
+  origin/zhoujf/feat/reduce_pd_param                                                                    7896b5ac3 feat: change pd_param
+  origin/zhoujf/feat/scale_rpy_action_rate                                                              3efc72504 feat: add rpy vel plot
+  origin/zhoujf/teleop_stand_only/resample_refactor                                                     4f563a2b7 feat: add init method

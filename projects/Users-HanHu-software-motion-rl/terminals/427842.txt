@@ -1,0 +1,72 @@
+---
+pid: 69491
+cwd: "/Users/HanHu/software/motion_rl"
+command: "bash ~/.cursor/skills/motion-rl-isaacgym-exec/scripts/run-in-isaacgym-motion-rl.sh DISPLAY=:1 python humanoid-gym/humanoid/scripts/play.py --task r01_v12_amp_with_4dof_arms_and_head_full_scenes --checkpoint_path /home/huh/software/motion_rl/model_9442_best_k_value=52.954.pt --resume --total_steps 100000000"
+started_at: 2026-03-13T21:27:51.102Z
+running_for_ms: 5007     
+---
+Importing module 'gym_38' (/opt/isaacgym/python/isaacgym/_bindings/linux-x86_64/gym_38.so)
+Setting GYM_USD_PLUG_INFO_PATH to /opt/isaacgym/python/isaacgym/_bindings/linux-x86_64/usd/plugInfo.json
+PyTorch version 1.14.0a0+410ce96
+Device count 0
+/opt/isaacgym/python/isaacgym/_bindings/src/gymtorch
+No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+/usr/local/lib/python3.8/dist-packages/torch/cuda/__init__.py:508: UserWarning: Can't initialize NVML
+  warnings.warn("Can't initialize NVML")
+Using /home/huh/.cache/torch_extensions/py38_cu118 as PyTorch extensions root...
+Emitting ninja build file /home/huh/.cache/torch_extensions/py38_cu118/gymtorch/build.ninja...
+Building extension module gymtorch...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+ninja: no work to do.
+Cannot import fuyao!
+Cannot import fuyao!
+auto register tasks...
+simplified class-based registry done, 21 tasks registered:
+  - r01_mimic_0702duzl_facedown002
+  - r01_mimic_0715duzl_facedown
+  - r01_mimic_0718duzl_facedown001
+  - r01_mimic_0718duzl_facedown002
+  - r01_mimic_0724tangjc_facedown01
+  - r01_mimic_0724tangjc_facedown02
+  - r01_mimic_0611duzl_faceup
+  - r01_mimic_0611duzl_faceup002
+  - r01_mimic_0702duzl_faceup
+  - r01_mimic_0814tangjc_faceup
+  - r01_mimic_0702duzl_rolling
+  - r01_mimic_0702duzl_situp
+  - r01_mimic_0718duzl_situp001
+  - r01_mimic_0724tangjc_situp02
+  - r01_mimic_0724tangjc_sitdown
+  - r01_mimic_0724tangjc_situp02_seat
+  - r01_mimic_0814tangjc_situp01_seat
+  - r01_mimic_0724tangjc_sitdown_seat
+  - r01_mimic_0725duzl_sitdown_seat
+  - r01_mimic_0814tangjc_sitdown01_seat
+  - r01_mimic_0814tangjc_sitdown02_seat
+auto register tasks done
+Setting seed: 15
+Loading extension module gymtorch...
+Traceback (most recent call last):
+  File "humanoid-gym/humanoid/scripts/play.py", line 430, in <module>
+    play(args)
+  File "humanoid-gym/humanoid/scripts/play.py", line 129, in play
+    env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
+  File "/home/huh/software/motion_rl/humanoid-gym/humanoid/utils/task_registry.py", line 98, in make_env
+    env = task_class(
+  File "/home/huh/software/motion_rl/humanoid-gym/humanoid/envs/r01_amp/r01_v12_amp_env.py", line 91, in __init__
+    super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
+  File "/home/huh/software/motion_rl/humanoid-gym/humanoid/envs/r01_amp/r01_amp_env.py", line 90, in __init__
+    super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
+  File "/home/huh/software/motion_rl/humanoid-gym/humanoid/envs/base/legged_robot.py", line 84, in __init__
+    super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
+  File "/home/huh/software/motion_rl/humanoid-gym/humanoid/envs/base/base_task.py", line 72, in __init__
+    self.obs_buf = torch.zeros(self.num_envs, self.num_obs, device=self.device, dtype=torch.float)
+  File "/usr/local/lib/python3.8/dist-packages/torch/cuda/__init__.py", line 240, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: No CUDA GPUs are available
+
+---
+exit_code: 1
+elapsed_ms: 5488
+ended_at: 2026-03-13T21:27:56.590Z
+---

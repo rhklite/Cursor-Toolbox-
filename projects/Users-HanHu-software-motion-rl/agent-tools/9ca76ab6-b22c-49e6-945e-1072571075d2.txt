@@ -1,0 +1,1300 @@
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Copyright (c) 2024 Beijing RobotEra TECHNOLOGY CO.,LTD. All rights reserved.
+
+import math
+import random
+from typing import Optional
+from dataclasses import replace
+import sys
+
+from humanoid.envs.base.legged_robot_config import LeggedRobotCfg
+
+from isaacgym.torch_utils import *
+from isaacgym import gymtorch, gymapi
+
+import torch
+from humanoid.envs import LeggedRobot
+from humanoid.envs.base.legged_robot import get_euler_xyz_tensor
+
+from humanoid.utils.terrain import HumanoidTerrain, Terrain
+from humanoid.utils.math import scale_range
+
+# from collections import deque
+from .r01_motion_loader import r01_amp_loader_factory, R01AMPStateBase
+
+from isaacgym.torch_utils import quat_rotate_inverse
+from humanoid.utils.math import quaternion_xyzw_diff
+from humanoid.datasets.motion_loader import RobotMotionStateBase, BaseMotionLoader
+
+
+class R01BalanceEnv(LeggedRobot):
+    '''
+    R01AMPEnv is a class that represents a custom environment for a legged robot.
+
+    Args:
+        cfg (LeggedRobotCfg): Configuration object for the legged robot.
+        sim_params: Parameters for the simulation.
+        physics_engine: Physics engine used in the simulation.
+        sim_device: Device used for the simulation.
+        headless: Flag indicating whether the simulation should be run in headless mode.
+
+    Attributes:
+        last_feet_z (float): The z-coordinate of the last feet position.
+        feet_height (torch.Tensor): Tensor representing the height of the feet.
+        sim (gymtorch.GymSim): The simulation object.
+        terrain (HumanoidTerrain): The terrain object.
+        up_axis_idx (int): The index representing the up axis.
+        command_input (torch.Tensor): Tensor representing the command input.
+        privileged_obs_buf (torch.Tensor): Tensor representing the privileged observations buffer.
+        obs_buf (torch.Tensor): Tensor representing the observations buffer.
+        obs_history (collections.deque): Deque containing the history of observations.
+        privileged_obs_history (collections.deque): Deque containing the history of critic observations.
+
+    Methods:
+        _push_robots(): Randomly pushes the robots by setting a randomized base velocity.
+
+        create_sim(): Creates the simulation, terrain, and environments.
+        _get_noise_scale_vec(cfg): Sets a vector used to scale the noise added to the observations.
+        step(actions): Performs a simulation step with the given actions.
+        compute_observations(): Computes the observations.
+        reset_idx(env_ids): Resets the environment for the specified environment IDs.
+    '''
+
+    def __init__(self, cfg: LeggedRobotCfg, sim_params, physics_engine, sim_device, headless):
+        super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
+        self.last_feet_z = 0.05
+        self.feet_height = torch.zeros((self.num_envs, 2), device=self.device)
+        self.max_feet_height = torch.zeros((self.num_envs, 2), device=self.device)
+        if self.cfg.env.amp_loader_type == 'BaseMotionLoader':
+            self.amp_loader = BaseMotionLoader(env=self, motion_cfg=self.cfg.motion)
+            self.motion_obs_joint_names = self.amp_loader.motion_joint_names
+            self.motion_obs_link_names = self.amp_loader.motion_link_names
+            self.amp_obs_joint_indices = [self.dof_names.index(name) for name in self.motion_obs_joint_names]
+            self.amp_obs_link_indices = [self.body_names.index(name) for name in self.motion_obs_link_names]
+        else:
+            self.amp_loader = r01_amp_loader_factory(self.cfg.env.amp_loader_type)(
+                motion_dataset=self.cfg.env.amp_motion_dataset,
+                motion_dataset_version=self.cfg.env.amp_motion_dataset_version,
+                motion_file_names=self.cfg.env.amp_motion_file_names,
+                preload_transitions=True,
+                device=self.device,
+                time_between_frames=self.dt,
+                num_preload_transitions=self.cfg.env.amp_num_preload_transitions,
+            )
+        self.amp_reset_root_pos_z_bias = self.cfg.env.amp_reset_root_pos_z_bias
+
+        # Initialize custom state loader for test dataset (balance task specific)
+        if hasattr(self.cfg.env, 'custom_state_initialization') and self.cfg.env.custom_state_initialization:
+            from humanoid.utils.motion_state_loader import MotionStateLoader
+
+            self.custom_state_loader = MotionStateLoader(
+                motion_dataset=self.cfg.env.init_state_dataset,
+                motion_file_names=self.cfg.env.init_state_file_names,
+                device=self.device,
+            )
+            print(
+                f"[R01BalanceEnv] Custom state initialization enabled with dataset: {self.cfg.env.init_state_dataset}"
+            )
+        else:
+            self.custom_state_loader = None
+
+        self.feet_pos = torch.zeros(
+            self.num_envs, self.feet_indices.shape[0] * 3, dtype=torch.float, device=self.device, requires_grad=False
+        )
+        self.feet_vel = torch.zeros(
+            self.num_envs, self.feet_indices.shape[0] * 3, dtype=torch.float, device=self.device, requires_grad=False
+        )
+        self.leg_joint_dim = self.cfg.asset.leg_joint_dim
+
+        self.waist_joint_dim = self.cfg.asset.waist_joint_dim
+        self.torso_quat = torch.zeros(self.num_envs, 4, device=self.device, requires_grad=False)
+        self.torso_projected_gravity = torch.zeros(self.num_envs, 3, device=self.device, requires_grad=False)
+        self.torso_index = self.gym.find_actor_rigid_body_handle(
+            self.envs[0], self.actor_handles[0], self.cfg.asset.torso_name
+        )
+        self.torso_ang_vel = torch.zeros(self.num_envs, 3, device=self.device, requires_grad=False)
+
+        self.torque_deque_size = int(self.cfg.domain_rand.max_torque_delay / self.cfg.sim.dt)
+        # Torque deque: start from the latest torque
+        self.torque_deque = torch.zeros(
+            self.torque_deque_size, self.num_envs, self.num_actions, dtype=torch.float, device=self.device
+        )
+        self.rand_torque_delay = torch.zeros(self.num_envs, dtype=torch.int32, device=self.device)
+        self.env_ids = torch.arange(self.num_envs, device=self.device)
+
+        self.rand_leg_linear_dof_pos_offset = torch.zeros(
+            self.num_envs, self.num_actions, dtype=torch.float, device=self.device
+        )
+        self.leg_linear_dof_indices = torch.tensor(
+            self.cfg.domain_rand.leg_linear_dof_indices, device=self.device, dtype=torch.long, requires_grad=False
+        )
+        self.leg_linear_dof_pos_offset_max = torch.tensor(
+            self.cfg.domain_rand.leg_linear_dof_pos_offset_max, dtype=torch.float, device=self.device
+        )
+        self.base_vel_history = torch.zeros(
+            self.num_envs, self.cfg.commands.average_stack, 3, dtype=torch.float, device=self.device
+        )
+        self.base_vel_history_sizes = torch.zeros(self.num_envs, dtype=torch.int32, device=self.device)
+        self.base_avg_vel = torch.zeros(self.num_envs, 3, device=self.device)
+
+        self.reset_idx(torch.tensor(range(self.num_envs), device=self.device))
+        self.noise_scale_vec = self.get_noise_scale_vec(self.cfg)
+        self.compute_observations()
+        self.standing_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
+        for i in range(self.num_dofs):
+            name = self.dof_names[i]
+            self.standing_dof_pos[i] = self.cfg.init_state.standing_joint_angles[name]
+
+        self.standing_dof_pos = self.standing_dof_pos.unsqueeze(0)
+
+        if hasattr(self.cfg, 'mirror_cfg'):
+            self._update_mirror_index_offset()
+            self._init_mirror_index_lists()
+
+    def create_sim(self):
+        """Creates simulation, terrain and evironments"""
+        self.up_axis_idx = 2  # 2 for z, 1 for y -> adapt gravity accordingly
+        self.sim = self.gym.create_sim(
+            self.sim_device_id, self.graphics_device_id, self.physics_engine, self.sim_params
+        )
+        mesh_type = self.cfg.terrain.mesh_type
+        if mesh_type in ['heightfield']:
+            self.terrain = HumanoidTerrain(self.cfg.terrain, self.num_envs)
+        if mesh_type in ['trimesh']:
+            self.terrain = Terrain(self.cfg.terrain, self.num_envs)
+
+        if mesh_type == 'plane':
+            self._create_ground_plane()
+        elif mesh_type == 'heightfield':
+            self._create_heightfield()
+        elif mesh_type == 'trimesh':
+            self._create_trimesh()
+        elif mesh_type is not None:
+            raise ValueError("Terrain mesh type not recognised. Allowed types are [None, plane, heightfield, trimesh]")
+        self._create_envs()
+
+    def get_noise_scale_vec(self, cfg):
+        """Sets a vector used to scale the noise added to the observations.
+            [NOTE]: Must be adapted when changing the observations structure
+
+        Args:
+            cfg (Dict): Environment config file
+
+        Returns:
+            [torch.Tensor]: Vector of scales used to multiply a uniform distribution in [-1, 1]
+        """
+        noise_vec = torch.zeros(self.cfg.env.num_single_obs, device=self.device)
+        self.add_noise = self.cfg.noise.add_noise
+        noise_scales = self.cfg.noise.noise_scales
+        noise_level = self.cfg.noise.noise_level
+
+        commands_noise_idx_s = 0
+        commands_noise_idx_e = commands_noise_idx_s + 3
+        dof_pos_noise_idx_s = commands_noise_idx_e
+        dof_pos_noise_idx_e = dof_pos_noise_idx_s + self.num_dofs
+        dof_vel_noise_idx_s = dof_pos_noise_idx_e
+        dof_vel_noise_idx_e = dof_vel_noise_idx_s + self.num_dofs
+        actions_noise_idx_s = dof_vel_noise_idx_e
+        actions_noise_idx_e = actions_noise_idx_s + self.cfg.env.num_actions
+        pelvis_ang_vel_noise_idx_s = actions_noise_idx_e
+        pelvis_ang_vel_noise_idx_e = pelvis_ang_vel_noise_idx_s + 3
+        pelvis_gravity_noise_idx_s = pelvis_ang_vel_noise_idx_e
+        pelvis_gravity_noise_idx_e = pelvis_gravity_noise_idx_s + 3
+
+        torso_ang_vel_noise_idx_s = pelvis_gravity_noise_idx_e
+        torso_ang_vel_noise_idx_e = torso_ang_vel_noise_idx_s + 3
+        torso_gravity_noise_idx_s = torso_ang_vel_noise_idx_e
+        torso_gravity_noise_idx_e = torso_gravity_noise_idx_s + 3
+
+        noise_vec[commands_noise_idx_s:commands_noise_idx_e] = 0.0  # commands
+        noise_vec[dof_pos_noise_idx_s:dof_pos_noise_idx_e] = (
+            noise_scales.dof_pos * self.obs_scales.dof_pos * noise_level
+        )
+        noise_vec[dof_vel_noise_idx_s:dof_vel_noise_idx_e] = (
+            noise_scales.dof_vel * self.obs_scales.dof_vel * noise_level
+        )
+        noise_vec[actions_noise_idx_s:actions_noise_idx_e] = 0.0  # previous actions
+        noise_vec[pelvis_ang_vel_noise_idx_s:pelvis_ang_vel_noise_idx_e] = (
+            noise_scales.ang_vel * self.obs_scales.ang_vel * noise_level
+        )  # ang vel
+        noise_vec[pelvis_gravity_noise_idx_s:pelvis_gravity_noise_idx_e] = (
+            noise_scales.gravity * noise_level
+        )  # euler x,y
+
+        noise_vec[torso_ang_vel_noise_idx_s:torso_ang_vel_noise_idx_e] = (
+            noise_scales.ang_vel * self.obs_scales.ang_vel * noise_level
+        )  # ang vel
+        noise_vec[torso_gravity_noise_idx_s:torso_gravity_noise_idx_e] = noise_scales.gravity * noise_level  # euler x,y
+
+        if self.cfg.terrain.measure_heights:
+            heightmap_noise_idx_s = torso_gravity_noise_idx_e
+            noise_vec[heightmap_noise_idx_s:] = (
+                noise_scales.height_measurements * noise_level * self.obs_scales.height_measurements
+            )
+
+        return noise_vec
+
+    def step(self, actions):
+        """Perform a simulation step with the given actions."""
+        obs_buf, privileged_obs_buf, rew_buf, reset_buf, extras = super().step(actions)
+        return obs_buf, privileged_obs_buf, rew_buf, reset_buf, extras, self.reset_env_ids, self.terminal_amp_states
+
+    def compute_observations(self):
+        """Compute the observations."""
+        # NOTE !!! if you wangt to change the privileged_obs_buf or random_coef or obs_buf,
+        # you must change the function get_symmetric_states_actions below
+
+        self.command_input = self.commands[:, :3] * self.commands_scale
+
+        q = (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos
+        dq = self.dof_vel * self.obs_scales.dof_vel
+
+        if self.cfg.domain_rand.leg_linear_dof_pos_offset:
+            q += self.rand_leg_linear_dof_pos_offset * self.obs_scales.dof_pos
+
+        privileged_obs_buf = torch.cat(
+            (
+                self.command_input,  # 3
+                (self.dof_pos - self.default_joint_pd_target) * self.obs_scales.dof_pos,
+                self.dof_vel * self.obs_scales.dof_vel,
+                self.actions,
+                self.base_lin_vel * self.obs_scales.lin_vel,  # 3
+                self.base_ang_vel * self.obs_scales.ang_vel,  # 3
+                self.projected_gravity,  # 3
+                self.torso_ang_vel * self.obs_scales.ang_vel,  # 3
+                self.torso_projected_gravity,  # 3
+                self.root_states[:, 2].unsqueeze(1),  # 1
+                self.rand_push_force[:, :2],  # 2
+                self.rand_push_torque[:, :],  # 3
+                self.rand_joint_torque_perturbation,
+                self.contact_forces[:, self.feet_indices, 2] / 1000,  # 2
+                # self.rigid_state[:, self.feet_indices, 2] * 2, # 2
+                # self.rigid_state[:, self.feet_indices, 7:10].reshape(self.num_envs, -1),
+                self.feet_pos,
+                self.feet_vel,
+            ),
+            dim=-1,
+        )
+
+        random_coef = torch.cat(
+            (
+                self.friction_coeffs_coef.unsqueeze(1),
+                self.restitutions_coef.unsqueeze(1),
+                self.payloads_coef.unsqueeze(1),
+                self.com_displacements_coef,
+                self.motor_strengths_coef,
+                self.Kp_factors_coef,
+                self.Kd_factors_coef,
+            ),
+            dim=-1,
+        )
+
+        obs_buf = torch.cat(
+            (
+                self.command_input,  # 3 = 3D(vel_x, vel_y, aug_vel_yaw)
+                q,
+                dq,
+                self.actions,
+                self.base_ang_vel * self.obs_scales.ang_vel,  # 3
+                self.projected_gravity,
+                self.torso_ang_vel * self.obs_scales.ang_vel,  # 3
+                self.torso_projected_gravity,  # 3
+            ),
+            dim=-1,
+        )
+
+        # adding heightmap to the observations
+        if self.cfg.terrain.measure_heights:
+            heights = (
+                torch.clip(
+                    self.root_states[:, 2].unsqueeze(1)
+                    - self.obs_scales.height_measurements_neutral
+                    - self.measured_heights,
+                    -1.0,
+                    1.0,
+                )
+                * self.obs_scales.height_measurements
+            )
+            obs_buf = torch.cat((obs_buf, heights), dim=-1)
+            privileged_obs_buf = torch.cat((privileged_obs_buf, heights), dim=-1)
+
+        # adding noise to the observations
+        if self.add_noise:
+            obs_now = obs_buf.clone() + torch.randn_like(obs_buf) * self.noise_scale_vec
+        else:
+            obs_now = obs_buf.clone()
+
+        self.obs_history.append(obs_now)
+        self.privileged_obs_history.append(privileged_obs_buf)
+
+        obs_buf_all = torch.stack([self.obs_history[i] for i in range(self.obs_history.maxlen)], dim=1)  # N,T,K
+        self.obs_buf = obs_buf_all.reshape(self.num_envs, -1)  # N, T*K
+
+        privileged_obs_history_stack = torch.cat(
+            [self.privileged_obs_history[i] for i in range(self.cfg.env.c_frame_stack)], dim=1
+        )
+        self.privileged_obs_buf = torch.cat((privileged_obs_history_stack, random_coef), dim=-1)
+        # self.privileged_obs_buf = privileged_obs_history_stack
+
+    def _update_mirror_index_offset(self):
+        if sys.version_info >= (3, 7):
+            obs_buf_dict = {
+                "command_input": self.command_input,
+                "dof_pos": (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
+                "dof_vel": self.dof_vel * self.obs_scales.dof_vel,
+                "actions": self.actions,
+                "base_ang_vel": self.base_ang_vel * self.obs_scales.ang_vel,
+                "projected_gravity": self.projected_gravity,
+                "torso_ang_vel": self.torso_ang_vel * self.obs_scales.ang_vel,
+                "torso_projected_gravity": self.torso_projected_gravity,
+            }
+            privileged_obs_buf_dict = {
+                "command_input": self.command_input,
+                "dof_pos": (self.dof_pos - self.default_joint_pd_target) * self.obs_scales.dof_pos,
+                "dof_vel": self.dof_vel * self.obs_scales.dof_vel,
+                "actions": self.actions,
+                "base_lin_vel": self.base_lin_vel * self.obs_scales.lin_vel,
+                "base_ang_vel": self.base_ang_vel * self.obs_scales.ang_vel,
+                "projected_gravity": self.projected_gravity,
+                "torso_ang_vel": self.torso_ang_vel * self.obs_scales.ang_vel,
+                "torso_projected_gravity": self.torso_projected_gravity,
+                "height": self.root_states[:, 2].unsqueeze(1),
+                "rand_push_force": self.rand_push_force[:, :2],
+                "rand_push_torque": self.rand_push_torque[:, :],
+                "rand_joint_torque_perturbation": self.rand_joint_torque_perturbation,
+                "contact_forces": self.contact_forces[:, self.feet_indices, 2] / 1000,
+                "feet_pos": self.feet_pos,
+                "feet_vel": self.feet_vel,
+                "friction_coeffs_coef": self.friction_coeffs_coef.unsqueeze(1),
+                "restitutions_coef": self.restitutions_coef.unsqueeze(1),
+                "payloads_coef": self.payloads_coef.unsqueeze(1),
+                "com_displacements_coef": self.com_displacements_coef,
+                "motor_strengths_coef": self.motor_strengths_coef,
+                "Kp_factors_coef": self.Kp_factors_coef,
+                "Kd_factors_coef": self.Kd_factors_coef,
+            }
+            self._set_mirror_offset(obs_buf_dict, self.cfg.mirror_cfg.obs_mirror)
+            self._set_mirror_offset(privileged_obs_buf_dict, self.cfg.mirror_cfg.privileged_obs_mirror)
+        else:
+            raise RuntimeError('python version < 3.7')
+
+    def _set_mirror_offset(self, obs_buf_dict, mirror_cfg):
+        obs_offset = 0
+        for key_name in obs_buf_dict:
+            value_len = obs_buf_dict[key_name].size(1)
+            if hasattr(mirror_cfg, key_name):
+                setattr(
+                    mirror_cfg,
+                    key_name,
+                    replace(getattr(mirror_cfg, key_name), offset=obs_offset),
+                )
+                obs_offset += value_len
+            else:
+                raise ValueError(f"Unknown obs_dict key {key_name}")
+
+    def _compute_torques(self, actions):
+        """Compute torques from actions.
+            Actions can be interpreted as position or velocity targets given to a PD controller, or directly as scaled torques.
+            [NOTE]: torques must have the same dimension as the number of DOFs, even if some DOFs are not actuated.
+
+        Args:
+            actions (torch.Tensor): Actions
+
+        Returns:
+            [torch.Tensor]: Torques sent to the simulation
+        """
+        actions_scaled = actions * self.cfg.control.action_scale
+        p_gains = self.p_gains * self.Kp_factors
+        d_gains = self.d_gains * self.Kd_factors
+        p_torques = p_gains * (actions_scaled + self.default_dof_pos - self.dof_pos)
+
+        if self.cfg.domain_rand.torque_delay:
+            self.torque_deque[:] = torch.cat([p_torques.unsqueeze(0), self.torque_deque[:-1]], dim=0)
+            p_torques = self.torque_deque[self.rand_torque_delay.long(), self.env_ids.long()]
+
+        d_torques = -d_gains * self.dof_vel
+        torques = p_torques + d_torques
+
+        torques = torch.clip(torques, -self.torque_limits, self.torque_limits)
+
+        return torques * self.motor_strengths
+
+    def _post_physics_step_callback(self):
+        super()._post_physics_step_callback()
+        self.traj_time_s += self.dt
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
+        self.gym.refresh_jacobian_tensors(self.sim)
+        self.feet_pos[:], self.feet_vel[:] = self.foot_states_in_base_frame()
+        self.torso_quat[:] = self.rigid_state[:, self.torso_index, 3:7]
+        self.torso_ang_vel[:] = quat_rotate_inverse(self.torso_quat, self.rigid_state[:, self.torso_index, 10:13])
+        self.torso_projected_gravity[:] = quat_rotate_inverse(self.torso_quat, self.gravity_vec)
+
+        # update base velocity history
+        base_vel = torch.cat((self.base_lin_vel_yaw[:, 0:2], self.base_ang_vel[:, 2].unsqueeze(1)), dim=1)
+        # base_vel = torch.cat(
+        #     (self.root_states[:, 7:9], self.root_states[:, 12].unsqueeze(1)), dim=1
+        # )
+        self.base_vel_history = torch.cat((base_vel.unsqueeze(1), self.base_vel_history[:, :-1, :]), dim=1)
+        self.base_vel_history_sizes = torch.min(
+            self.base_vel_history_sizes + 1, torch.tensor(self.cfg.commands.average_stack, device=self.device)
+        )
+        self.base_avg_vel = torch.sum(self.base_vel_history, dim=1) / self.base_vel_history_sizes.unsqueeze(1)
+
+    def reset_idx(self, env_ids):
+        """Reset some environments.
+            Calls self._reset_dofs(env_ids), self._reset_root_states(env_ids), and self._resample_commands(env_ids)
+            [Optional] calls self._update_terrain_curriculum(env_ids), self.update_command_curriculum(env_ids) and
+            Logs episode info
+            Resets some buffers
+
+        Args:
+            env_ids (list[int]): List of environment ids which must be reset
+        """
+        self.reset_env_ids = env_ids
+        self.terminal_amp_states = self.get_amp_observations()[env_ids]
+
+        if len(env_ids) == 0:
+            return
+        # update curriculum
+        if self.cfg.terrain.curriculum:
+            self._update_terrain_curriculum(env_ids)
+        # avoid updating command curriculum at each step since the maximum command is common to all envs
+        if self.cfg.commands.curriculum and (self.common_step_counter % self.max_episode_length == 0):
+            self.update_command_curriculum(env_ids)
+
+        # reset robot states
+        if (
+            hasattr(self.cfg.env, 'custom_state_initialization')
+            and self.cfg.env.custom_state_initialization
+            and self.custom_state_loader is not None
+        ):
+            # Use custom test dataset for state initialization (balance task specific)
+            # Retry mechanism to find valid states (no collision or joint limit violations)
+            max_retries = 50  # Maximum number of retries to find valid states
+            retry_count = 0
+            states_valid = False
+
+            while retry_count < max_retries and not states_valid:
+                (
+                    dof_pos_batch,
+                    dof_vel_batch,
+                    root_pos_batch,
+                    root_quat_batch,
+                ) = self.custom_state_loader.sample_random_frame_batch(len(env_ids))
+                root_lin_vel_batch, root_ang_vel_batch = self.custom_state_loader.sample_random_root_velocities_batch(
+                    len(env_ids)
+                )
+                self._reset_dofs_custom(env_ids, dof_pos_batch, dof_vel_batch)
+                self._reset_root_states_custom(
+                    env_ids, root_pos_batch, root_quat_batch, root_lin_vel_batch, root_ang_vel_batch
+                )
+
+                # Refresh state tensors to check validity
+                self.gym.refresh_rigid_body_state_tensor(self.sim)
+                self.gym.refresh_jacobian_tensors(self.sim)
+
+                # Validate states (only check first environment for performance)
+                if len(env_ids) > 0 and env_ids[0] == 0:
+                    from humanoid.utils.validate_r01_motion import MotionValidationAnalyzer
+
+                    try:
+                        temp_validator = MotionValidationAnalyzer(self, None)
+                        is_valid = temp_validator.is_state_valid(0, flag_stream=True)
+                        if is_valid:
+                            states_valid = True
+                        else:
+                            retry_count += 1
+                            if retry_count < max_retries:
+                                if retry_count % 10 == 0:  # Print every 10 retries to avoid spam
+                                    print(
+                                        f"[R01BalanceEnv] Invalid initial state detected, retrying... (attempt {retry_count}/{max_retries})"
+                                    )
+                            else:
+                                print(
+                                    f"[R01BalanceEnv] Warning: Failed to find valid state after {max_retries} attempts, using last sampled state"
+                                )
+                    except Exception as e:
+                        # If validation fails due to environment state issues, skip validation and accept the state
+                        print(f"[R01BalanceEnv] Warning: Validation failed, skipping validation: {e}")
+                        states_valid = True
+                else:
+                    # If not validating first env, just accept the state
+                    states_valid = True
+        elif self.cfg.env.reference_state_initialization and self.cfg.env.amp_loader_type == 'BaseMotionLoader':
+            traj_idxs, traj_time_s, root_state, env_dof_pos, env_dof_vel = self.amp_loader.get_random_rsi_state_batch(
+                len(env_ids)
+            )
+            self._reset_dofs_motion(env_ids, env_dof_pos, env_dof_vel)
+            self._reset_root_states_motion(env_ids, root_state)
+            self.traj_idxs[env_ids] = traj_idxs
+            self.traj_time_s[env_ids] = traj_time_s
+        elif self.cfg.env.reference_state_initialization:
+            frames = self.amp_loader.get_full_frame_batch(len(env_ids))
+            self._reset_dofs_amp(env_ids, frames)
+            self._reset_root_states_amp(env_ids, frames)
+        else:
+            self._reset_dofs(env_ids)
+            self._reset_root_states(env_ids)
+
+        self.base_quat[env_ids] = self.root_states[env_ids, 3:7]
+        self.base_euler_xyz[env_ids] = get_euler_xyz_tensor(self.base_quat[env_ids])
+
+        self._resample_commands(env_ids)
+
+        self._randomize_dof_props(env_ids)
+
+        # reset buffers
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
+        self.gym.refresh_jacobian_tensors(self.sim)
+        self.feet_pos[env_ids], self.feet_vel[env_ids] = self.foot_states_in_base_frame(env_ids)
+
+        # Note: Validation is now done during state sampling with retry mechanism above
+        # This avoids redundant validation checks
+        self.actions[env_ids] = 0.0
+        self.last_actions[env_ids] = 0.0
+        self.last_rigid_state[env_ids] = 0.0
+        self.last_dof_vel[env_ids] = 0.0
+        self.feet_air_time[env_ids] = 0.0
+        self.episode_length_buf[env_ids] = 0
+        self.reset_buf[env_ids] = 1
+        # fill extras
+        self.extras["episode"] = {}
+        for key in self.episode_sums.keys():
+            self.extras["episode"]['rew_' + key] = (
+                torch.mean(self.episode_sums[key][env_ids]) / self.max_episode_length_s
+            )
+            self.episode_sums[key][env_ids] = 0.0
+        # log additional curriculum info
+        if self.cfg.terrain.mesh_type == "trimesh":
+            self.extras["episode"]["terrain_level"] = torch.mean(self.terrain_levels.float())
+        if self.cfg.commands.curriculum:
+            self.extras["episode"]["max_command_x"] = self.command_ranges["lin_vel_x"][1]
+        # send timeout info to the algorithm
+        if self.cfg.env.send_timeouts:
+            self.extras["time_outs"] = self.time_out_buf
+
+        # fix reset gravity bug
+        self.projected_gravity[env_ids] = quat_rotate_inverse(self.base_quat[env_ids], self.gravity_vec[env_ids])
+        self.torso_quat[env_ids] = self.rigid_state[env_ids, self.torso_index, 3:7]
+        self.torso_projected_gravity[env_ids] = quat_rotate_inverse(self.torso_quat[env_ids], self.gravity_vec[env_ids])
+
+        for i in range(self.obs_history.maxlen):
+            self.obs_history[i][env_ids] *= 0
+        for i in range(self.privileged_obs_history.maxlen):
+            self.privileged_obs_history[i][env_ids] *= 0
+
+        self.rand_torque_delay[env_ids] = torch.randint(
+            0, self.torque_deque_size, (len(env_ids),), dtype=torch.int32, device=self.device
+        )
+        self.torque_deque[:, env_ids].zero_()
+
+        self.rand_leg_linear_dof_pos_offset[env_ids, :][:, self.leg_linear_dof_indices] = (
+            torch_rand_float(
+                -1.0,
+                1.0,
+                (len(env_ids), len(self.leg_linear_dof_indices)),
+                device=self.device,
+            )
+            * self.leg_linear_dof_pos_offset_max
+        )
+        self.reset_base_vel_history(env_ids)
+
+    def check_termination(self):
+        """Check if environments need to be reset.
+        For testing/recovery, only check timeout to avoid frequent resets.
+        """
+        # Only check timeout for testing/recovery scenarios (when terminate_after_contacts_on is empty)
+        if len(self.cfg.asset.terminate_after_contacts_on) == 0:
+            # Reset on timeout
+            self.time_out_buf = self.episode_length_buf > self.max_episode_length
+            self.reset_buf = self.time_out_buf
+
+            # Also check for falling (body orientation) - this indicates the robot has fallen
+            # projected_gravity[:2] represents horizontal components of gravity in body frame
+            # When squared sum > 0.5, it means the body is tilted significantly (fallen)
+            self.body_ori_buf = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1) > 0.5
+            self.reset_buf = torch.logical_or(self.body_ori_buf, self.reset_buf)
+
+            # Don't check velocity limits for testing/recovery - allow recovery attempts
+            # Don't check contact termination - collisions are allowed
+        else:
+            # Use parent class termination logic for normal training
+            super().check_termination()
+
+    def reset_base_vel_history(self, env_ids):
+        self.base_vel_history[env_ids] = 0.0
+        self.base_vel_history_sizes[env_ids] = 0
+
+    def reset_dofs(self, env_ids, dof_pos, dof_vel):
+        """Reset DOF position and velocities of all environments
+
+        Args:
+            dof_pos (torch.Tensor): DOF positions
+            dof_vel (torch.Tensor): DOF velocities
+        """
+        self.dof_pos[env_ids] = dof_pos
+        self.dof_vel[env_ids] = dof_vel
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+        self.gym.set_dof_state_tensor_indexed(
+            self.sim, gymtorch.unwrap_tensor(self.dof_state), gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32)
+        )
+
+    def reset_root_states(self, env_ids, root_pos, root_rot, root_lin_vel, root_ang_vel):
+        """Reset ROOT states position and velocities of all environments
+
+        Args:
+            root_pos (torch.Tensor): ROOT positions
+            root_rot (torch.Tensor): ROOT rotations
+            root_lin_vel (torch.Tensor): ROOT linear velocities in base frame
+            root_ang_vel (torch.Tensor): ROOT angular velocities in base frame
+        """
+        self.root_states[env_ids, :3] = root_pos
+        if len(root_rot) == 3:
+            self.root_states[env_ids, 3:7] = quat_from_euler_xyz(root_rot[0], root_rot[1], root_rot[2])
+        else:
+            self.root_states[env_ids, 3:7] = root_rot
+        self.root_states[env_ids, 7:10] = quat_rotate(self.root_states[env_ids, 3:7], root_lin_vel)
+        self.root_states[env_ids, 10:13] = quat_rotate(self.root_states[env_ids, 3:7], root_ang_vel)
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+        self.gym.set_actor_root_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.root_states),
+            gymtorch.unwrap_tensor(env_ids_int32),
+            len(env_ids_int32),
+        )
+
+    def make_robot_data(self, actions: Optional[torch.Tensor] = None):
+        """Create a RobotData object from the current environment.
+
+        Args:
+            actions: 1-D tensor with shape (env.num_dofs), computed from the policy given the CURRENT env obs.
+
+        Returns:
+            R01RobotData: A RobotData object representing the current environment.
+        """
+        from humanoid.envs.r01_amp.r01_robot_data import R01RobotData
+
+        return R01RobotData(self.gym.get_sim_time(self.sim), self, actions)
+
+    def _reset_dofs_motion(self, env_ids, env_dof_pos, env_dof_vel):
+        """Resets DOF position and velocities of selected environmments
+        Positions and velocities are set to the given values.
+
+        Args:
+            env_ids (List[int]): Environemnt ids
+            env_dof_pos (torch.Tensor): DOF positions
+            env_dof_vel (torch.Tensor): DOF velocities
+        """
+        self.last_dof_pos[env_ids] = env_dof_pos
+        self.dof_pos[env_ids] = env_dof_pos
+        self.dof_vel[env_ids] = env_dof_vel
+        if self.cfg.domain_rand.dof_vel_perturbation:
+            self.dof_vel[env_ids] += (
+                torch_rand_float(-1.0, 1.0, (len(env_ids), self.num_dof), device=self.device)
+                * self.cfg.domain_rand.dof_vel_perturbation_max
+            )
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+        self.gym.set_dof_state_tensor_indexed(
+            self.sim, gymtorch.unwrap_tensor(self.dof_state), gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32)
+        )
+
+    def _reset_dofs_amp(self, env_ids, frames):
+        """Resets DOF position and velocities of selected environmments
+        Positions are randomly selected within 0.5:1.5 x default positions.
+        Velocities are set to zero.
+
+        Args:
+            env_ids (List[int]): Environemnt ids
+            frames: AMP frames to initialize motion with
+        """
+        self.last_dof_pos[env_ids] = self.amp_loader.get_joint_pos_batch(frames)
+        self.dof_pos[env_ids] = self.amp_loader.get_joint_pos_batch(frames)
+        self.dof_vel[env_ids] = self.amp_loader.get_joint_vel_batch(frames)
+        if self.cfg.domain_rand.dof_vel_perturbation:
+            self.dof_vel[env_ids] += (
+                torch_rand_float(-1.0, 1.0, (len(env_ids), self.num_dof), device=self.device)
+                * self.cfg.domain_rand.dof_vel_perturbation_max
+            )
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+        self.gym.set_dof_state_tensor_indexed(
+            self.sim, gymtorch.unwrap_tensor(self.dof_state), gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32)
+        )
+
+    def _reset_root_states_motion(self, env_ids, root_state):
+        """Resets ROOT states position and velocities of selected environmments
+            Sets base position&velocity based on rsi data
+        Args:
+            env_ids (List[int]): Environemnt ids
+        """
+        # base position
+        root_pos = root_state[:, :3]
+        root_pos[:, 2] += self.cfg.env.amp_data_root_z_pos_offset
+        root_pos[:, :2] = self.env_origins[env_ids, :2] + torch_rand_float(
+            -1.0, 1.0, (len(env_ids), 2), device=self.device
+        )  # xy position within 1m of the center
+
+        root_pos[:, 2] = root_pos[:, 2] + self.amp_reset_root_pos_z_bias
+
+        # Update z position w.r.t. the terrain
+        if self.cfg.terrain.mesh_type == "trimesh":
+            max_neighbor_heights = self._find_max_terrain_in_neighborhood(
+                root_pos, self.cfg.terrain.border_size, self.cfg.terrain.horizontal_scale
+            )
+            root_pos[:, 2] += max_neighbor_heights * self.cfg.terrain.vertical_scale
+
+        self.root_states[env_ids, :3] = root_pos
+        self.root_states[env_ids, 3:7] = root_state[:, 3:7]
+        self.root_states[env_ids, 7:10] = quat_rotate(root_state[:, 3:7], root_state[:, 7:10])
+        self.root_states[env_ids, 10:13] = quat_rotate(root_state[:, 3:7], root_state[:, 10:13])
+
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+        self.gym.set_actor_root_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.root_states),
+            gymtorch.unwrap_tensor(env_ids_int32),
+            len(env_ids_int32),
+        )
+
+    def _reset_root_states_amp(self, env_ids, frames):
+        """Resets ROOT states position and velocities of selected environmments
+            Sets base position based on the curriculum
+            Selects randomized base velocities within -0.5:0.5 [m/s, rad/s]
+        Args:
+            env_ids (List[int]): Environemnt ids
+        """
+        # base position
+        root_pos = self.amp_loader.get_root_pos_batch(frames)
+        root_pos[:, 2] += self.cfg.env.amp_data_root_z_pos_offset
+        root_pos[:, :2] = self.env_origins[env_ids, :2] + torch_rand_float(
+            -1.0, 1.0, (len(env_ids), 2), device=self.device
+        )  # xy position within 1m of the center
+
+        root_pos[:, 2] = root_pos[:, 2] + self.amp_reset_root_pos_z_bias
+
+        # Update z position w.r.t. the terrain
+        if self.cfg.terrain.mesh_type == "trimesh":
+            max_neighbor_heights = self._find_max_terrain_in_neighborhood(
+                root_pos, self.cfg.terrain.border_size, self.cfg.terrain.horizontal_scale
+            )
+            root_pos[:, 2] += max_neighbor_heights * self.cfg.terrain.vertical_scale
+
+        self.root_states[env_ids, :3] = root_pos
+        root_orn = self.amp_loader.get_root_rot_batch(frames)
+        self.root_states[env_ids, 3:7] = root_orn
+        self.root_states[env_ids, 7:10] = quat_rotate(root_orn, self.amp_loader.get_linear_vel_batch(frames))
+        self.root_states[env_ids, 10:13] = quat_rotate(root_orn, self.amp_loader.get_angular_vel_batch(frames))
+
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+        self.gym.set_actor_root_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.root_states),
+            gymtorch.unwrap_tensor(env_ids_int32),
+            len(env_ids_int32),
+        )
+
+    def _reset_dofs_custom(self, env_ids, dof_pos_batch, dof_vel_batch):
+        """Reset DOF states using custom dataset (balance task specific).
+
+        Args:
+            env_ids: Environment IDs to reset
+            dof_pos_batch: Joint positions [len(env_ids), num_dof]
+            dof_vel_batch: Joint velocities [len(env_ids), num_dof]
+        """
+        self.last_dof_pos[env_ids] = dof_pos_batch
+        self.dof_pos[env_ids] = dof_pos_batch
+        self.dof_vel[env_ids] = dof_vel_batch
+
+        # Apply domain randomization if enabled
+        if self.cfg.domain_rand.dof_vel_perturbation:
+            self.dof_vel[env_ids] += (
+                torch_rand_float(-1.0, 1.0, (len(env_ids), self.num_dof), device=self.device)
+                * self.cfg.domain_rand.dof_vel_perturbation_max
+            )
+
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+        self.gym.set_dof_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.dof_state),
+            gymtorch.unwrap_tensor(env_ids_int32),
+            len(env_ids_int32),
+        )
+
+    def _reset_root_states_custom(
+        self, env_ids, root_pos_batch, root_quat_batch, root_lin_vel_batch, root_ang_vel_batch
+    ):
+        """Reset root states using custom dataset (balance task specific).
+
+        Args:
+            env_ids: Environment IDs to reset
+            root_pos_batch: Root positions [len(env_ids), 3]
+            root_quat_batch: Root quaternions [len(env_ids), 4]
+            root_lin_vel_batch: Root linear velocities in body frame [len(env_ids), 3]
+            root_ang_vel_batch: Root angular velocities in body frame [len(env_ids), 3]
+        """
+        # Adjust root position
+        root_pos = root_pos_batch.clone()
+        root_pos[:, 2] += self.cfg.env.amp_data_root_z_pos_offset
+        root_pos[:, :2] = self.env_origins[env_ids, :2] + torch_rand_float(
+            -1.0, 1.0, (len(env_ids), 2), device=self.device
+        )  # xy position within 1m of the center
+
+        root_pos[:, 2] = root_pos[:, 2] + self.amp_reset_root_pos_z_bias
+
+        # Update z position w.r.t. the terrain
+        if self.cfg.terrain.mesh_type == "trimesh":
+            max_neighbor_heights = self._find_max_terrain_in_neighborhood(
+                root_pos, self.cfg.terrain.border_size, self.cfg.terrain.horizontal_scale
+            )
+            root_pos[:, 2] += max_neighbor_heights * self.cfg.terrain.vertical_scale
+
+        # Set root states
+        self.root_states[env_ids, :3] = root_pos
+        self.root_states[env_ids, 3:7] = root_quat_batch
+
+        # Convert velocities from body frame to world frame
+        self.root_states[env_ids, 7:10] = quat_rotate(root_quat_batch, root_lin_vel_batch)
+        self.root_states[env_ids, 10:13] = quat_rotate(root_quat_batch, root_ang_vel_batch)
+
+        # Apply to simulation
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+        self.gym.set_actor_root_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.root_states),
+            gymtorch.unwrap_tensor(env_ids_int32),
+            len(env_ids_int32),
+        )
+
+    def _process_rigid_body_props(self, props, env_id):
+        """
+        Add random mass and center of mass offsets to the rigid body properties.
+
+        Different mass and center of mass offsets are applied to the torso and the rest of the body.
+
+        Args:
+            props (list): List of rigid body properties.
+            env_id (int): ID of the environment.
+
+        Returns:
+            list: Updated list of rigid body properties.
+        """
+        link_mass_rand = torch_rand_float(
+            self.cfg.domain_rand.link_mass_range[0],
+            self.cfg.domain_rand.link_mass_range[1],
+            (len(props), 1),
+            device=self.device,
+        )
+        link_com_rand = torch_rand_float(
+            self.cfg.domain_rand.link_com_range[0],
+            self.cfg.domain_rand.link_com_range[1],
+            (len(props), 3),
+            device=self.device,
+        )
+        for i in range(len(props)):
+            if self.body_names[i] == self.cfg.asset.torso_name:
+                props[i].mass += self.payloads[env_id]
+                props[i].com += gymapi.Vec3(
+                    self.cfg.domain_rand.com_offset[0] + self.com_displacements[env_id, 0],
+                    self.cfg.domain_rand.com_offset[1] + self.com_displacements[env_id, 1],
+                    self.cfg.domain_rand.com_offset[2] + self.com_displacements[env_id, 2],
+                )
+            else:
+                props[i].mass *= link_mass_rand[i]
+                props[i].com = gymapi.Vec3(
+                    props[i].com.x * link_com_rand[i, 0],
+                    props[i].com.y * link_com_rand[i, 1],
+                    props[i].com.z * link_com_rand[i, 2],
+                )
+
+        return props
+
+    def get_amp_observations(self):
+        """
+        Construct the observations for the AMP environment
+
+        Returns:
+            torch.Tensor: The observations for the AMP environment
+        """
+
+        if self.cfg.env.amp_loader_type == 'BaseMotionLoader':
+            robot_motion_state = RobotMotionStateBase(
+                time_stamp_s=self.traj_time_s.unsqueeze(-1),
+                trajectory_id=self.traj_idxs.unsqueeze(-1),
+                base_pos_in_world_frame=self.root_states[:, :3] - self.env_origins,
+                base_quat_xyzw_in_world_frame=self.root_states[:, 3:7],
+                base_lin_vel_in_base_frame=self.base_lin_vel,
+                base_ang_vel_in_base_frame=self.base_ang_vel,
+                motion_joint_pos=self.dof_pos[:, self.amp_obs_joint_indices],
+                motion_joint_vel=self.dof_vel[:, self.amp_obs_joint_indices],
+                motion_link_pos_in_world_frame=self.rigid_state[:, self.amp_obs_link_indices, :3]
+                - self.env_origins.unsqueeze(1),
+                motion_link_quat_xyzw_in_world_frame=self.rigid_state[:, self.amp_obs_link_indices, 3:7],
+                motion_link_lin_vel_in_world_frame=self.link_vel_in_world_frame(self.amp_obs_link_indices),
+                motion_link_ang_vel_in_world_frame=self.link_ang_vel_in_world_frame(self.amp_obs_link_indices),
+                motion_link_contact_state=1.0
+                * (torch.norm(self.contact_forces[:, self.amp_obs_link_indices, :], dim=-1) > 0.1),
+            )
+            return self.amp_loader.construct_full_motion_obs(robot_motion_state)
+        else:
+            amp_state = R01AMPStateBase(
+                base_lin_vel=self.base_lin_vel,
+                base_ang_vel=self.base_ang_vel,
+                joint_pos=self.dof_pos,
+                joint_vel=self.dof_vel,
+                feet_pos=self.feet_pos,
+                feet_vel=self.feet_vel,
+                projected_gravity=self.projected_gravity,
+            )
+            return self.amp_loader.construct_amp_observation(amp_state)
+
+    def _resample_commands(self, env_ids):
+        """
+        Randomly select commands of some environments.
+        (with certain chance of selecting the stop commands for each robot)
+        This function will override the same function name under legged_robot.py
+
+        Args:
+            env_ids (List[int]): Environments ids for which new commands are needed
+        """
+
+        super()._resample_commands(env_ids)
+
+        zero_linvel_prob = self.cfg.commands.zero_linvel_prob
+        zero_linvel_prob = min(1.0, max(0.0, zero_linvel_prob))
+        if (zero_linvel_prob > 0.0) and (env_ids.shape[0] > 0):
+            apply_zero_linvel = torch.rand(len(env_ids), device=self.device) < zero_linvel_prob
+            self.commands[env_ids, 0] = torch.where(
+                apply_zero_linvel, torch.zeros_like(self.commands[env_ids, 0]), self.commands[env_ids, 0]
+            )
+
+        stop_command_prob = self.cfg.commands.stop_command_prob
+        stop_command_prob = min(1.0, max(0.0, stop_command_prob))
+        # for each robot, randomly decide if the command should be zero based on the stop_command_prob
+        if (stop_command_prob > 0.0) and (env_ids.shape[0] > 0):
+            apply_stop_command = torch.rand(len(env_ids), device=self.device) < stop_command_prob
+            self.commands[env_ids[apply_stop_command], :] = 0.0
+
+        self.reset_base_vel_history(env_ids)
+
+    def foot_states_in_base_frame(self, env_ids=None):
+        if env_ids is None:
+            env_ids = slice(None)
+        rigid_body_state = self.rigid_state[env_ids]
+        last_rigid_state = self.last_rigid_state[env_ids]
+        root_quat_in_world_frame = self.root_states[env_ids, 3:7]
+        root_vel_in_world_frame = self.root_states[env_ids, 7:10]
+        root_ang_vel_in_world_frame = self.root_states[env_ids, 10:13]
+
+        feet_pos_l_world = rigid_body_state[:, self.feet_indices[0], 0:3] - rigid_body_state[:, 0, 0:3]
+        feet_pos_r_world = rigid_body_state[:, self.feet_indices[1], 0:3] - rigid_body_state[:, 0, 0:3]
+        feet_pos_l = quat_rotate_inverse(root_quat_in_world_frame, feet_pos_l_world)
+        feet_pos_r = quat_rotate_inverse(root_quat_in_world_frame, feet_pos_r_world)
+
+        feet_vel_l_in_world_frame = (
+            rigid_body_state[:, self.feet_indices[0], 0:3] - last_rigid_state[:, self.feet_indices[0], 0:3]
+        ) / self.dt
+        feet_vel_r_in_world_frame = (
+            rigid_body_state[:, self.feet_indices[1], 0:3] - last_rigid_state[:, self.feet_indices[1], 0:3]
+        ) / self.dt
+
+        feet_pos_l_cross = torch.cross(root_ang_vel_in_world_frame, feet_pos_l_world, dim=1)
+        feet_pos_r_cross = torch.cross(root_ang_vel_in_world_frame, feet_pos_r_world, dim=1)
+
+        feet_vel_l = quat_rotate_inverse(
+            root_quat_in_world_frame, feet_vel_l_in_world_frame - root_vel_in_world_frame - feet_pos_l_cross
+        )
+        feet_vel_r = quat_rotate_inverse(
+            root_quat_in_world_frame, feet_vel_r_in_world_frame - root_vel_in_world_frame - feet_pos_r_cross
+        )
+
+        return torch.cat((feet_pos_l, feet_pos_r), dim=1), torch.cat((feet_vel_l, feet_vel_r), dim=1)
+
+    def link_vel_in_world_frame(self, link_indices):
+        return (self.rigid_state[:, link_indices, 0:3] - self.last_rigid_state[:, link_indices, 0:3]) / self.dt
+
+    def link_ang_vel_in_world_frame(self, link_indices):
+        return quaternion_xyzw_diff(
+            self.rigid_state[:, link_indices, 3:7], self.last_rigid_state[:, link_indices, 3:7], self.dt
+        )
+
+    # ================================================ Rewards ================================================== #
+
+    def _reward_lin_vel_z(self):
+        # Penalize z axis base linear velocity
+        return torch.square(self.base_lin_vel[:, 2])
+
+    def _reward_ang_vel_xy(self):
+        # Penalize xy axes base angular velocity
+        return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
+
+    def _reward_orientation(self):
+        # Penalize non flat base orientation
+        return torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
+
+    def _reward_base_height(self):
+        # Penalize base height away from target
+        base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
+        return torch.square(base_height - self.cfg.rewards.base_height_target)
+
+    def _reward_torques(self):
+        # Penalize torques
+        return torch.sum(torch.square(self.torques), dim=1)
+
+    def _reward_torques_percent(self):
+        return torch.sum(torch.square(self.torques / self.torque_limits), dim=1)
+
+    def _reward_dof_vel(self):
+        # Penalize dof velocities
+        return torch.sum(torch.square(self.dof_vel), dim=1)
+
+    def _reward_feet_vel(self):
+        # Penalize feet velocities
+        return torch.sum(torch.square(self.feet_vel), dim=1)
+
+    def _reward_dof_acc(self):
+        # Penalize dof accelerations
+        return torch.sum(torch.square((self.last_dof_vel - self.dof_vel) / self.dt), dim=1)
+
+    def _reward_action_rate(self):
+        # Penalize changes in actions
+        return torch.sum(torch.square(self.last_actions - self.actions), dim=1)
+
+    def _reward_foot_distance_limit(self):
+        # Penalize foot distance limit violation
+        return (
+            torch.norm(self.feet_pos[:, :3] - self.feet_pos[:, 3:], dim=1) - self.cfg.rewards.foot_distance_threshold
+        ).clip(max=0.0) * -1.0
+
+    def _reward_cross_feet(self):
+        # Penalize cross feet
+        right_foot_y = self.feet_pos[:, 1]
+        left_foot_y = self.feet_pos[:, 4]
+        return (left_foot_y - right_foot_y - 0.05).clip(max=0.0) * -1.0
+
+    def _reward_collision(self):
+        # Penalize collisions on selected bodies
+        return torch.sum(
+            1.0 * (torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1), dim=1
+        )
+
+    def _reward_termination(self):
+        # Terminal reward / penalty
+        return self.reset_buf * ~self.time_out_buf
+
+    def _reward_dof_pos_limits(self):
+        # Penalize dof positions too close to the limit
+        out_of_limits = -(self.dof_pos - self.soft_dof_pos_limits[:, 0]).clip(max=0.0)  # lower limit
+        out_of_limits += (self.dof_pos - self.soft_dof_pos_limits[:, 1]).clip(min=0.0)  # upper limit
+        return torch.sum(out_of_limits, dim=1)
+
+    def _reward_dof_vel_limits(self):
+        # Penalize dof velocities too close to the limit
+        # clip to max error = 1 rad/s per joint to avoid huge penalties
+        return torch.sum(
+            (torch.abs(self.dof_vel) - self.soft_dof_vel_limits).clip(min=0.0),
+            dim=1,
+        )
+
+    def _reward_torque_limits(self):
+        # penalize torques too close to the limit
+        return torch.sum((torch.abs(self.torques) - self.soft_torque_limits).clip(min=0.0), dim=1)
+
+    def _reward_tracking_avg_lin_vel(self):
+        # Tracking of linear velocity commands (xy axes) against the average linear velocity of the base
+        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_avg_vel[:, :2]), dim=1)
+        return torch.exp(-lin_vel_error / self.cfg.rewards.tracking_sigma_lin_vel)
+
+    def _reward_tracking_avg_ang_vel(self):
+        # Tracking of angular velocity commands (yaw) against the average angular velocity of the base
+        ang_vel_error = torch.square(self.commands[:, 2] - self.base_avg_vel[:, 2])
+        return torch.exp(-ang_vel_error / self.cfg.rewards.tracking_sigma_ang_vel)
+
+    def _reward_tracking_lin_vel(self):
+        # Tracking of linear velocity commands (xy axes)
+        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
+        return torch.exp(-lin_vel_error / self.cfg.rewards.tracking_sigma_lin_vel)
+
+    def _reward_tracking_ang_vel(self):
+        # Tracking of angular velocity commands (yaw)
+        ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])
+        return torch.exp(-ang_vel_error / self.cfg.rewards.tracking_sigma_ang_vel)
+
+    def _reward_feet_air_time(self):
+        # Reward long steps
+        # Need to filter the contacts because the contact reporting of PhysX is unreliable on meshes
+        contact = self.contact_forces[:, self.feet_indices, 2] > 1.0
+        contact_filt = torch.logical_or(contact, self.last_contacts)
+        self.last_contacts = contact
+        first_contact = (self.feet_air_time > 0.0) * contact_filt
+        self.feet_air_time += self.dt
+        rew_airTime = torch.sum(
+            (self.feet_air_time - 0.2) * first_contact, dim=1
+        )  # reward only on first contact with the ground
+        rew_airTime *= (torch.norm(self.commands[:, :3], dim=1) > 0.1) * 2.0 - 1.0  # no reward for zero command
+        self.feet_air_time *= ~contact_filt
+        return rew_airTime
+
+    def _reward_stumble(self):
+        # Penalize feet hitting vertical surfaces
+        return torch.any(
+            torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2)
+            > 5 * torch.abs(self.contact_forces[:, self.feet_indices, 2]),
+            dim=1,
+        )
+
+    def _reward_stand_still(self):
+        # Penalize motion at zero commands
+        return torch.sum(torch.abs(self.dof_pos - self.standing_dof_pos), dim=1) * (
+            torch.norm(self.commands[:, :3], dim=1) < 0.1
+        )
+
+    def _reward_feet_contact_forces(self):
+        # penalize high contact forces
+        return torch.sum(
+            (
+                torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) - self.cfg.rewards.max_contact_force
+            ).clip(min=0.0),
+            dim=1,
+        )
+
+    def _reward_default_joint_pos(self):
+        """
+        Calculates the reward for keeping joint positions close to default positions, with a focus
+        on penalizing deviation in yaw and roll directions. Excludes yaw and roll from the main penalty.
+        """
+        joint_diff = self.dof_pos - self.default_dof_pos
+        left_yaw_roll = joint_diff.index_select(1, torch.tensor([0, 2], device=self.device))
+        right_yaw_roll = joint_diff.index_select(1, torch.tensor([6, 8], device=self.device))
+        yaw_roll = torch.norm(left_yaw_roll, dim=1) + torch.norm(right_yaw_roll, dim=1)
+        yaw_roll = torch.clamp(yaw_roll - 0.1, 0, 50)
+        return torch.exp(-yaw_roll * 100)  # - 0.01 * torch.norm(joint_diff, dim=1)
+
+    def _reward_energy(self):
+        return torch.sum(torch.abs(torch.multiply(self.torques, self.dof_vel)), dim=1)
+
+    def _reward_torque_rate(self):
+        """
+        Penalizes the rate of change of the torques in the robot's joints. This encourages smooth and controlled
+        movements by limiting the acceleration of the robot's joints.
+        """
+        return torch.sum(torch.square((self.last_torques - self.torques) / self.torque_limits / self.dt), dim=1)
+
+    # ================================================ Mirror ================================================== #
+
+    def _init_mirror_index_lists(self):
+        """
+        Initialize the mirror index lists for the observations, privileged observations, and actions.
+        """
+        (
+            self.mirror_obs_inverse_index,
+            self.mirror_obs_exchange_src_list,
+            self.mirror_obs_exchange_dst_list,
+        ) = self._get_combined_index_lists(self.cfg.mirror_cfg.obs_mirror)
+        (
+            self.mirror_privileged_obs_inverse_index,
+            self.mirror_privileged_obs_exchange_src_list,
+            self.mirror_privileged_obs_exchange_dst_list,
+        ) = self._get_combined_index_lists(self.cfg.mirror_cfg.privileged_obs_mirror)
+        (
+            self.mirror_action_inverse_index,
+            self.mirror_action_exchange_src_list,
+            self.mirror_action_exchange_dst_list,
+        ) = self._get_combined_index_lists(self.cfg.mirror_cfg.action_mirror)
+
+    def _get_combined_index_lists(self, mirror_index_class):
+        """get the combined index lists(inverse, exchange left, exchange right) for mirror_obs or mirror_privileged_obs
+
+        Args:
+            mirror_index_class (R01AMPCfg.mirror_cfg.obs_mirror or R01AMPCfg.mirror_cfg.privileged_obs_mirror): config class for mirror index generation
+
+        Returns:
+            inverse_list (list): list of inverse indices
+            exchange_left_list (list): list of exchange source indices
+            exchange_right_list (list): list of exchange destination indices
+        """
+        inverse_list = []
+        exchange_left_list = []
+        exchange_right_list = []
+        for attr_name in dir(mirror_index_class):
+            attr = getattr(mirror_index_class, attr_name)
+            if hasattr(attr, 'offset') and all(
+                hasattr(attr, key) for key in ['inverse_index', 'exchange_src_index', 'exchange_dst_index']
+            ):
+                offset = attr.offset
+                inverse_list.extend([i + offset for i in attr.inverse_index])
+                exchange_left_list.extend([i + offset for i in attr.exchange_src_index])
+                exchange_right_list.extend([i + offset for i in attr.exchange_dst_index])
+        return (
+            torch.tensor(inverse_list, device=self.device),
+            torch.tensor(exchange_left_list, device=self.device),
+            torch.tensor(exchange_right_list, device=self.device),
+        )
+
+    def get_symmetric_states_actions(
+        self, obs: torch.Tensor, actions: torch.Tensor, obs_type: str = "policy"
+    ) -> torch.Tensor:
+        """get the symmetric states and actions
+
+        Args:
+            obs (torch.tensor): observations or privileged observations
+            actions (torch.tensor): actions
+            obs_type (str, optional): type of observations. "policy" for observations, "critic" for privileged observations. Defaults to "policy".
+
+        Returns:
+            obs (torch.tensor): symmetric observations or privileged observations
+            actions (torch.tensor): symmetric actions
+        """
+        if obs is not None:
+            if obs_type == "policy":
+                mirror_obs = torch.empty_like(obs)
+                mirror_obs[...] = obs
+                mirror_obs = mirror_obs.view(-1, self.cfg.env.frame_stack, self.cfg.env.num_single_obs).contiguous()
+                mirror_obs[:, :, self.mirror_obs_exchange_dst_list] = mirror_obs[
+                    :, :, self.mirror_obs_exchange_src_list
+                ]
+                mirror_obs[:, :, self.mirror_obs_inverse_index] *= -1
+                mirror_obs = mirror_obs.view(-1, self.cfg.env.num_observations)
+                obs = torch.cat([obs, mirror_obs], dim=0)
+            elif obs_type == "critic":
+                mirror_obs = torch.empty_like(obs)
+                mirror_obs[...] = obs
+                mirror_obs[:, self.mirror_privileged_obs_exchange_dst_list] = mirror_obs[
+                    :, self.mirror_privileged_obs_exchange_src_list
+                ]
+                mirror_obs[:, self.mirror_privileged_obs_inverse_index] *= -1
+                obs = torch.cat([obs, mirror_obs], dim=0)
+
+        if actions is not None:
+            mirror_action = torch.empty_like(actions)
+            mirror_action[..., self.mirror_action_exchange_dst_list] = actions[
+                ..., self.mirror_action_exchange_src_list
+            ]
+            mirror_action[..., self.mirror_action_inverse_index] *= -1
+            actions = torch.cat([actions, mirror_action], dim=0)
+
+        return obs, actions

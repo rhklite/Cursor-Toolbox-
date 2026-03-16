@@ -1,0 +1,1 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<user_query>\nThe user requested to Sync Toolbox. Please run the sequence-parallel sync orchestrator to review changes and sync the toolbox across hosts.\n</user_query>"}]}}

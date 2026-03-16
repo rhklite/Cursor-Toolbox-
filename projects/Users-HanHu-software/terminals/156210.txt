@@ -1,0 +1,13 @@
+---
+pid: 21307
+cwd: "/Users/HanHu/software"
+command: "python3 -c \"import os,time,subprocess,datetime; target='/Users/HanHu/software/motion_rl'; print(f'Watching {target}');\nwhile True:\n    if not os.path.isdir(target):\n        ts=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S');\n        msg=f'motion_rl disappeared at {ts}';\n        print(msg, flush=True);\n        subprocess.run(['osascript','-e',f'display notification \\\"{msg}\\\" with title \\\"Repo Watcher\\\"']);\n        break\n    time.sleep(5)\""
+started_at: 2026-03-07T06:11:44.496Z
+running_for_ms: 215071   
+---
+
+---
+exit_code: unknown
+elapsed_ms: 215864
+ended_at: 2026-03-07T06:15:20.360Z
+---

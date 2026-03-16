@@ -1,0 +1,1584 @@
+== fuyao history ==
+[93m⚠️  The new version of fuyao console will only support Python 3.10 ~ 3.12. Please upgrade your Python version to use the latest features.[0m
+[2026-03-13T01:24:27.573+0800] INFO - Site: fuyao
+[Job 0]
+  job_id        : 1708052
+  job_name      : bifrost-20240620011922-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-20 16:20:08
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240620011922-huh8
+  job_cmd       : ./run.sh train_distributed packing_2_3can_300_distributed -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=4 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train_distributed packing_2_3can_300_distributed -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1708052
+  gpu_type      : A100
+  gpus_per_node : 4
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : None
+  job_ends      : 2024-06-21 11:49:09
+  run time      : None
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1708052
+[Job 1]
+  job_id        : 1706246
+  job_name      : bifrost-20240619120252-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-20 03:03:29
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240619120252-huh8
+  job_cmd       : ./run.sh train packing_2_3can_300_top_camera_stateless_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_3can_300_top_camera_stateless_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1706246
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-20 03:03:52
+  job_ends      : 2024-06-25 06:04:38
+  run time      : 5 days, 03 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1706246
+[Job 2]
+  job_id        : 1706245
+  job_name      : bifrost-20240619120242-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-20 03:03:20
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240619120242-huh8
+  job_cmd       : ./run.sh train packing_2_3can_300_top_camera_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_3can_300_top_camera_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1706245
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-20 03:03:42
+  job_ends      : 2024-06-25 06:04:56
+  run time      : 5 days, 03 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1706245
+[Job 3]
+  job_id        : 1706243
+  job_name      : bifrost-20240619120058-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-20 03:01:27
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240619120058-huh8
+  job_cmd       : ./run.sh train packing_2_3can_300_stateless_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_3can_300_stateless_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1706243
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-20 03:01:50
+  job_ends      : 2024-06-25 06:05:06
+  run time      : 5 days, 03 hours, 03 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1706243
+[Job 4]
+  job_id        : 1706217
+  job_name      : bifrost-20240619114626-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-20 02:46:56
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240619114626-huh8
+  job_cmd       : ./run.sh train packing_2_3can_300_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_3can_300_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1706217
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-20 02:52:43
+  job_ends      : 2024-06-25 06:05:13
+  run time      : 5 days, 03 hours, 12 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1706217
+[Job 5]
+  job_id        : 1672236
+  job_name      : bifrost-20240614181010-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-15 09:10:45
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240614181010-huh8
+  job_cmd       : ./run.sh train packing_2_3can_100_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_3can_100_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1672236
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-15 09:11:07
+  job_ends      : 2024-06-20 02:53:49
+  run time      : 4 days, 17 hours, 42 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1672236
+[Job 6]
+  job_id        : 1672223
+  job_name      : bifrost-20240614180500-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-15 09:05:37
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240614180500-huh8
+  job_cmd       : ./run.sh train packing_2_3can_100_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_3can_100_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1672223
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-15 09:06:00
+  job_ends      : 2024-06-15 09:08:14
+  run time      : 0 days, 00 hours, 02 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1672223
+[Job 7]
+  job_id        : 1672221
+  job_name      : bifrost-20240614180002-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-15 09:00:43
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240614180002-huh8
+  job_cmd       : ./run.sh train packing_2_3can_100_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_3can_100_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1672221
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-15 09:01:06
+  job_ends      : 2024-06-15 09:03:21
+  run time      : 0 days, 00 hours, 02 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1672221
+[Job 8]
+  job_id        : 1672198
+  job_name      : bifrost-20240614175225-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-15 08:52:59
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240614175225-huh8
+  job_cmd       : run.sh train packing_2_3can_100_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff run.sh train packing_2_3can_100_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1672198
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-15 08:53:23
+  job_ends      : 2024-06-15 08:55:47
+  run time      : 0 days, 00 hours, 02 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1672198
+[Job 9]
+  job_id        : 1631414
+  job_name      : bifrost-20240607171035-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-08 08:11:14
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240607171035-huh8
+  job_cmd       : ./run.sh train packing_2_344_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_344_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1631414
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-08 08:22:28
+  job_ends      : 2024-06-15 08:44:36
+  run time      : 7 days, 00 hours, 22 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1631414
+[Job 10]
+  job_id        : 1612731
+  job_name      : bifrost-20240606174251-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-07 08:43:29
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240606174251-huh8
+  job_cmd       : ./run.sh train packing_2_239_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_239_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1612731
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-07 08:46:53
+  job_ends      : 2024-06-07 08:55:39
+  run time      : 0 days, 00 hours, 08 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1612731
+[Job 11]
+  job_id        : 1612622
+  job_name      : bifrost-20240606173232-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-07 08:33:14
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240606173232-huh8
+  job_cmd       : ./run.sh train packing_2_239_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_239_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1612622
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-07 08:36:51
+  job_ends      : 2024-06-07 08:43:54
+  run time      : 0 days, 00 hours, 07 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1612622
+[Job 12]
+  job_id        : 1612398
+  job_name      : bifrost-20240606171109-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-06-07 08:11:48
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240606171109-huh8
+  job_cmd       : ./run.sh train packing_2_239_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_2_239_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1612398
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-06-07 08:18:08
+  job_ends      : 2024-06-07 08:20:01
+  run time      : 0 days, 00 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1612398
+[Job 13]
+  job_id        : 1262651
+  job_name      : bifrost-20240524143403-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-05-25 05:34:24
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240524143403-huh8
+  job_cmd       : ./run.sh train packing_1_114_fuyao_2 -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_1_114_fuyao_2 -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1262651
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-05-25 05:34:57
+  job_ends      : 2024-06-05 02:03:21
+  run time      : 10 days, 20 hours, 28 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1262651
+[Job 14]
+  job_id        : 1262626
+  job_name      : bifrost-20240524140710-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-05-25 05:07:33
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240524140710-huh8
+  job_cmd       : ./run.sh train packing_1_114_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_1_114_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1262626
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-05-25 05:10:08
+  job_ends      : 2024-05-25 05:34:37
+  run time      : 0 days, 00 hours, 24 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1262626
+[Job 15]
+  job_id        : 1258062
+  job_name      : bifrost-20240522161009-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-05-23 07:10:29
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240522161009-huh8
+  job_cmd       : ./run.sh train packing_1_60_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_1_60_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1258062
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-05-23 07:21:20
+  job_ends      : 2024-05-25 00:42:09
+  run time      : 1 days, 17 hours, 20 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1258062
+[Job 16]
+  job_id        : 1257834
+  job_name      : bifrost-20240522135721-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-05-23 04:57:36
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240522135721-huh8
+  job_cmd       : ./run.sh train packing_1_60_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_1_60_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1257834
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-05-23 06:37:08
+  job_ends      : 2024-05-23 06:39:26
+  run time      : 0 days, 00 hours, 02 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1257834
+[Job 17]
+  job_id        : 1255660
+  job_name      : bifrost-20240521175951-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-05-22 09:00:04
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240521175951-huh8
+  job_cmd       : ./run.sh train packing_1_114_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_1_114_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1255660
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-05-22 09:00:27
+  job_ends      : 2024-05-25 10:42:42
+  run time      : 3 days, 01 hours, 42 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1255660
+[Job 18]
+  job_id        : 1255658
+  job_name      : bifrost-20240521175619-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-05-22 08:56:40
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240521175619-huh8
+  job_cmd       : ./run.sh train packing_1_114_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_1_114_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1255658
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-05-22 08:57:01
+  job_ends      : 2024-05-22 08:58:48
+  run time      : 0 days, 00 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1255658
+[Job 19]
+  job_id        : 1255544
+  job_name      : bifrost-20240521163809-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-05-22 07:38:31
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240521163809-huh8
+  job_cmd       : ./run.sh train packing_1_114_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_1_114_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1255544
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-05-22 07:38:54
+  job_ends      : 2024-05-22 07:40:41
+  run time      : 0 days, 00 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1255544
+[Job 20]
+  job_id        : 1255525
+  job_name      : bifrost-20240521163149-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-05-22 07:32:04
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240521163149-huh8
+  job_cmd       : ./run.sh train packing_1_114_fuyao -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_1_114_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1255525
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-05-22 07:32:24
+  job_ends      : 2024-05-22 07:34:06
+  run time      : 0 days, 00 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1255525
+[Job 21]
+  job_id        : 1255511
+  job_name      : bifrost-20240521162428-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-05-22 07:24:45
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240521162428-huh8
+  job_cmd       : ./run.sh train packing_1_114_fuyao -fc
+  deploy_cmd    : fuyao deploy --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train packing_1_114_fuyao -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 1255511
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-05-22 07:27:01
+  job_ends      : 2024-05-22 07:28:35
+  run time      : 0 days, 00 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-1255511
+[Job 22]
+  job_id        : 639775
+  job_name      : bifrost-20240401115424-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-04-02 02:54:41
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240401115424-huh8
+  job_cmd       : ./run.sh train square_unittest -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train square_unittest -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5176103
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-04-02 02:58:47
+  job_ends      : 2024-04-02 03:06:25
+  run time      : 0 days, 00 hours, 07 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-639775
+[Job 23]
+  job_id        : 639771
+  job_name      : bifrost-20240401110957-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-04-02 02:10:17
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240401110957-huh8
+  job_cmd       : ./run.sh train square_unittest -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train square_unittest -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5175878
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-04-02 02:10:42
+  job_ends      : 2024-04-02 02:19:06
+  run time      : 0 days, 00 hours, 08 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-639771
+[Job 24]
+  job_id        : 639778
+  job_name      : bifrost-202404011753215175830-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-04-02 01:53:21
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-202404011753215175830-huh8
+  job_cmd       : ./run.sh train square_unittest -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train square_unittest -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5175830
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-04-02 01:59:38
+  job_ends      : 2024-04-02 02:07:01
+  run time      : 0 days, 00 hours, 07 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-639778
+[Job 25]
+  job_id        : 618982
+  job_name      : bifrost-20240329155120-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-30 06:51:41
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240329155120-huh8
+  job_cmd       : ./run.sh train square_unittest -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train square_unittest -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5152701
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-30 06:52:05
+  job_ends      : 2024-03-30 07:00:05
+  run time      : 0 days, 00 hours, 08 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-618982
+[Job 26]
+  job_id        : 616805
+  job_name      : bifrost-20240318092312-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-19 00:23:23
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240318092312-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5044571
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-19 00:24:20
+  job_ends      : 2024-03-22 01:47:31
+  run time      : 3 days, 01 hours, 23 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-616805
+[Job 27]
+  job_id        : 616804
+  job_name      : bifrost-20240318092049-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-19 00:21:00
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240318092049-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5044553
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-19 00:23:57
+  job_ends      : 2024-03-19 00:23:58
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-616804
+[Job 28]
+  job_id        : 616162
+  job_name      : bifrost-20240315120540-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-16 03:06:04
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240315120540-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5011341
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-16 03:06:33
+  job_ends      : 2024-03-16 03:06:43
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-616162
+[Job 29]
+  job_id        : 616163
+  job_name      : bifrost-20240315110449-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-16 02:05:09
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240315110449-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5010838
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-16 02:12:42
+  job_ends      : 2024-03-16 02:12:50
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-616163
+[Job 30]
+  job_id        : 616150
+  job_name      : bifrost-20240315101341-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-16 01:14:00
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240315101341-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5010369
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : None
+  job_ends      : 2024-03-16 01:14:31
+  run time      : None
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-616150
+[Job 31]
+  job_id        : 616148
+  job_name      : bifrost-20240315094307-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-16 00:43:19
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240315094307-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 5010114
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-16 00:51:23
+  job_ends      : 2024-03-16 01:09:23
+  run time      : 0 days, 00 hours, 18 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-616148
+[Job 32]
+  job_id        : 623152
+  job_name      : bifrost-20240314154724-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-15 06:47:35
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240314154724-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240314-1535 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240314-1535
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 993876
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-15 06:58:30
+  job_ends      : 2024-03-15 06:58:31
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-623152
+[Job 33]
+  job_id        : 623151
+  job_name      : bifrost-20240314153857-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-15 06:39:08
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240314153857-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240314-1535 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240314-1535
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 993593
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-15 06:49:23
+  job_ends      : 2024-03-15 06:49:25
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-623151
+[Job 34]
+  job_id        : 622797
+  job_name      : bifrost-20240313174610-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-14 08:46:22
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240313174610-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 991358
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-14 08:47:54
+  job_ends      : 2024-03-14 22:28:23
+  run time      : 0 days, 13 hours, 40 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-622797
+[Job 35]
+  job_id        : 622674
+  job_name      : bifrost-20240313133823-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-14 04:38:36
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240313133823-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 989576
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-14 04:46:06
+  job_ends      : 2024-03-14 04:48:43
+  run time      : 0 days, 00 hours, 02 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-622674
+[Job 36]
+  job_id        : 622672
+  job_name      : bifrost-20240313133720-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-14 04:37:29
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240313133720-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 989565
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-14 04:45:50
+  job_ends      : 2024-03-14 04:46:00
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-622672
+[Job 37]
+  job_id        : 622659
+  job_name      : bifrost-20240313125401-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-03-14 03:54:24
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240313125401-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 989307
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-03-14 03:54:59
+  job_ends      : 2024-03-14 04:48:53
+  run time      : 0 days, 00 hours, 53 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-622659
+[Job 38]
+  job_id        : 608469
+  job_name      : bifrost-20240221210257-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-22 13:04:32
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240221210257-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 795209
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-22 13:18:54
+  job_ends      : 2024-02-22 13:28:30
+  run time      : 0 days, 00 hours, 09 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608469
+[Job 39]
+  job_id        : 608420
+  job_name      : bifrost-20240221200133-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-22 12:02:06
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240221200133-huh8
+  job_cmd       : python3 mnist.py -s model
+  deploy_cmd    : fuyao deploy --project=huh8/robodiff --gpus-per-node=1 --nodes=1 python3 mnist.py -s model
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/xmotors-ai-deep-learning/perception_base:latest
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 794887
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-22 12:02:30
+  job_ends      : 2024-02-22 12:04:09
+  run time      : 0 days, 00 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608420
+[Job 40]
+  job_id        : 608382
+  job_name      : bifrost-20240221184428-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-22 10:45:01
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240221184428-huh8
+  job_cmd       : python train.py --use-fuyao --save-model --epochs=10
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --project=huh8/robodiff python train.py --use-fuyao --save-model --epochs=10
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/xmotors-ai-deep-learning/perception_base:latest
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 794542
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-22 10:45:23
+  job_ends      : 2024-02-22 10:46:55
+  run time      : 0 days, 00 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608382
+[Job 41]
+  job_id        : 608244
+  job_name      : bifrost-20240221043005-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 20:30:18
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240221043005-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 790866
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 20:30:41
+  job_ends      : 2024-02-21 20:31:14
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608244
+[Job 42]
+  job_id        : 608246
+  job_name      : bifrost-20240221042427-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 20:26:02
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240221042427-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 790849
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 20:26:26
+  job_ends      : 2024-03-04 11:54:06
+  run time      : 11 days, 15 hours, 27 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608246
+[Job 43]
+  job_id        : 608243
+  job_name      : bifrost-20240221033938-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 20:24:20
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240221033938-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 790662
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : None
+  job_ends      : 2024-02-21 20:24:39
+  run time      : None
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608243
+[Job 44]
+  job_id        : 608233
+  job_name      : bifrost-20240221035531-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 19:57:06
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240221035531-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 790726
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 19:58:20
+  job_ends      : 2024-02-21 20:24:49
+  run time      : 0 days, 00 hours, 26 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608233
+[Job 45]
+  job_id        : 608222
+  job_name      : bifrost-20240221033143-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 19:33:18
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240221033143-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 790627
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 19:34:23
+  job_ends      : 2024-02-21 19:45:37
+  run time      : 0 days, 00 hours, 11 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608222
+[Job 46]
+  job_id        : 608216
+  job_name      : bifrost-20240221031916-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 19:20:57
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240221031916-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 790570
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 19:21:21
+  job_ends      : 2024-02-21 19:32:27
+  run time      : 0 days, 00 hours, 11 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608216
+[Job 47]
+  job_id        : 608142
+  job_name      : bifrost-20240220235218-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 15:53:52
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220235218-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 788932
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 15:54:18
+  job_ends      : 2024-02-21 16:24:49
+  run time      : 0 days, 00 hours, 30 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608142
+[Job 48]
+  job_id        : 608150
+  job_name      : bifrost-20240220234230-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 15:44:04
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220234230-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 788773
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 15:44:28
+  job_ends      : 2024-02-21 16:16:50
+  run time      : 0 days, 00 hours, 32 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608150
+[Job 49]
+  job_id        : 608139
+  job_name      : bifrost-20240220233139-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 15:33:12
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220233139-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 788562
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 15:33:36
+  job_ends      : 2024-02-21 15:42:55
+  run time      : 0 days, 00 hours, 09 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608139
+[Job 50]
+  job_id        : 608129
+  job_name      : bifrost-20240220225410-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 14:55:45
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220225410-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 787979
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 14:56:09
+  job_ends      : 2024-02-21 15:26:51
+  run time      : 0 days, 00 hours, 30 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608129
+[Job 51]
+  job_id        : 608124
+  job_name      : bifrost-20240220224002-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 14:41:36
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220224002-huh8
+  job_cmd       : ./run.sh train -fc
+  deploy_cmd    : fuyao deploy --gpus-per-node=2 --nodes=1 --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 787779
+  gpu_type      : A100
+  gpus_per_node : 2
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 14:48:32
+  job_ends      : 2024-02-21 14:48:33
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608124
+[Job 52]
+  job_id        : 608116
+  job_name      : bifrost-20240220223131-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 14:33:04
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220223131-huh8
+  job_cmd       : ./run.sh train pusht_simulation -fc
+  deploy_cmd    : fuyao deploy --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -fc
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 787700
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 14:41:27
+  job_ends      : 2024-02-21 15:12:50
+  run time      : 0 days, 00 hours, 31 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608116
+[Job 53]
+  job_id        : 608052
+  job_name      : bifrost-20240220205511-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 12:56:45
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220205511-huh8
+  job_cmd       : ./run.sh train pusht_simulation -f
+  deploy_cmd    : fuyao deploy --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation -f
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 787140
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 12:57:08
+  job_ends      : 2024-02-21 13:30:46
+  run time      : 0 days, 00 hours, 33 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608052
+[Job 54]
+  job_id        : 608051
+  job_name      : bifrost-20240220203215-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-21 12:33:49
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220203215-huh8
+  job_cmd       : ./run.sh train pusht_simulation
+  deploy_cmd    : fuyao deploy --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 787070
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-21 12:41:33
+  job_ends      : 2024-02-21 12:41:34
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-608051
+[Job 55]
+  job_id        : 607788
+  job_name      : bifrost-20240220050351-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-20 21:05:24
+  status        : JOB_CANCELLED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220050351-huh8
+  job_cmd       : ./run.sh train pusht_simulation
+  deploy_cmd    : fuyao deploy --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 783823
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-20 21:12:45
+  job_ends      : 2024-02-20 21:44:45
+  run time      : 0 days, 00 hours, 32 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-607788
+[Job 56]
+  job_id        : 607787
+  job_name      : bifrost-20240220045638-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-20 20:58:10
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220045638-huh8
+  job_cmd       : ./run.sh train pusht_simulation
+  deploy_cmd    : fuyao deploy --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh train pusht_simulation
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 783800
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-20 20:58:36
+  job_ends      : 2024-02-20 20:58:37
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-607787
+[Job 57]
+  job_id        : 607771
+  job_name      : bifrost-20240220043839-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-20 20:40:12
+  status        : JOB_FAILED
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220043839-huh8
+  job_cmd       : ./run.sh docker train pusht_simulation
+  deploy_cmd    : fuyao deploy --docker-image=infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331 --project=huh8/robodiff ./run.sh docker train pusht_simulation
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/data-infra/fuyao:huh8-240220-0331
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 783729
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-20 20:50:58
+  job_ends      : 2024-02-20 20:51:07
+  run time      : 0 days, 00 hours, 00 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-607771
+[Job 58]
+  job_id        : 607746
+  job_name      : bifrost-20240220030940-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-20 19:10:11
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240220030940-huh8
+  job_cmd       : python train.py --use-fuyao --save-model --epochs=10
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --project=huh8/robodiff python train.py --use-fuyao --save-model --epochs=10
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/xmotors-ai-deep-learning/perception_base:latest
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 783413
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-20 19:10:32
+  job_ends      : 2024-02-20 19:12:09
+  run time      : 0 days, 00 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-607746
+[Job 59]
+  job_id        : 607688
+  job_name      : bifrost-20240219225316-huh8
+  experiment    : huh8/robodiff
+  partition     : rc-perception
+  site          : fuyao
+  label         : none
+  submitted_at  : 2024-02-20 14:53:48
+  status        : JOB_COMPLETE
+  save_path     : /xmotors_ai_rc/fuyao/rc/perception/huh8@xiaopeng.com/bifrost-20240219225316-huh8
+  job_cmd       : python train.py --use-fuyao --save-model --epochs=10
+  deploy_cmd    : fuyao deploy --gpus-per-node=1 --nodes=1 --project=huh8/robodiff python train.py --use-fuyao --save-model --epochs=10
+  image         : infra-registry-vpc.cn-wulanchabu.cr.aliyuncs.com/xmotors-ai-deep-learning/perception_base:latest
+  source_type   : pytorchjob
+  job_type      : Unknown
+  priority      : Normal
+  priority_rank : 782514
+  gpu_type      : A100
+  gpus_per_node : 1
+  cpus_per_gpu  : 0
+  time_limit    : 0
+  job_starts    : 2024-02-20 14:54:10
+  job_ends      : 2024-02-20 14:55:41
+  run time      : 0 days, 00 hours, 01 minutes
+Fuyao Web:
+    https://fuyao-v3.xiaopeng.link/#/jobs/debug?run=fuyao-607688
+
+== fuyao history --site fuyao --limit 1000 filtered ==
+bash: line 1: rg: command not found
+--- Logging error ---
+Traceback (most recent call last):
+  File "/usr/lib/python3.8/logging/__init__.py", line 1089, in emit
+    self.flush()
+  File "/usr/lib/python3.8/logging/__init__.py", line 1069, in flush
+    self.stream.flush()
+BrokenPipeError: [Errno 32] Broken pipe
+Call stack:
+  File "/usr/local/bin/fuyao", line 8, in <module>
+    sys.exit(run())
+  File "/usr/local/lib/python3.8/dist-packages/xbigdata/fuyao/console/client.py", line 200, in run
+    args.func(args)
+  File "/usr/local/lib/python3.8/dist-packages/xbigdata/fuyao/console/submodule_k8s/history/history.py", line 65, in run
+    logger.info(f"Site: {site}")
+Message: 'Site: fuyao'
+Arguments: ()
+Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>
+BrokenPipeError: [Errno 32] Broken pipe

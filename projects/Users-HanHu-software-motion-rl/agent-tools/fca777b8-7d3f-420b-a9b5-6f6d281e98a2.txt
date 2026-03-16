@@ -1,0 +1,854 @@
+iron:  .githooks/post-checkout                            |   11 +
+iron:  .gitignore                                         |   10 +
+iron:  .vscode/launch.json                                |  298 +-
+iron:  .vscode/tasks.json                                 |  131 +
+iron:  docker/isaacgym/container_config.sh                |    3 +-
+iron:  docker/isaacgym/entrypoint.sh                      |    6 +
+iron:  docker/isaacsim/container_config.sh                |    3 +-
+iron:  docker/select_container.sh                         |   25 +-
+iron:  humanoid-gym/README.md                             |   45 +-
+iron:  .../tool/compare_json_tool/compare_json_tool.sh    |   15 +
+iron:  .../tool/compare_json_tool/compare_multi_csv.py    |  173 +
+iron:  .../tool/compare_json_tool/motion_json_to_csv.py   |   90 +
+iron:  .../tool/config/r01_simple_with_4dof_arms.yaml     |  189 +
+iron:  .../config/r01_v12_with_4dof_arms_locomujoco.yaml  |  402 ++
+iron:  humanoid-gym/datasets/tool/mirror_motion_data.py   |  164 -
+iron:  humanoid-gym/datasets/tool/process_mocap_data.py   |  607 +-
+iron:  humanoid-gym/datasets/tool/run.sh                  |    2 +-
+iron:  humanoid-gym/datasets/tool/visualize_r01_motion.py |   18 +-
+iron:  .../humanoid/algo/amp_ppo/amp_on_policy_runner.py  |  153 +-
+iron:  humanoid-gym/humanoid/algo/amp_ppo/amp_ppo.py      |  147 +-
+iron:  humanoid-gym/humanoid/algo/amp_ppo/utils.py        |   40 +-
+iron:  humanoid-gym/humanoid/algo/iron_turbo/README.md    |  265 +
+iron:  humanoid-gym/humanoid/algo/iron_turbo/__init__.py  |   49 +
+iron:  humanoid-gym/humanoid/algo/iron_turbo/core.py      |  378 +
+iron:  .../humanoid/algo/iron_turbo/distributed_utils.py  |  273 +
+iron:  .../humanoid/algo/iron_turbo/doc/migration.md      |  287 +
+iron:  .../humanoid/algo/iron_turbo/doc/primitives.md     |  219 +
+iron:  humanoid-gym/humanoid/algo/ppo/__init__.py         |    1 +
+iron:  humanoid-gym/humanoid/algo/ppo/actor_critic.py     |   14 +-
+iron:  .../algo/ppo/actor_critic_cross_attention.py       |  172 +
+iron:  .../algo/ppo/actor_critic_heightmap_embed.py       |  195 +
+iron:  .../humanoid/algo/ppo/on_policy_runner_fr.py       |  355 +
+iron:  humanoid-gym/humanoid/algo/ppo/ppo.py              |   12 +-
+iron:  humanoid-gym/humanoid/algo/ppo/rollout_storage.py  |    6 +-
+iron:  humanoid-gym/humanoid/datasets/motion_loader.py    | 1373 ++++
+iron:  humanoid-gym/humanoid/datasets/visualize_motion.py |  565 ++
+iron:  humanoid-gym/humanoid/envs/__init__.py             |   97 +-
+iron:  humanoid-gym/humanoid/envs/base/base_task.py       |    2 +-
+iron:  humanoid-gym/humanoid/envs/base/legged_robot.py    |  185 +-
+iron:  .../humanoid/envs/base/legged_robot_config.py      |    9 +-
+iron:  humanoid-gym/humanoid/envs/base/motion_loader.py   |  351 +-
+iron:  humanoid-gym/humanoid/envs/base/robot_data.py      |   31 +
+iron:  .../humanoid/envs/custom/humanoid_config.py        |    2 +-
+iron:  humanoid-gym/humanoid/envs/px5/px5_config.py       |    4 +-
+iron:  .../humanoid/envs/px5_amp/px5_amp_config.py        |    3 +-
+iron:  .../humanoid/envs/r01_amp/base_mirror_config.py    |  179 +
+iron:  .../envs/r01_amp/r01_amp_autoencoder_env.py        | 1053 ++-
+iron:  .../humanoid/envs/r01_amp/r01_amp_cam_env.py       | 1360 +++-
+iron:  .../humanoid/envs/r01_amp/r01_amp_config.py        |   28 +-
+iron:  .../envs/r01_amp/r01_amp_config_with_arms.py       |    8 +-
+iron:  .../envs/r01_amp/r01_amp_cross_attention_env.py    |  334 +
+iron:  .../humanoid/envs/r01_amp/r01_amp_depth_env.py     |  216 -
+iron:  humanoid-gym/humanoid/envs/r01_amp/r01_amp_env.py  | 2107 +++---
+iron:  .../humanoid/envs/r01_amp/r01_amp_heightmap_env.py |  232 -
+iron:  humanoid-gym/humanoid/envs/r01_amp/r01_kin.py      |   47 +-
+iron:  .../humanoid/envs/r01_amp/r01_motion_loader.py     |  196 +-
+iron:  .../humanoid/envs/r01_amp/r01_plus_amp_config.py   |   11 +-
+iron:  .../envs/r01_amp/r01_plus_amp_config_teleop.py     |    2 +-
+iron:  .../r01_plus_amp_config_teleop_stand_only.py       |    2 +-
+iron:  .../envs/r01_amp/r01_plus_amp_config_with_arms.py  |  424 +-
+iron:  .../r01_plus_amp_config_with_arms_autoencoder.py   |  305 +-
+iron:  .../r01_amp/r01_plus_amp_config_with_arms_cam.py   |  514 ++
+iron:  ...01_plus_amp_config_with_arms_cross_attention.py |   92 +
+iron:  .../r01_amp/r01_plus_amp_config_with_arms_depth.py |  205 -
+iron:  .../r01_plus_amp_config_with_arms_heightmap.py     |  198 -
+iron:  .../r01_amp/r01_plus_with_arms_mirror_config.py    |   54 +
+iron:  .../envs/r01_amp/r01_v111_amp_config_with_arms.py  |  248 +
+iron:  .../envs/r01_amp/r01_v12_amp_config_with_arms.py   |  373 +
+iron:  .../r01_v12_amp_config_with_arms_autoencoder.py    |   73 +
+iron:  .../r01_amp/r01_v12_amp_config_with_arms_cam.py    |  362 +
+iron:  ...r01_v12_amp_config_with_arms_cross_attention.py |   88 +
+iron:  .../r01_v12_amp_config_with_arms_full_scenes.py    |  188 +
+iron:  .../humanoid/envs/r01_amp/r01_v12_amp_env.py       |  149 +
+iron:  .../r01_amp/r01_v12_with_arms_mirror_config.py     |   54 +
+iron:  .../humanoid/envs/r01_mimic/class_registry.py      |  101 +
+iron:  humanoid-gym/humanoid/envs/r01_mimic/r01_kin.py    |  218 +
+iron:  .../humanoid/envs/r01_mimic/r01_mimic_config.py    |  469 ++
+iron:  .../humanoid/envs/r01_mimic/r01_mimic_env.py       | 1289 ++++
+iron:  .../envs/r01_mimic/r01_mimic_getup_config.py       |  325 +
+iron:  .../humanoid/envs/r01_mimic/r01_mimic_loader.py    |  347 +
+iron:  .../humanoid/envs/r01_mimic/r01_mimic_seat_env.py  |  637 ++
+iron:  .../envs/r01_mimic/r01_mimic_situp_config.py       |  366 +
+iron:  .../humanoid/envs/r01_mimic/terrain_single.py      |  385 +
+iron:  humanoid-gym/humanoid/scripts/evaluate.py          |   11 +-
+iron:  humanoid-gym/humanoid/scripts/evaluate_terrain.py  |  141 +-
+iron:  humanoid-gym/humanoid/scripts/play.py              |  286 +-
+iron:  humanoid-gym/humanoid/scripts/play_balancing.py    |   91 +-
+iron:  .../humanoid/scripts/play_catwalk_metric.py        | 2140 ++++++
+iron:  humanoid-gym/humanoid/scripts/play_log.py          |  329 +
+iron:  humanoid-gym/humanoid/scripts/play_slope.py        |  313 +
+iron:  humanoid-gym/humanoid/scripts/play_stairs.py       |  319 +
+iron:  humanoid-gym/humanoid/scripts/play_success.py      |  386 +
+iron:  humanoid-gym/humanoid/scripts/play_teleop.py       |   13 +-
+iron:  humanoid-gym/humanoid/scripts/play_terrain.py      |  553 ++
+iron:  humanoid-gym/humanoid/scripts/play_walking.py      |  313 +
+iron:  humanoid-gym/humanoid/scripts/record_data.py       |  980 +++
+iron:  humanoid-gym/humanoid/scripts/sim2sim.py           |    4 +-
+iron:  humanoid-gym/humanoid/scripts/train.py             |   54 +-
+iron:  humanoid-gym/humanoid/utils/__init__.py            |    4 +
+iron:  .../humanoid/utils/attention_visualizer_isaac.py   |  553 ++
+iron:  .../humanoid/utils/autoencoder/__init__.py         |    4 +
+iron:  .../humanoid/utils/autoencoder/camera_params.py    |   83 +
+iron:  .../utils/autoencoder/cross_attention_nn.py        |  300 +
+iron:  .../humanoid/utils/autoencoder/depth2pc.py         |  152 +
+iron:  .../humanoid/utils/autoencoder/depth_encoder_nn.py |   65 +
+iron:  .../humanoid/utils/autoencoder/height_coords.py    |   18 +
+iron:  .../utils/autoencoder/height_encoder_nn.py         |  660 +-
+iron:  .../humanoid/utils/autoencoder/height_vae_nn.py    |  695 ++
+iron:  .../humanoid/utils/autoencoder/math_helper.py      |  147 +
+iron:  .../utils/autoencoder/perlin_blur_noise.py         |  162 +
+iron:  humanoid-gym/humanoid/utils/camera.py              |    2 +-
+iron:  humanoid-gym/humanoid/utils/debug_tools.py         |  363 +
+iron:  humanoid-gym/humanoid/utils/foothold_params.py     |  402 ++
+iron:  .../humanoid/utils/fuyao_metadata_writer.py        |   82 +
+iron:  humanoid-gym/humanoid/utils/helpers.py             |  154 +-
+iron:  humanoid-gym/humanoid/utils/logger.py              |    1 -
+iron:  humanoid-gym/humanoid/utils/math.py                |  280 +-
+iron:  humanoid-gym/humanoid/utils/metric_analyzer.py     |  535 ++
+iron:  humanoid-gym/humanoid/utils/metric_json_dumper.py  |   45 +
+iron:  humanoid-gym/humanoid/utils/metric_processor.py    |  717 ++
+iron:  .../humanoid/utils/play_metrics_tracker.py         |  172 +
+iron:  humanoid-gym/humanoid/utils/plot_utils.py          |  981 +++
+iron:  humanoid-gym/humanoid/utils/reward_buffer.py       |  404 ++
+iron:  .../humanoid/utils/rtd_artifacts_helper.py         |   20 +-
+iron:  humanoid-gym/humanoid/utils/task_registry.py       |   11 +-
+iron:  humanoid-gym/humanoid/utils/terrain.py             |  284 +-
+iron:  humanoid-gym/humanoid/utils/terrain_simplify.py    |  185 +
+iron:  humanoid-gym/humanoid/utils/upload_to_oss.py       |  210 +
+iron:  humanoid-gym/humanoid/utils/video_processor.py     |   87 +-
+iron:  humanoid-gym/images/demo.gif                       |  Bin 14042331 -> 0 bytes
+iron:  humanoid-gym/scripts/analyze_metrics.py            |  748 ++
+iron:  humanoid-gym/scripts/fuyao_batch_evaluate.sh       |  515 ++
+iron:  .../scripts/fuyao_batch_evaluate_deploy.sh         |  468 ++
+iron:  humanoid-gym/scripts/fuyao_deploy.sh               |  235 +-
+iron:  humanoid-gym/scripts/fuyao_deploy_record_data.sh   |  208 +
+iron:  humanoid-gym/scripts/fuyao_evaluate.sh             |   73 +
+iron:  humanoid-gym/scripts/fuyao_record.sh               |  102 +
+iron:  humanoid-gym/scripts/fuyao_train.sh                |   99 +-
+iron:  humanoid-gym/scripts/param_sweep_deploy.py         |  396 ++
+iron:  humanoid-gym/scripts/setup_virtual_display.sh      |  142 +
+iron:  humanoid-gym/scripts/xrobot_post_request.py        |   64 +
+iron:  isaacsim_ws/isaaclab_r01_amp_standalone/README.md  |    2 +-
+iron:  .../isaaclab_r01_amp_standalone/r01_amp_env_cfg.py |    1 -
+iron:  .../r01_amp_robot_cfg.py                           |    2 +-
+iron:  .../isaacsim/include/r01_config_closechain.py      |    2 +-
+iron:  .../isaacsim/include/r01_config_openchain.py       |    2 +-
+iron:  isaacsim_ws/isaacsim/include/rl_config.py          |    2 +-
+iron:  legged_gym_ws/legged_gym/envs/go2/go2_config.py    |    2 +-
+iron:  legged_gym_ws/legged_gym/envs/h1/h1_config.py      |    2 +-
+iron:  legged_gym_ws/legged_gym/envs/px5/px5_config.py    |    2 +-
+iron:  pipelines.yaml                                     |    4 +
+iron:  repo_deps/README.md                                |   12 +
+iron:  repo_deps/model_files.conf                         |   37 +
+iron:  resources/robots/go2/dae/base.dae                  |  217 -
+iron:  resources/robots/go2/dae/calf.dae                  |  130 -
+iron:  resources/robots/go2/dae/calf_mirror.dae           |  130 -
+iron:  resources/robots/go2/dae/foot.dae                  |   89 -
+iron:  resources/robots/go2/dae/hip.dae                   |  130 -
+iron:  resources/robots/go2/dae/thigh.dae                 |  130 -
+iron:  resources/robots/go2/dae/thigh_mirror.dae          |  130 -
+iron:  resources/robots/go2/urdf/go2.urdf                 | 1217 ----
+iron:  resources/robots/h1/meshes/left_ankle_link.STL     |  Bin 129684 -> 0 bytes
+iron:  resources/robots/h1/meshes/left_elbow_link.STL     |  Bin 258684 -> 0 bytes
+iron:  resources/robots/h1/meshes/left_hip_pitch_link.STL |  Bin 452384 -> 0 bytes
+iron:  resources/robots/h1/meshes/left_hip_roll_link.STL  |  Bin 769284 -> 0 bytes
+iron:  resources/robots/h1/meshes/left_hip_yaw_link.STL   |  Bin 885884 -> 0 bytes
+iron:  resources/robots/h1/meshes/left_knee_link.STL      |  Bin 660384 -> 0 bytes
+iron:  .../robots/h1/meshes/left_shoulder_pitch_link.STL  |  Bin 787484 -> 0 bytes
+iron:  .../robots/h1/meshes/left_shoulder_roll_link.STL   |  Bin 903384 -> 0 bytes
+iron:  .../robots/h1/meshes/left_shoulder_yaw_link.STL    |  Bin 644184 -> 0 bytes
+iron:  resources/robots/h1/meshes/logo_link.STL           |  Bin 145484 -> 0 bytes
+iron:  resources/robots/h1/meshes/pelvis.STL              |  Bin 672884 -> 0 bytes
+iron:  resources/robots/h1/meshes/right_ankle_link.STL    |  Bin 129084 -> 0 bytes
+iron:  resources/robots/h1/meshes/right_elbow_link.STL    |  Bin 258584 -> 0 bytes
+iron:  .../robots/h1/meshes/right_hip_pitch_link.STL      |  Bin 452384 -> 0 bytes
+iron:  resources/robots/h1/meshes/right_hip_roll_link.STL |  Bin 768484 -> 0 bytes
+iron:  resources/robots/h1/meshes/right_hip_yaw_link.STL  |  Bin 884484 -> 0 bytes
+iron:  resources/robots/h1/meshes/right_knee_link.STL     |  Bin 662184 -> 0 bytes
+iron:  .../robots/h1/meshes/right_shoulder_pitch_link.STL |  Bin 788484 -> 0 bytes
+iron:  .../robots/h1/meshes/right_shoulder_roll_link.STL  |  Bin 908284 -> 0 bytes
+iron:  .../robots/h1/meshes/right_shoulder_yaw_link.STL   |  Bin 646884 -> 0 bytes
+iron:  resources/robots/h1/meshes/torso_link.STL          |  Bin 2339384 -> 0 bytes
+iron:  resources/robots/h1/urdf/h1.urdf                   | 1205 ----
+iron:  .../px5/biped_5L_4dof_arm_simplifiedfeet.urdf      | 1246 ----
+iron:  ...ped_5L_4dof_arm_simplifiedfeet_limit_joint.urdf | 1246 ----
+iron:  ...f_arm_simplifiedfeet_limit_joint_real_feet.urdf | 1246 ----
+iron:  resources/robots/px5/meshes/B2.STL                 |  Bin 929784 -> 0 bytes
+iron:  resources/robots/px5/meshes/B3-1.STL               |  Bin 928434 -> 0 bytes
+iron:  resources/robots/px5/meshes/B3.STL                 |  Bin 930184 -> 0 bytes
+iron:  resources/robots/px5/meshes/B4.STL                 |  Bin 152784 -> 0 bytes
+iron:  resources/robots/px5/meshes/B5.STL                 |  Bin 2484 -> 0 bytes
+iron:  resources/robots/px5/meshes/B6.STL                 |  Bin 929784 -> 0 bytes
+iron:  resources/robots/px5/meshes/B7.STL                 |  Bin 930184 -> 0 bytes
+iron:  resources/robots/px5/meshes/B7_1.STL               |  Bin 929234 -> 0 bytes
+iron:  resources/robots/px5/meshes/B8.STL                 |  Bin 152784 -> 0 bytes
+iron:  resources/robots/px5/meshes/B9.STL                 |  Bin 2484 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_base_link.stl |  Bin 749934 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_la1_l.stl     |  Bin 314884 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_la2_l.stl     |  Bin 1770034 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_la3_l.stl     |  Bin 1615584 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_la4_l.stl     |  Bin 568884 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_ll1_l.stl     |  Bin 603784 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_ll2_l.stl     |  Bin 426684 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_ll3_l.stl     |  Bin 634034 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_ll4_l.stl     |  Bin 449934 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_ll5_l.stl     |  Bin 264534 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_ra1_l.stl     |  Bin 316134 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_ra2_l.stl     |  Bin 1762934 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_ra3_l.stl     |  Bin 1615384 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_ra4_l.stl     |  Bin 568884 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_rl1_l.stl     |  Bin 562384 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_rl2_l.stl     |  Bin 313184 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_rl3_l.stl     |  Bin 605784 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_rl4_l.stl     |  Bin 425984 -> 0 bytes
+iron:  resources/robots/px5/meshes/simplify_rl5_l.stl     |  Bin 264534 -> 0 bytes
+iron:  resources/robots/r01_ver_1_1/R01_simple.urdf       | 2767 --------
+iron:  resources/robots/r01_ver_1_1/R01_simple.usd        |  Bin 3408939 -> 0 bytes
+iron:  .../robots/r01_ver_1_1/R01_simple_fix_baselink.usd |  Bin 3408934 -> 0 bytes
+iron:  .../robots/r01_ver_1_1/R01_simple_whole_body.urdf  | 2767 --------
+iron:  .../r01_ver_1_1/R01_simple_with_1dof_arms.urdf     | 2767 --------
+iron:  .../r01_ver_1_1/R01_simple_with_2dof_arms.urdf     | 2767 --------
+iron:  .../r01_ver_1_1/R01_simple_with_4dof_arms.urdf     | 2767 --------
+iron:  .../R01_simple_with_4dof_arms_self_collision.urdf  | 2767 --------
+iron:  .../r01_ver_1_1/R01_simple_with_7dof_arms.urdf     | 2767 --------
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link1.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link10.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link11.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link12.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link13.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link2.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link3.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link4.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link5.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link6.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link7.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link8.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link9.STL  |  Bin 49934 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link1.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link10.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link11.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link12.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link13.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link2.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link3.STL  |  Bin 50034 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link4.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link5.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link6.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link7.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link8.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link9.STL  |  Bin 49934 -> 0 bytes
+iron:  .../meshes_simplified/Arm_base_L_link0.STL         |  Bin 49984 -> 0 bytes
+iron:  .../meshes_simplified/Arm_base_R_link0.STL         |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/Body_base_link.STL           |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/body_asis.STL    |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/body_link_L.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/body_link_R.STL  |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/body_output_L.STL            |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/body_output_R.STL            |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/body_yaw_boll_L.STL          |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/body_yaw_boll_R.STL          |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/body_yaw_input.STL           |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/body_yaw_output.STL          |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_base_link.STL           |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_huke_link.STL           |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_left_ball_link.STL      |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_left_crank_link.STL     |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_left_link.STL           |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_moveplate_link.STL      |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_right_ball_link.STL     |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_right_crank_link.STL    |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_right_link.STL          |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/head_yaw_link.STL            |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link0.STL  |  Bin 50034 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link1.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link10.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link11.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link12.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link13.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link14.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link15.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link16.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link17.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link18.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link19.STL |  Bin 49984 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link2.STL  |  Bin 49984 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link20.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link21.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link22.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link3.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link4.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link5.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link6.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link7.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link8.STL  |  Bin 49984 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_L_link9.STL  |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_L_link_ball-1.STL        |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_L_link_ball-2.STL        |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_L_link_ball-3.STL        |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_L_link_ball-4.STL        |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_L_link_ball-5.STL        |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link0.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link1.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link10.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link11.STL |  Bin 50034 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link12.STL |  Bin 50034 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link13.STL |  Bin 50034 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link14.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link15.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link16.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link17.STL |  Bin 50034 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link18.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link19.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link2.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link20.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link21.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link22.STL |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link3.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link4.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link5.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link6.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link7.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link8.STL  |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1/meshes_simplified/leg_R_link9.STL  |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_R_link_ball-1.STL        |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_R_link_ball-2.STL        |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_R_link_ball-3.STL        |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_R_link_ball-4.STL        |  Bin 50084 -> 0 bytes
+iron:  .../meshes_simplified/leg_R_link_ball-5.STL        |  Bin 50084 -> 0 bytes
+iron:  .../r01_ver_1_1_plus/calculate_kinematics.py       |  422 --
+iron:  .../meshes_simplified/Arm_L_Link1.STL              |  Bin 63384 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link10.STL             |  Bin 20884 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link11.STL             |  Bin 20684 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link12.STL             |  Bin 10284 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link13.STL             |  Bin 10284 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link2.STL              |  Bin 176184 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link3.STL              |  Bin 356184 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link4.STL              |  Bin 59184 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link5.STL              |  Bin 176884 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link6.STL              |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link7.STL              |  Bin 9084 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link8.STL              |  Bin 124984 -> 0 bytes
+iron:  .../meshes_simplified/Arm_L_Link9.STL              |  Bin 14584 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link1.STL              |  Bin 63284 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link10.STL             |  Bin 21084 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link11.STL             |  Bin 20884 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link12.STL             |  Bin 10184 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link13.STL             |  Bin 10284 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link2.STL              |  Bin 176484 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link3.STL              |  Bin 355984 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link4.STL              |  Bin 58884 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link5.STL              |  Bin 176784 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link6.STL              |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link7.STL              |  Bin 9084 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link8.STL              |  Bin 124984 -> 0 bytes
+iron:  .../meshes_simplified/Arm_R_Link9.STL              |  Bin 124784 -> 0 bytes
+iron:  .../meshes_simplified/Arm_base_L_link0.STL         |  Bin 115284 -> 0 bytes
+iron:  .../meshes_simplified/Arm_base_R_link0.STL         |  Bin 115284 -> 0 bytes
+iron:  .../meshes_simplified/V1.11-leftfoot.STL           |  Bin 545884 -> 0 bytes
+iron:  .../meshes_simplified/V1.11-rightfoot.STL          |  Bin 545984 -> 0 bytes
+iron:  .../meshes_simplified/body_Link_L.STL              |  Bin 21684 -> 0 bytes
+iron:  .../meshes_simplified/body_asis.STL                |  Bin 20784 -> 0 bytes
+iron:  .../meshes_simplified/body_base_link.STL           |  Bin 455484 -> 0 bytes
+iron:  .../meshes_simplified/body_link_R.STL              |  Bin 21684 -> 0 bytes
+iron:  .../meshes_simplified/body_output_L.STL            |  Bin 14384 -> 0 bytes
+iron:  .../meshes_simplified/body_output_R.STL            |  Bin 14784 -> 0 bytes
+iron:  .../meshes_simplified/body_yaw_ball_L.STL          |  Bin 5084 -> 0 bytes
+iron:  .../meshes_simplified/body_yaw_ball_R.STL          |  Bin 5084 -> 0 bytes
+iron:  .../meshes_simplified/body_yaw_input.STL           |  Bin 23484 -> 0 bytes
+iron:  .../body_yaw_output-collision.STL                  |  Bin 4105184 -> 0 bytes
+iron:  .../meshes_simplified/body_yaw_output.STL          |  Bin 972484 -> 0 bytes
+iron:  .../meshes_simplified/foot_left_forefoot.STL       |  Bin 0 -> 295784 bytes
+iron:  .../meshes_simplified/foot_left_heel.STL           |  Bin 0 -> 249384 bytes
+iron:  .../meshes_simplified/foot_right_forefoot.STL      |  Bin 0 -> 298284 bytes
+iron:  .../meshes_simplified/foot_right_heel.STL          |  Bin 0 -> 246834 bytes
+iron:  .../meshes_simplified/head_base_link.STL           |  Bin 103184 -> 0 bytes
+iron:  .../meshes_simplified/head_huke_link.STL           |  Bin 8184 -> 0 bytes
+iron:  .../meshes_simplified/head_left_ball_link.STL      |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/head_left_crank_link.STL     |  Bin 17584 -> 0 bytes
+iron:  .../meshes_simplified/head_left_link.STL           |  Bin 38884 -> 0 bytes
+iron:  .../meshes_simplified/head_moveplate_link.STL      |  Bin 15984 -> 0 bytes
+iron:  .../meshes_simplified/head_right_ball_link.STL     |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/head_right_crank_link.STL    |  Bin 17584 -> 0 bytes
+iron:  .../meshes_simplified/head_right_link.STL          |  Bin 43784 -> 0 bytes
+iron:  .../meshes_simplified/head_yaw_link.STL            |  Bin 474534 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_ball_link1.STL         |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_ball_link2.STL         |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_ball_link3.STL         |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_ball_link4.STL         |  Bin 7484 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_ball_link5.STL         |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link0.STL              |  Bin 32584 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link1.STL              |  Bin 215684 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link10.STL             |  Bin 12984 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link11.STL             |  Bin 13084 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link12.STL             |  Bin 179984 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link13.STL             |  Bin 29684 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link14.STL             |  Bin 118784 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link15.STL             |  Bin 91884 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link16.STL             |  Bin 125284 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link17.STL             |  Bin 125284 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link18.STL             |  Bin 7484 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link19.STL             |  Bin 7484 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link2.STL              |  Bin 464084 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link20.STL             |  Bin 145084 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link21.STL             |  Bin 145084 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link3.STL              |  Bin 27984 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link4.STL              |  Bin 27984 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link5.STL              |  Bin 110634 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link6.STL              |  Bin 218184 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link7.STL              |  Bin 114484 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link8.STL              |  Bin 125184 -> 0 bytes
+iron:  .../meshes_simplified/leg_l_link9.STL              |  Bin 125284 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_ball_link1.STL         |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_ball_link2.STL         |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_ball_link3.STL         |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_ball_link4.STL         |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_ball_link5.STL         |  Bin 5884 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link0.STL              |  Bin 32884 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link1.STL              |  Bin 215584 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link10.STL             |  Bin 12984 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link11.STL             |  Bin 13084 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link12.STL             |  Bin 180684 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link13.STL             |  Bin 29784 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link14.STL             |  Bin 118784 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link15.STL             |  Bin 91884 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link16.STL             |  Bin 105484 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link17.STL             |  Bin 105484 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link18.STL             |  Bin 7384 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link19.STL             |  Bin 7484 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link2.STL              |  Bin 463984 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link20.STL             |  Bin 144984 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link21.STL             |  Bin 144984 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link3.STL              |  Bin 27984 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link4.STL              |  Bin 27984 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link5.STL              |  Bin 110734 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link6.STL              |  Bin 218084 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link7.STL              |  Bin 114584 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link8.STL              |  Bin 105484 -> 0 bytes
+iron:  .../meshes_simplified/leg_r_link9.STL              |  Bin 105484 -> 0 bytes
+iron:  .../r01_ver_1_1_plus/r01_11_plus_open_chain.urdf   | 4709 -------------
+iron:  .../r01_11_plus_open_chain_with_leg_and_waist.urdf | 3549 ----------
+iron:  ...n.urdf => r01_11_plus_v111_waist_modified.urdf} | 7384 ++++++++++----------
+iron:  ...urdf => r01_11_plus_with_collision_sphere.urdf} |  309 +-
+iron:  resources/robots/r01_ver_1_1_plus/usd/.gitkeep     |    0
+iron:  .../xml/r01_11_plus_closed_chain.xml               | 1046 ---
+iron:  .../xml/r01_11_plus_open_chain.xml                 |  463 --
+iron:  resources/tools/asset_info.py                      |  265 +
+iron:  scripts/docker_run.sh                              |   62 +-
+iron:  scripts/format.sh                                  |    0
+iron:  scripts/setup_hooks.sh                             |    8 +
+iron:  scripts/update_repo_deps.sh                        |  196 +
+iron:  450 files changed, 38660 insertions(+), 43688 deletions(-)
+iron:  450 files changed, 38660 insertions(+), 43688 deletions(-)
+stale:  .cursor/rules/no-chinese-comments.mdc              |   15 +
+stale:  .editorconfig                                      |    5 +
+stale:  .gitattributes                                     |    1 +
+stale:  .githooks/post-checkout                            |   11 +
+stale:  .gitignore                                         |    7 +
+stale:  .vscode/launch.json                                |   34 +-
+stale:  ci/check_chinese_comments.sh                       |   14 +
+stale:  ci/check_python_format.sh                          |   11 +
+stale:  docker/isaacgym/container_config.sh                |    3 +-
+stale:  docker/isaacgym/entrypoint.sh                      |    6 +
+stale:  docker/isaacsim/container_config.sh                |    3 +-
+stale:  docker/select_container.sh                         |   25 +-
+stale:  humanoid-gym/README.md                             |   45 +-
+stale:  .../tool/compare_json_tool/compare_json_tool.sh    |   15 +
+stale:  .../tool/compare_json_tool/compare_multi_csv.py    |  133 +
+stale:  .../tool/compare_json_tool/motion_json_to_csv.py   |   90 +
+stale:  .../tool/config/r01_simple_with_4dof_arms.yaml     |  231 +
+stale:  .../config/r01_v12_with_4dof_arms_locomujoco.yaml  |  401 ++
+stale:  humanoid-gym/datasets/tool/mirror_motion_data.py   |  164 -
+stale:  humanoid-gym/datasets/tool/process_mocap_data.py   |  730 ++-
+stale:  humanoid-gym/datasets/tool/run.sh                  |    2 +-
+stale:  humanoid-gym/datasets/tool/visualize_r01_motion.py |   20 +-
+stale:  .../humanoid/algo/amp_ppo/amp_on_policy_runner.py  |   41 +-
+stale:  humanoid-gym/humanoid/algo/amp_ppo/amp_ppo.py      |  104 +-
+stale:  humanoid-gym/humanoid/algo/amp_ppo/utils.py        |   32 +
+stale:  humanoid-gym/humanoid/algo/ppo/__init__.py         |    1 +
+stale:  humanoid-gym/humanoid/algo/ppo/actor_critic.py     |  114 +-
+stale:  humanoid-gym/humanoid/algo/ppo/on_policy_runner.py |    2 +-
+stale:  .../humanoid/algo/ppo/on_policy_runner_fr.py       |  355 ++
+stale:  humanoid-gym/humanoid/algo/ppo/ppo.py              |    8 +-
+stale:  humanoid-gym/humanoid/datasets/motion_loader.py    | 1373 ++++++
+stale:  humanoid-gym/humanoid/datasets/visualize_motion.py |  565 +++
+stale:  humanoid-gym/humanoid/envs/__init__.py             |   39 +-
+stale:  humanoid-gym/humanoid/envs/base/base_task.py       |    2 +-
+stale:  humanoid-gym/humanoid/envs/base/legged_robot.py    |   69 +-
+stale:  .../humanoid/envs/base/legged_robot_config.py      |    6 +
+stale:  humanoid-gym/humanoid/envs/base/motion_loader.py   |  324 +-
+stale:  .../humanoid/envs/custom/humanoid_config.py        |    2 +-
+stale:  humanoid-gym/humanoid/envs/px5/px5_config.py       |  506 ++-
+stale:  humanoid-gym/humanoid/envs/px5/px5_env.py          |  680 +--
+stale:  .../humanoid/envs/px5_amp/px5_amp_config.py        |  569 +--
+stale:  humanoid-gym/humanoid/envs/px5_amp/px5_amp_env.py  | 1071 ++---
+stale:  .../humanoid/envs/r01_amp/base_mirror_config.py    |  179 +
+stale:  .../humanoid/envs/r01_amp/r01_amp_cam_env.py       |  522 +--
+stale:  .../humanoid/envs/r01_amp/r01_amp_config.py        |  724 +--
+stale:  .../envs/r01_amp/r01_amp_config_with_arms.py       |  990 ++--
+stale:  humanoid-gym/humanoid/envs/r01_amp/r01_amp_env.py  | 2054 +++++----
+stale:  .../humanoid/envs/r01_amp/r01_amp_heightmap_env.py |  464 +-
+stale:  .../humanoid/envs/r01_amp/r01_amp_teleop_env.py    | 1663 +++----
+stale:  humanoid-gym/humanoid/envs/r01_amp/r01_kin.py      |   47 +-
+stale:  .../humanoid/envs/r01_amp/r01_plus_amp_config.py   |  357 +-
+stale:  .../envs/r01_amp/r01_plus_amp_config_teleop.py     |  750 ++--
+stale:  .../r01_plus_amp_config_teleop_stand_only.py       |  718 +--
+stale:  .../envs/r01_amp/r01_plus_amp_config_with_arms.py  |  423 +-
+stale:  .../r01_plus_amp_config_with_arms_autoencoder.py   |  460 +-
+stale:  .../r01_amp/r01_plus_amp_config_with_arms_depth.py |  410 +-
+stale:  .../r01_plus_amp_config_with_arms_heightmap.py     |  396 +-
+stale:  .../r01_amp/r01_plus_with_arms_mirror_config.py    |   54 +
+stale:  .../envs/r01_amp/r01_v111_amp_config_with_arms.py  |  248 ++
+stale:  .../envs/r01_amp/r01_v12_amp_config_with_arms.py   |  344 ++
+stale:  .../humanoid/envs/r01_amp/r01_v12_amp_env.py       |  100 +
+stale:  .../r01_amp/r01_v12_with_arms_mirror_config.py     |   54 +
+stale:  .../humanoid/envs/r01_mimic/class_registry.py      |  101 +
+stale:  humanoid-gym/humanoid/envs/r01_mimic/r01_kin.py    |  218 +
+stale:  .../humanoid/envs/r01_mimic/r01_mimic_config.py    |  469 ++
+stale:  .../humanoid/envs/r01_mimic/r01_mimic_env.py       | 1290 ++++++
+stale:  .../envs/r01_mimic/r01_mimic_getup_config.py       |  325 ++
+stale:  .../humanoid/envs/r01_mimic/r01_mimic_loader.py    |  347 ++
+stale:  .../humanoid/envs/r01_mimic/r01_mimic_seat_env.py  |  637 +++
+stale:  .../envs/r01_mimic/r01_mimic_situp_config.py       |  366 ++
+stale:  .../humanoid/envs/r01_mimic/terrain_single.py      |  385 ++
+stale:  humanoid-gym/humanoid/scripts/evaluate.py          |   11 +-
+stale:  humanoid-gym/humanoid/scripts/play.py              |  179 +-
+stale:  humanoid-gym/humanoid/scripts/play_balancing.py    |   17 +-
+stale:  humanoid-gym/humanoid/scripts/play_success.py      |  388 ++
+stale:  humanoid-gym/humanoid/scripts/play_teleop.py       |   13 +-
+stale:  humanoid-gym/humanoid/scripts/sim2sim.py           |    4 +-
+stale:  humanoid-gym/humanoid/utils/__init__.py            |    1 +
+stale:  .../humanoid/utils/autoencoder/depth_encoder_nn.py |    2 +-
+stale:  .../humanoid/utils/fuyao_metadata_writer.py        |   82 +
+stale:  humanoid-gym/humanoid/utils/helpers.py             |  147 +-
+stale:  humanoid-gym/humanoid/utils/logger.py              |    1 -
+stale:  humanoid-gym/humanoid/utils/math.py                |  366 +-
+stale:  humanoid-gym/humanoid/utils/metric_json_dumper.py  |   42 +
+stale:  humanoid-gym/humanoid/utils/plot_utils.py          |  981 ++++
+stale:  .../humanoid/utils/rtd_artifacts_helper.py         |   20 +-
+stale:  humanoid-gym/humanoid/utils/task_registry.py       |    6 +-
+stale:  humanoid-gym/humanoid/utils/validate_r01_motion.py |   30 +-
+stale:  humanoid-gym/humanoid/utils/video_processor.py     |   59 +-
+stale:  humanoid-gym/images/demo.gif                       |  Bin 14042331 -> 0 bytes
+stale:  humanoid-gym/scripts/fuyao_deploy.sh               |  123 +-
+stale:  humanoid-gym/scripts/fuyao_evaluate.sh             |   41 +
+stale:  humanoid-gym/scripts/fuyao_train.sh                |   33 +-
+stale:  humanoid-gym/scripts/xrobot_post_request.py        |   64 +
+stale:  isaacsim_ws/isaaclab_r01_amp_standalone/README.md  |    2 +-
+stale:  .../r01_amp_robot_cfg.py                           |    2 +-
+stale:  .../isaacsim/include/r01_config_closechain.py      |    2 +-
+stale:  .../isaacsim/include/r01_config_openchain.py       |    2 +-
+stale:  isaacsim_ws/isaacsim/include/r01_sim2sim.py        |   26 +-
+stale:  isaacsim_ws/isaacsim/include/r01_sim_closechain.py |   26 +-
+stale:  isaacsim_ws/isaacsim/include/r01_sim_openchain.py  |   26 +-
+stale:  isaacsim_ws/isaacsim/include/rl_config.py          |    2 +-
+stale:  legged_gym_ws/legged_gym/envs/go2/go2_config.py    |    2 +-
+stale:  legged_gym_ws/legged_gym/envs/h1/h1_config.py      |    2 +-
+stale:  legged_gym_ws/legged_gym/envs/px5/px5_config.py    |    2 +-
+stale:  pipelines.yaml                                     |    5 +
+stale:  repo_deps/README.md                                |   12 +
+stale:  repo_deps/model_files.conf                         |   26 +
+stale:  resources/robots/go2/dae/base.dae                  |  217 -
+stale:  resources/robots/go2/dae/calf.dae                  |  130 -
+stale:  resources/robots/go2/dae/calf_mirror.dae           |  130 -
+stale:  resources/robots/go2/dae/foot.dae                  |   89 -
+stale:  resources/robots/go2/dae/hip.dae                   |  130 -
+stale:  resources/robots/go2/dae/thigh.dae                 |  130 -
+stale:  resources/robots/go2/dae/thigh_mirror.dae          |  130 -
+stale:  resources/robots/go2/urdf/go2.urdf                 | 1217 -----
+stale:  resources/robots/h1/meshes/left_ankle_link.STL     |  Bin 129684 -> 0 bytes
+stale:  resources/robots/h1/meshes/left_elbow_link.STL     |  Bin 258684 -> 0 bytes
+stale:  resources/robots/h1/meshes/left_hip_pitch_link.STL |  Bin 452384 -> 0 bytes
+stale:  resources/robots/h1/meshes/left_hip_roll_link.STL  |  Bin 769284 -> 0 bytes
+stale:  resources/robots/h1/meshes/left_hip_yaw_link.STL   |  Bin 885884 -> 0 bytes
+stale:  resources/robots/h1/meshes/left_knee_link.STL      |  Bin 660384 -> 0 bytes
+stale:  .../robots/h1/meshes/left_shoulder_pitch_link.STL  |  Bin 787484 -> 0 bytes
+stale:  .../robots/h1/meshes/left_shoulder_roll_link.STL   |  Bin 903384 -> 0 bytes
+stale:  .../robots/h1/meshes/left_shoulder_yaw_link.STL    |  Bin 644184 -> 0 bytes
+stale:  resources/robots/h1/meshes/logo_link.STL           |  Bin 145484 -> 0 bytes
+stale:  resources/robots/h1/meshes/pelvis.STL              |  Bin 672884 -> 0 bytes
+stale:  resources/robots/h1/meshes/right_ankle_link.STL    |  Bin 129084 -> 0 bytes
+stale:  resources/robots/h1/meshes/right_elbow_link.STL    |  Bin 258584 -> 0 bytes
+stale:  .../robots/h1/meshes/right_hip_pitch_link.STL      |  Bin 452384 -> 0 bytes
+stale:  resources/robots/h1/meshes/right_hip_roll_link.STL |  Bin 768484 -> 0 bytes
+stale:  resources/robots/h1/meshes/right_hip_yaw_link.STL  |  Bin 884484 -> 0 bytes
+stale:  resources/robots/h1/meshes/right_knee_link.STL     |  Bin 662184 -> 0 bytes
+stale:  .../robots/h1/meshes/right_shoulder_pitch_link.STL |  Bin 788484 -> 0 bytes
+stale:  .../robots/h1/meshes/right_shoulder_roll_link.STL  |  Bin 908284 -> 0 bytes
+stale:  .../robots/h1/meshes/right_shoulder_yaw_link.STL   |  Bin 646884 -> 0 bytes
+stale:  resources/robots/h1/meshes/torso_link.STL          |  Bin 2339384 -> 0 bytes
+stale:  resources/robots/h1/urdf/h1.urdf                   | 1205 -----
+stale:  .../px5/biped_5L_4dof_arm_simplifiedfeet.urdf      | 1246 ------
+stale:  ...ped_5L_4dof_arm_simplifiedfeet_limit_joint.urdf | 1246 ------
+stale:  ...f_arm_simplifiedfeet_limit_joint_real_feet.urdf | 1246 ------
+stale:  resources/robots/px5/meshes/B2.STL                 |  Bin 929784 -> 0 bytes
+stale:  resources/robots/px5/meshes/B3-1.STL               |  Bin 928434 -> 0 bytes
+stale:  resources/robots/px5/meshes/B3.STL                 |  Bin 930184 -> 0 bytes
+stale:  resources/robots/px5/meshes/B4.STL                 |  Bin 152784 -> 0 bytes
+stale:  resources/robots/px5/meshes/B5.STL                 |  Bin 2484 -> 0 bytes
+stale:  resources/robots/px5/meshes/B6.STL                 |  Bin 929784 -> 0 bytes
+stale:  resources/robots/px5/meshes/B7.STL                 |  Bin 930184 -> 0 bytes
+stale:  resources/robots/px5/meshes/B7_1.STL               |  Bin 929234 -> 0 bytes
+stale:  resources/robots/px5/meshes/B8.STL                 |  Bin 152784 -> 0 bytes
+stale:  resources/robots/px5/meshes/B9.STL                 |  Bin 2484 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_base_link.stl |  Bin 749934 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_la1_l.stl     |  Bin 314884 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_la2_l.stl     |  Bin 1770034 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_la3_l.stl     |  Bin 1615584 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_la4_l.stl     |  Bin 568884 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_ll1_l.stl     |  Bin 603784 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_ll2_l.stl     |  Bin 426684 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_ll3_l.stl     |  Bin 634034 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_ll4_l.stl     |  Bin 449934 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_ll5_l.stl     |  Bin 264534 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_ra1_l.stl     |  Bin 316134 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_ra2_l.stl     |  Bin 1762934 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_ra3_l.stl     |  Bin 1615384 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_ra4_l.stl     |  Bin 568884 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_rl1_l.stl     |  Bin 562384 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_rl2_l.stl     |  Bin 313184 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_rl3_l.stl     |  Bin 605784 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_rl4_l.stl     |  Bin 425984 -> 0 bytes
+stale:  resources/robots/px5/meshes/simplify_rl5_l.stl     |  Bin 264534 -> 0 bytes
+stale:  resources/robots/r01_ver_1_1/R01_simple.urdf       | 2767 ------------
+stale:  resources/robots/r01_ver_1_1/R01_simple.usd        |  Bin 3408939 -> 0 bytes
+stale:  .../robots/r01_ver_1_1/R01_simple_fix_baselink.usd |  Bin 3408934 -> 0 bytes
+stale:  .../robots/r01_ver_1_1/R01_simple_whole_body.urdf  | 2767 ------------
+stale:  .../r01_ver_1_1/R01_simple_with_1dof_arms.urdf     | 2767 ------------
+stale:  .../r01_ver_1_1/R01_simple_with_2dof_arms.urdf     | 2767 ------------
+stale:  .../r01_ver_1_1/R01_simple_with_4dof_arms.urdf     | 2767 ------------
+stale:  .../R01_simple_with_4dof_arms_self_collision.urdf  | 2767 ------------
+stale:  .../r01_ver_1_1/R01_simple_with_7dof_arms.urdf     | 2767 ------------
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link1.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link10.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link11.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link12.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link13.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link2.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link3.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link4.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link5.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link6.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link7.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link8.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_L_Link9.STL  |  Bin 49934 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link1.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link10.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link11.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link12.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link13.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link2.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link3.STL  |  Bin 50034 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link4.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link5.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link6.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link7.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link8.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/Arm_R_Link9.STL  |  Bin 49934 -> 0 bytes
+stale:  .../meshes_simplified/Arm_base_L_link0.STL         |  Bin 49984 -> 0 bytes
+stale:  .../meshes_simplified/Arm_base_R_link0.STL         |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/Body_base_link.STL           |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/body_asis.STL    |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/body_link_L.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/body_link_R.STL  |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/body_output_L.STL            |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/body_output_R.STL            |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/body_yaw_boll_L.STL          |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/body_yaw_boll_R.STL          |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/body_yaw_input.STL           |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/body_yaw_output.STL          |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_base_link.STL           |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_huke_link.STL           |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_left_ball_link.STL      |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_left_crank_link.STL     |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_left_link.STL           |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_moveplate_link.STL      |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_right_ball_link.STL     |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_right_crank_link.STL    |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_right_link.STL          |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/head_yaw_link.STL            |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link0.STL  |  Bin 50034 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link1.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link10.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link11.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link12.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link13.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link14.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link15.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link16.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link17.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link18.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link19.STL |  Bin 49984 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link2.STL  |  Bin 49984 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link20.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link21.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link22.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link3.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link4.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link5.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link6.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link7.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link8.STL  |  Bin 49984 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_L_link9.STL  |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_L_link_ball-1.STL        |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_L_link_ball-2.STL        |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_L_link_ball-3.STL        |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_L_link_ball-4.STL        |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_L_link_ball-5.STL        |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link0.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link1.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link10.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link11.STL |  Bin 50034 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link12.STL |  Bin 50034 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link13.STL |  Bin 50034 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link14.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link15.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link16.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link17.STL |  Bin 50034 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link18.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link19.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link2.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link20.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link21.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link22.STL |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link3.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link4.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link5.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link6.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link7.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link8.STL  |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1/meshes_simplified/leg_R_link9.STL  |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_R_link_ball-1.STL        |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_R_link_ball-2.STL        |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_R_link_ball-3.STL        |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_R_link_ball-4.STL        |  Bin 50084 -> 0 bytes
+stale:  .../meshes_simplified/leg_R_link_ball-5.STL        |  Bin 50084 -> 0 bytes
+stale:  .../r01_ver_1_1_plus/calculate_kinematics.py       |  422 --
+stale:  .../meshes_simplified/Arm_L_Link1.STL              |  Bin 63384 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link10.STL             |  Bin 20884 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link11.STL             |  Bin 20684 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link12.STL             |  Bin 10284 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link13.STL             |  Bin 10284 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link2.STL              |  Bin 176184 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link3.STL              |  Bin 356184 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link4.STL              |  Bin 59184 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link5.STL              |  Bin 176884 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link6.STL              |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link7.STL              |  Bin 9084 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link8.STL              |  Bin 124984 -> 0 bytes
+stale:  .../meshes_simplified/Arm_L_Link9.STL              |  Bin 14584 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link1.STL              |  Bin 63284 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link10.STL             |  Bin 21084 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link11.STL             |  Bin 20884 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link12.STL             |  Bin 10184 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link13.STL             |  Bin 10284 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link2.STL              |  Bin 176484 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link3.STL              |  Bin 355984 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link4.STL              |  Bin 58884 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link5.STL              |  Bin 176784 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link6.STL              |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link7.STL              |  Bin 9084 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link8.STL              |  Bin 124984 -> 0 bytes
+stale:  .../meshes_simplified/Arm_R_Link9.STL              |  Bin 124784 -> 0 bytes
+stale:  .../meshes_simplified/Arm_base_L_link0.STL         |  Bin 115284 -> 0 bytes
+stale:  .../meshes_simplified/Arm_base_R_link0.STL         |  Bin 115284 -> 0 bytes
+stale:  .../meshes_simplified/V1.11-leftfoot.STL           |  Bin 545884 -> 0 bytes
+stale:  .../meshes_simplified/V1.11-rightfoot.STL          |  Bin 545984 -> 0 bytes
+stale:  .../meshes_simplified/body_Link_L.STL              |  Bin 21684 -> 0 bytes
+stale:  .../meshes_simplified/body_asis.STL                |  Bin 20784 -> 0 bytes
+stale:  .../meshes_simplified/body_base_link.STL           |  Bin 455484 -> 0 bytes
+stale:  .../meshes_simplified/body_link_R.STL              |  Bin 21684 -> 0 bytes
+stale:  .../meshes_simplified/body_output_L.STL            |  Bin 14384 -> 0 bytes
+stale:  .../meshes_simplified/body_output_R.STL            |  Bin 14784 -> 0 bytes
+stale:  .../meshes_simplified/body_yaw_ball_L.STL          |  Bin 5084 -> 0 bytes
+stale:  .../meshes_simplified/body_yaw_ball_R.STL          |  Bin 5084 -> 0 bytes
+stale:  .../meshes_simplified/body_yaw_input.STL           |  Bin 23484 -> 0 bytes
+stale:  .../body_yaw_output-collision.STL                  |  Bin 4105184 -> 0 bytes
+stale:  .../meshes_simplified/body_yaw_output.STL          |  Bin 972484 -> 0 bytes
+stale:  .../meshes_simplified/head_base_link.STL           |  Bin 103184 -> 0 bytes
+stale:  .../meshes_simplified/head_huke_link.STL           |  Bin 8184 -> 0 bytes
+stale:  .../meshes_simplified/head_left_ball_link.STL      |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/head_left_crank_link.STL     |  Bin 17584 -> 0 bytes
+stale:  .../meshes_simplified/head_left_link.STL           |  Bin 38884 -> 0 bytes
+stale:  .../meshes_simplified/head_moveplate_link.STL      |  Bin 15984 -> 0 bytes
+stale:  .../meshes_simplified/head_right_ball_link.STL     |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/head_right_crank_link.STL    |  Bin 17584 -> 0 bytes
+stale:  .../meshes_simplified/head_right_link.STL          |  Bin 43784 -> 0 bytes
+stale:  .../meshes_simplified/head_yaw_link.STL            |  Bin 474534 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_ball_link1.STL         |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_ball_link2.STL         |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_ball_link3.STL         |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_ball_link4.STL         |  Bin 7484 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_ball_link5.STL         |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link0.STL              |  Bin 32584 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link1.STL              |  Bin 215684 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link10.STL             |  Bin 12984 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link11.STL             |  Bin 13084 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link12.STL             |  Bin 179984 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link13.STL             |  Bin 29684 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link14.STL             |  Bin 118784 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link15.STL             |  Bin 91884 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link16.STL             |  Bin 125284 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link17.STL             |  Bin 125284 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link18.STL             |  Bin 7484 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link19.STL             |  Bin 7484 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link2.STL              |  Bin 464084 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link20.STL             |  Bin 145084 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link21.STL             |  Bin 145084 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link3.STL              |  Bin 27984 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link4.STL              |  Bin 27984 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link5.STL              |  Bin 110634 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link6.STL              |  Bin 218184 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link7.STL              |  Bin 114484 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link8.STL              |  Bin 125184 -> 0 bytes
+stale:  .../meshes_simplified/leg_l_link9.STL              |  Bin 125284 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_ball_link1.STL         |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_ball_link2.STL         |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_ball_link3.STL         |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_ball_link4.STL         |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_ball_link5.STL         |  Bin 5884 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link0.STL              |  Bin 32884 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link1.STL              |  Bin 215584 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link10.STL             |  Bin 12984 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link11.STL             |  Bin 13084 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link12.STL             |  Bin 180684 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link13.STL             |  Bin 29784 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link14.STL             |  Bin 118784 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link15.STL             |  Bin 91884 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link16.STL             |  Bin 105484 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link17.STL             |  Bin 105484 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link18.STL             |  Bin 7384 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link19.STL             |  Bin 7484 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link2.STL              |  Bin 463984 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link20.STL             |  Bin 144984 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link21.STL             |  Bin 144984 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link3.STL              |  Bin 27984 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link4.STL              |  Bin 27984 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link5.STL              |  Bin 110734 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link6.STL              |  Bin 218084 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link7.STL              |  Bin 114584 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link8.STL              |  Bin 105484 -> 0 bytes
+stale:  .../meshes_simplified/leg_r_link9.STL              |  Bin 105484 -> 0 bytes
+stale:  .../r01_ver_1_1_plus/r01_11_plus_open_chain.urdf   | 4709 --------------------
+stale:  .../r01_11_plus_open_chain_with_leg_and_waist.urdf | 3549 ---------------
+stale:  ...en_chain_with_leg_and_waist_with_4dof_arms.urdf | 3550 ---------------
+stale:  ...h_leg_and_waist_with_4dof_no_arm_collision.urdf | 3550 ---------------
+stale:  resources/robots/r01_ver_1_1_plus/usd/.gitkeep     |    0
+stale:  .../xml/r01_11_plus_closed_chain.xml               | 1046 -----
+stale:  .../xml/r01_11_plus_open_chain.xml                 |  463 --
+stale:  resources/tools/asset_info.py                      |  265 ++
+stale:  scripts/docker_run.sh                              |   62 +-
+stale:  scripts/setup_hooks.sh                             |    8 +
+stale:  scripts/update_repo_deps.sh                        |  196 +
+stale:  400 files changed, 19377 insertions(+), 50599 deletions(-)
+stale:  400 files changed, 19377 insertions(+), 50599 deletions(-)

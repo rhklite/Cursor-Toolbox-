@@ -1,0 +1,956 @@
+diff --git a/README.md b/README.md
+index ad8e445..32afdc9 100644
+--- a/README.md
++++ b/README.md
+@@ -10,6 +10,7 @@ Each mutation records:
+ - why the mutation exists
+ 
+ The tracker writes local-only state to `~/.local/share/motion-rl-tracker`.
++Managed checkpoint uploads are stored under `~/.local/share/motion-rl-tracker/checkpoints`.
+ 
+ ## Components
+ 
+@@ -98,6 +99,16 @@ python3 dashboard_server.py --port 8765
+ 
+ Open `http://127.0.0.1:8765`.
+ 
++## Node Asset Upload and Download
++
++- The inspector is hidden by default and appears only after you click a node.
++- Mutation nodes support both checkpoint and video assets in the inspector.
++- Drag files onto asset drop zones or use the `Upload` button for picker-based uploads.
++- Checkpoints are copied to `<store_root>/checkpoints/`, videos to `<store_root>/videos/`.
++- Saved paths remain strings in node data (`run.checkpoint`, `run.video`) and can still be edited manually to external paths.
++- Use `Download` actions in the inspector for both checkpoints and videos.
++- If a video asset exists, the inspector shows an inline playable video preview.
++
+ ## Deterministic Cursor Workflow
+ 
+ Natural language stays reliable by routing everything through versioned intents.
+diff --git a/SCHEMA.md b/SCHEMA.md
+index daaf201..a487127 100644
+--- a/SCHEMA.md
++++ b/SCHEMA.md
+@@ -5,6 +5,8 @@ This tracker stores local-only experiment lineage at:
+ - `~/.local/share/motion-rl-tracker/graph.json`
+ - `~/.local/share/motion-rl-tracker/index.json`
+ - `~/.local/share/motion-rl-tracker/events.jsonl`
++- `~/.local/share/motion-rl-tracker/checkpoints/` (managed uploaded checkpoint files)
++- `~/.local/share/motion-rl-tracker/videos/` (managed uploaded video files)
+ 
+ ## Graph Model
+ 
+@@ -77,6 +79,7 @@ Common node fields:
+   "run": {
+     "command": "python train.py --task hopper_v1 --seed 1",
+     "checkpoint": "logs/hopper_v1/model_200000.pt",
++    "video": "videos/hopper_v1_rollout.mp4",
+     "metrics": {
+       "score": 0.84,
+       "episode_reward": 6123.2
+@@ -92,6 +95,12 @@ Key semantics:
+ - `delta` is a shorthand map of `path -> after`.
+ - `changes` is the full explainable mutation record.
+ - `run` embeds execution info (command, checkpoint, metrics) directly in the mutation.
++- `run.checkpoint` remains a string path and supports two modes:
++  - tracker-managed relative paths under `checkpoints/` (recommended for dashboard upload/download)
++  - manual external filesystem paths entered by the user
++- `run.video` follows the same path semantics:
++  - tracker-managed relative paths under `videos/` (recommended for dashboard upload/preview/download)
++  - manual external filesystem paths entered by the user
+ - Secondary parents remain lineage references, not merge sources.
+ 
+ ## Edge Model
+diff --git a/dashboard_server.py b/dashboard_server.py
+index 64a6651..741e7d4 100755
+--- a/dashboard_server.py
++++ b/dashboard_server.py
+@@ -2,10 +2,16 @@
+ from __future__ import annotations
+ 
+ import argparse
++import cgi
++import io
+ import json
++import mimetypes
++import re
++import shutil
+ from http import HTTPStatus
+ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+ from pathlib import Path
++from uuid import uuid4
+ from urllib.parse import parse_qs, urlparse
+ 
+ from tracker_store import (
+@@ -237,6 +243,10 @@ HTML = """<!doctype html>
+       min-width: 280px;
+       max-width: 600px;
+     }
++    .layout.inspector-hidden .inspector-panel,
++    .layout.inspector-hidden #resizeHandle2 {
++      display: none;
++    }
+     .resize-handle {
+       width: 8px;
+       flex-shrink: 0;
+@@ -790,6 +800,37 @@ HTML = """<!doctype html>
+       border-color: rgba(101, 228, 197, 0.7);
+       background: rgba(101, 228, 197, 0.08);
+     }
++    .asset-grid {
++      display: grid;
++      gap: 10px;
++    }
++    .asset-card {
++      border: 1px solid rgba(148, 173, 207, 0.14);
++      border-radius: 12px;
++      padding: 10px;
++      background: rgba(9, 17, 27, 0.58);
++    }
++    .asset-input-row {
++      display: flex;
++      gap: 8px;
++      align-items: center;
++      flex-wrap: wrap;
++      margin-bottom: 8px;
++    }
++    .asset-input-row .edit-inline {
++      flex: 1 1 220px;
++      margin: 0;
++    }
++    .asset-video {
++      margin-top: 8px;
++    }
++    .asset-video video {
++      width: 100%;
++      max-height: 280px;
++      border-radius: 10px;
++      background: rgba(0, 0, 0, 0.75);
++      border: 1px solid rgba(148, 173, 207, 0.22);
++    }
+ 
+     body.focus-mode .hero,
+     body.focus-mode .topbar,
+@@ -861,7 +902,7 @@ HTML = """<!doctype html>
+       </div>
+     </div>
+     <div class="metrics" id="metricsHost"></div>
+-    <div class="layout" id="layoutRoot">
++    <div class="layout inspector-hidden" id="layoutRoot">
+       <div class="panel layout-panel sidebar-panel" id="sidebarPanel">
+         <div class="panel-head">
+           <h2>Scope & Search</h2>
+@@ -943,6 +984,110 @@ HTML = """<!doctype html>
+     function postJson(url, body) {
+       return fetchJson(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+     }
++    const ASSET_CONFIG = {
++      checkpoint: {
++        label: 'checkpoint',
++        accept: '.pt',
++        exts: ['.pt'],
++      },
++      video: {
++        label: 'video',
++        accept: 'video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v',
++        exts: ['.mp4', '.webm', '.mov', '.mkv', '.avi', '.m4v'],
++      },
++    };
++    function assetConfig(assetType) {
++      return ASSET_CONFIG[assetType] || ASSET_CONFIG.checkpoint;
++    }
++    function fileExt(filename) {
++      const name = String(filename || '').toLowerCase();
++      const idx = name.lastIndexOf('.');
++      return idx >= 0 ? name.slice(idx) : '';
++    }
++    function isAllowedAssetFile(file, assetType = 'checkpoint') {
++      if (!file || !file.name) return false;
++      const cfg = assetConfig(assetType);
++      const ext = fileExt(file.name);
++      if (cfg.exts.includes(ext)) return true;
++      if (assetType === 'video' && String(file.type || '').toLowerCase().startsWith('video/')) return true;
++      return false;
++    }
++    function assetDropError(assetType) {
++      return assetType === 'video' ? 'Drop a supported video file' : 'Drop a .pt file';
++    }
++    async function uploadAsset(file, assetType = 'checkpoint') {
++      if (!isAllowedAssetFile(file, assetType)) {
++        throw new Error(assetDropError(assetType));
++      }
++      const form = new FormData();
++      form.append(assetType, file, file.name);
++      form.append('asset', assetType);
++      const endpoint = assetType === 'checkpoint'
++        ? '/api/upload-checkpoint'
++        : `/api/upload-asset?asset=${encodeURIComponent(assetType)}`;
++      const resp = await fetch(endpoint, { method: 'POST', body: form });
++      let payload = {};
++      try { payload = await resp.json(); } catch (err) {}
++      if (!resp.ok || payload.ok === false) {
++        throw new Error(payload.error || `Upload failed: ${resp.status}`);
++      }
++      const path = payload.asset_path || payload.checkpoint_path || payload.video_path || '';
++      if (!path) throw new Error('Upload did not return an asset path.');
++      return path;
++    }
++    async function pickAndUploadAsset(assetType = 'checkpoint') {
++      return new Promise(resolve => {
++        const cfg = assetConfig(assetType);
++        const picker = document.createElement('input');
++        picker.type = 'file';
++        picker.accept = cfg.accept;
++        picker.style.display = 'none';
++        picker.onchange = async () => {
++          const file = picker.files?.[0];
++          picker.remove();
++          if (!file) { resolve(''); return; }
++          try {
++            resolve(await uploadAsset(file, assetType));
++          } catch (err) {
++            toast(err.message || 'Upload failed', 'error');
++            resolve('');
++          }
++        };
++        document.body.appendChild(picker);
++        picker.click();
++      });
++    }
++    async function downloadAsset(nodeId, assetType = 'checkpoint') {
++      const resp = await fetch(`/api/download-asset?node_id=${encodeURIComponent(nodeId)}&asset=${encodeURIComponent(assetType)}`);
++      if (!resp.ok) {
++        let message = `Download failed: ${resp.status}`;
++        try {
++          const payload = await resp.json();
++          if (payload?.error) message = payload.error;
++        } catch (err) {}
++        throw new Error(message);
++      }
++      const blob = await resp.blob();
++      const disposition = resp.headers.get('Content-Disposition') || '';
++      const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
++      const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
++      let filename = `${assetType}-${nodeId}`;
++      if (utf8Match?.[1]) filename = decodeURIComponent(utf8Match[1]);
++      else if (plainMatch?.[1]) filename = plainMatch[1];
++      const url = URL.createObjectURL(blob);
++      const a = document.createElement('a');
++      a.href = url;
++      a.download = filename;
++      document.body.appendChild(a);
++      a.click();
++      a.remove();
++      URL.revokeObjectURL(url);
++    }
++    async function uploadCheckpoint(file) { return uploadAsset(file, 'checkpoint'); }
++    async function downloadCheckpoint(nodeId) { return downloadAsset(nodeId, 'checkpoint'); }
++    function assetStreamUrl(nodeId, assetType = 'video') {
++      return `/api/asset-stream?node_id=${encodeURIComponent(nodeId)}&asset=${encodeURIComponent(assetType)}`;
++    }
+     function nodeMap() { return state.fullGraph?.nodes || {}; }
+     function edgeList(graph = state.fullGraph) { return Object.values(graph?.edges || {}); }
+     function nodeRef(nodeId) { return nodeMap()[nodeId] || null; }
+@@ -1077,25 +1222,88 @@ HTML = """<!doctype html>
+       }, 0);
+       return `<div class="drop-zone editable mono" id="${id}" data-value="${esc(currentValue||'')}" title="Click to edit or drag .pt file">${esc(currentValue || 'Drop .pt file or click to type')}</div>`;
+     }
+-    function makeDropZone(el, nodeId) {
++    function makeDropZone(el, nodeId, options = {}) {
+       if (!el) return;
++      const inputEl = options.inputEl || null;
++      const onUploaded = options.onUploaded || null;
++      const assetType = options.assetType || 'checkpoint';
++      const fieldName = options.saveField || (assetType === 'video' ? 'video' : 'checkpoint');
+       ['dragenter','dragover','dragleave','drop'].forEach(ev => el.addEventListener(ev, e => {
+         e.preventDefault(); e.stopPropagation();
+       }));
+       el.addEventListener('dragenter', () => el.classList.add('drag-over'));
+       el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+       el.addEventListener('dragover', () => {});
+-      el.addEventListener('drop', e => {
++      el.addEventListener('drop', async e => {
+         el.classList.remove('drag-over');
+         const file = e.dataTransfer?.files?.[0];
+-        if (!file || !file.name.toLowerCase().endsWith('.pt')) {
+-          toast('Drop a .pt file', 'error');
++        if (!isAllowedAssetFile(file, assetType)) {
++          toast(assetDropError(assetType), 'error');
+           return;
+         }
+-        const path = file.path || file.name;
+-        if (el.tagName === 'INPUT') el.value = path;
+-        else el.dataset.value = path;
+-        saveField(nodeId, 'checkpoint', path);
++        try {
++          const path = await uploadAsset(file, assetType);
++          if (el.tagName === 'INPUT') el.value = path;
++          else el.dataset.value = path;
++          if (inputEl) inputEl.value = path;
++          if (typeof onUploaded === 'function') onUploaded(path);
++          if (nodeId && fieldName) await saveField(nodeId, fieldName, path);
++          else toast(`${assetConfig(assetType).label} uploaded`, 'success');
++        } catch (err) {
++          toast(err.message || 'Asset upload failed', 'error');
++        }
++      });
++    }
++
++    function setupInspectorAssetField(options) {
++      const {
++        nodeId,
++        assetType,
++        inputId,
++        dropZoneId,
++        uploadBtnId,
++        downloadBtnId,
++      } = options;
++      const input = document.getElementById(inputId);
++      const dropZone = document.getElementById(dropZoneId);
++      const uploadBtn = document.getElementById(uploadBtnId);
++      const downloadBtn = downloadBtnId ? document.getElementById(downloadBtnId) : null;
++      if (!input || !dropZone || !uploadBtn) return;
++      input.dataset.current = input.value.trim();
++      const commit = async () => {
++        const nextValue = input.value.trim();
++        const prevValue = input.dataset.current || '';
++        if (nextValue === prevValue) return;
++        await saveField(nodeId, assetType, nextValue);
++        input.dataset.current = nextValue;
++      };
++      input.addEventListener('blur', () => {
++        commit().catch(err => toast(err.message, 'error'));
++      });
++      input.addEventListener('keydown', e => {
++        if (e.key === 'Enter') {
++          e.preventDefault();
++          input.blur();
++        }
++      });
++      makeDropZone(dropZone, nodeId, {
++        inputEl: input,
++        assetType,
++        saveField: assetType,
++        onUploaded: path => { input.dataset.current = path; },
++      });
++      uploadBtn.addEventListener('click', () => {
++        pickAndUploadAsset(assetType).then(async path => {
++          if (!path) return;
++          input.value = path;
++          await saveField(nodeId, assetType, path);
++          input.dataset.current = path;
++        }).catch(err => toast(err.message, 'error'));
++      });
++      downloadBtn?.addEventListener('click', () => {
++        downloadAsset(nodeId, assetType).then(() => {
++          toast(`${assetConfig(assetType).label} download started`, 'success');
++        }).catch(err => toast(err.message, 'error'));
+       });
+     }
+ 
+@@ -1233,7 +1441,18 @@ HTML = """<!doctype html>
+         <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:14px">
+           <div class="section-title" style="margin:0 0 10px">Run Info (optional)</div>
+           <label>Command</label><input type="text" id="m-cmd" placeholder="e.g. python train.py --lr 0.01">
+-          <label>Checkpoint</label><div class="drop-zone mono" id="m-ckpt-drop" style="min-height:40px;padding:10px" title="Drag .pt file or type path"><input type="text" id="m-ckpt" placeholder="Drag .pt file or type path" style="width:100%;background:transparent;border:0;color:inherit;font:inherit;outline:none"></div>
++          <label>Checkpoint</label>
++          <div class="asset-input-row">
++            <input class="edit-inline mono" type="text" id="m-ckpt" placeholder="Drag .pt file, upload, or type path">
++            <button type="button" class="pill" id="m-ckpt-upload">Upload</button>
++          </div>
++          <div class="drop-zone mono" id="m-ckpt-drop" style="min-height:40px;padding:10px" title="Drag .pt file">Drag .pt file here</div>
++          <label>Video</label>
++          <div class="asset-input-row">
++            <input class="edit-inline mono" type="text" id="m-video" placeholder="Drag video, upload, or type path">
++            <button type="button" class="pill" id="m-video-upload">Upload</button>
++          </div>
++          <div class="drop-zone mono" id="m-video-drop" style="min-height:40px;padding:10px" title="Drag video file">Drag video file here</div>
+           <label>Metrics (JSON)</label><textarea id="m-metrics" placeholder='{"score": 0.95}'></textarea>
+         </div>
+         <div class="btn-row">
+@@ -1242,19 +1461,27 @@ HTML = """<!doctype html>
+         </div>
+       `);
+       (function setupCkptDrop() {
+-        const zone = document.getElementById('m-ckpt-drop');
+-        const inp = document.getElementById('m-ckpt');
+-        if (!zone || !inp) return;
+-        ['dragenter','dragover','dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }));
+-        zone.addEventListener('dragenter', () => zone.classList.add('drag-over'));
+-        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+-        zone.addEventListener('drop', e => {
+-          zone.classList.remove('drag-over');
+-          const file = e.dataTransfer?.files?.[0];
+-          if (file && file.name.toLowerCase().endsWith('.pt')) {
+-            inp.value = file.path || file.name;
+-            toast('Checkpoint set', 'success');
+-          } else if (file) toast('Drop a .pt file', 'error');
++        const ckptZone = document.getElementById('m-ckpt-drop');
++        const ckptInput = document.getElementById('m-ckpt');
++        const ckptUploadBtn = document.getElementById('m-ckpt-upload');
++        const videoZone = document.getElementById('m-video-drop');
++        const videoInput = document.getElementById('m-video');
++        const videoUploadBtn = document.getElementById('m-video-upload');
++        if (ckptZone && ckptInput) {
++          makeDropZone(ckptZone, null, { inputEl: ckptInput, assetType: 'checkpoint', saveField: null });
++        }
++        if (videoZone && videoInput) {
++          makeDropZone(videoZone, null, { inputEl: videoInput, assetType: 'video', saveField: null });
++        }
++        ckptUploadBtn?.addEventListener('click', () => {
++          pickAndUploadAsset('checkpoint').then(path => {
++            if (path && ckptInput) ckptInput.value = path;
++          });
++        });
++        videoUploadBtn?.addEventListener('click', () => {
++          pickAndUploadAsset('video').then(path => {
++            if (path && videoInput) videoInput.value = path;
++          });
+         });
+       })();
+       document.getElementById('m-submit').addEventListener('click', async () => {
+@@ -1280,6 +1507,7 @@ HTML = """<!doctype html>
+             tags: document.getElementById('m-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+             command: document.getElementById('m-cmd').value.trim(),
+             checkpoint: document.getElementById('m-ckpt').value.trim(),
++            video: document.getElementById('m-video').value.trim(),
+             metrics,
+           });
+           closeModal();
+@@ -1435,51 +1663,62 @@ HTML = """<!doctype html>
+     /* ── Render: Inspector (with inline editing) ── */
+     function renderInspector() {
+       const host = document.getElementById('inspectorHost');
++      const layoutRoot = document.getElementById('layoutRoot');
+       if (!state.detail) {
+-        host.innerHTML = `<div class="section"><p class="inspector-title">No node selected</p><p class="inspector-summary">Click any node in the graph to inspect and edit it.</p></div>
+-        <div class="section"><div class="section-title">Quick Start</div><div class="empty-state">Use <strong>+ New</strong> or press <strong>N</strong> to create nodes.<br>Click any underlined field to edit it inline.<br>Press <strong>F</strong> for focus mode, <strong>R</strong> to refresh.</div></div>`;
++        layoutRoot?.classList.add('inspector-hidden');
++        host.innerHTML = '';
+         return;
+       }
++      layoutRoot?.classList.remove('inspector-hidden');
+       const d = state.detail, nid = d.id;
+-      const pills = (items, label) => {
+-        if (!items?.length) return `<div class="small-note">No ${label.toLowerCase()}.</div>`;
+-        return `<div class="chip-list">${items.map(i => `<button class="pill" data-node-id="${esc(i.id)}"><span>${esc(i.name)}</span> <span class="mono">${esc(i.id)}</span></button>`).join('')}</div>`;
+-      };
+-      let mainBlock = '', actionBlock = '';
+-      if (d.type === 'task') {
+-        mainBlock = `
+-          <div class="section"><div class="section-title">Base Configuration</div><pre>${esc(JSON.stringify(d.task?.base_config||{}, null, 2))}</pre></div>
+-          <div class="section"><div class="section-title">Task Context</div>
+-            <div class="kv"><div class="k">Description</div><div class="v">${editableText(nid, 'description', d.task?.description||'', 'textarea')}</div></div>
+-            <div class="kv"><div class="k">Repo Task</div><div class="v mono">${editableText(nid, 'repo_task', d.task?.repo_task||'')}</div></div>
+-          </div>`;
+-        actionBlock = `<button class="action-btn" onclick="showCreateMutationModal()">+ Add Mutation</button>`;
+-      } else if (d.type === 'mutation') {
+-        const changes = d.mutation?.changes || [];
+-        const run = d.mutation?.run || {};
+-        const hasRun = run.command || run.checkpoint || (run.metrics && Object.keys(run.metrics).length);
+-        mainBlock = `
+-          <div class="section"><div class="section-title">What Changed</div>
+-            <div class="table-wrap"><table><thead><tr><th>Path</th><th>From</th><th>To</th><th>Why</th></tr></thead>
+-            <tbody>${changes.length ? changes.map(c => `<tr><td class="mono">${esc(c.path)}</td><td class="mono">${esc(JSON.stringify(c.before))}</td><td class="mono">${esc(JSON.stringify(c.after))}</td><td>${esc(c.reason||d.mutation?.rationale||'')}</td></tr>`).join('') : '<tr><td colspan="4">No changes recorded.</td></tr>'}</tbody></table></div>
+-          </div>
+-          <div class="section"><div class="section-title">Why It Exists</div>
+-            <div class="kv"><div class="k">Rationale</div><div class="v">${editableText(nid, 'rationale', d.mutation?.rationale||'', 'textarea')}</div></div>
+-            <div class="kv"><div class="k">Hypothesis</div><div class="v">${editableText(nid, 'hypothesis', d.mutation?.hypothesis||'', 'textarea')}</div></div>
+-            <div class="kv"><div class="k">Outcome</div><div class="v">${editableText(nid, 'expected_outcome', d.mutation?.expected_outcome||'')}</div></div>
+-          </div>
+-          <div class="section"><div class="section-title">Run Info${hasRun ? '' : ' <span style="color:var(--muted);font-weight:400;font-size:11px">(not yet recorded)</span>'}</div>
+-            <div class="kv"><div class="k">Command</div><div class="v mono">${editableText(nid, 'command', run.command||'')}</div></div>
+-            <div class="kv"><div class="k">Checkpoint</div><div class="v">${editableCheckpoint(nid, run.checkpoint||'')}</div></div>
+-            <div class="kv"><div class="k">Metrics</div><div class="v mono">${esc(JSON.stringify(run.metrics||{}, null, 2))}</div></div>
+-          </div>
+-          <div class="section"><div class="section-title">Config Snapshots</div>
+-            <div class="small-note">Before</div><pre>${esc(JSON.stringify(d.mutation?.before_config||{}, null, 2))}</pre>
+-            <div style="height:8px"></div>
+-            <div class="small-note">After</div><pre>${esc(JSON.stringify(d.mutation?.after_config||{}, null, 2))}</pre>
++      const taskId = d.type === 'task' ? d.id : String(d.task?.id || '');
++      const taskNode = taskId ? nodeRef(taskId) : null;
++      const taskName = taskNode?.name || d.task?.name || (d.type === 'task' ? d.name : '(unknown task)');
++      const taskDescription = String(taskNode?.data?.description || d.task?.description || '');
++      const run = d.mutation?.run || {};
++      const checkpointPath = String(run.checkpoint || '').trim();
++      const videoPath = String(run.video || '').trim();
++      const immediateParentId = d.type === 'mutation'
++        ? String(d.mutation?.primary_parent_id || d.parents?.[0]?.id || '').trim()
++        : '';
++      const immediateParent = immediateParentId
++        ? (d.parents || []).find(p => p.id === immediateParentId) || nodeRef(immediateParentId) || { id: immediateParentId, name: immediateParentId }
++        : null;
++      const configPayload = d.type === 'task'
++        ? (d.task?.base_config || taskNode?.data?.base_config || {})
++        : (d.mutation?.after_config || {});
++      const assetsBlock = d.type !== 'mutation'
++        ? `<div class="small-note">No node assets for this type.</div>`
++        : `
++          <div class="asset-grid">
++            <div class="asset-card">
++              <div class="small-note" style="margin-bottom:6px">Checkpoint (.pt)</div>
++              <div class="asset-input-row">
++                <input class="edit-inline mono" id="ins-checkpoint-input" value="${esc(checkpointPath)}" placeholder="Upload, drag, or type checkpoint path">
++                <button type="button" class="pill" id="ins-checkpoint-upload">Upload</button>
++                ${checkpointPath ? `<button type="button" class="pill" id="ins-checkpoint-download">Download</button>` : ''}
++              </div>
++              <div class="drop-zone mono" id="ins-checkpoint-drop" title="Drag .pt file">${checkpointPath ? esc(checkpointPath) : 'Drag .pt file here'}</div>
++            </div>
++            <div class="asset-card">
++              <div class="small-note" style="margin-bottom:6px">Video</div>
++              <div class="asset-input-row">
++                <input class="edit-inline mono" id="ins-video-input" value="${esc(videoPath)}" placeholder="Upload, drag, or type video path">
++                <button type="button" class="pill" id="ins-video-upload">Upload</button>
++                ${videoPath ? `<button type="button" class="pill" id="ins-video-download">Download</button>` : ''}
++              </div>
++              <div class="drop-zone mono" id="ins-video-drop" title="Drag video file">${videoPath ? esc(videoPath) : 'Drag video file here'}</div>
++              ${videoPath ? `<div class="asset-video"><video controls preload="metadata" src="${esc(assetStreamUrl(nid, 'video'))}"></video></div>` : ''}
++            </div>
+           </div>`;
+-        actionBlock = `<button class="action-btn" onclick="showCreateMutationModal()">+ Derive Mutation</button>`;
+-      }
++      const parentBlock = d.type !== 'mutation'
++        ? `<div class="small-note">None (task root node).</div>`
++        : immediateParent
++          ? `<button class="pill" data-node-id="${esc(immediateParent.id)}"><span>${esc(immediateParent.name || immediateParent.id)}</span> <span class="mono">${esc(immediateParent.id)}</span></button>`
++          : `<div class="small-note">None (derived directly from task baseline).</div>`;
++      const actionBlock = d.type === 'task'
++        ? `<button class="action-btn" onclick="showCreateMutationModal()">+ Add Mutation</button>`
++        : `<button class="action-btn" onclick="showCreateMutationModal()">+ Derive Mutation</button>`;
+       host.innerHTML = `
+         <div class="section">
+           <p class="inspector-title">${editableText(nid, 'name', d.name)}</p>
+@@ -1494,35 +1733,51 @@ HTML = """<!doctype html>
+             <div class="section-title">Color</div>
+             <div style="display:flex;gap:6px;flex-wrap:wrap">${colorSwatches(nid, d.color)}</div>
+           </div>
+-          ${actionBlock ? `<div class="action-row" style="margin-top:12px">${actionBlock}</div>` : ''}
++          <div class="action-row" style="margin-top:12px">${actionBlock}</div>
+         </div>
+-        <div class="section"><div class="section-title">Where It Came From</div>${pills(d.parents, 'parents')}</div>
+-        <div class="section"><div class="section-title">What It Turned Into</div>${pills(d.children, 'children')}</div>
+-        ${mainBlock}
+-        <div class="section"><div class="section-title">My Notes</div>
+-          <div>${editableText(nid, 'notes', d.notes||'', 'textarea')}</div>
++        <div class="section">
++          <div class="section-title">Task Name</div>
++          <div class="kv"><div class="k">Task</div><div class="v">${esc(taskName)}${taskId ? ` <span class="mono">(${esc(taskId)})</span>` : ''}</div></div>
+         </div>
+-        <div class="section"><div class="section-title">Lineage</div>
+-          <div class="kv"><div class="k">Ancestors</div><div class="v">${d.ancestors?.length||0}</div></div>
+-          <div class="kv"><div class="k">Descendants</div><div class="v">${d.descendants?.length||0}</div></div>
++        <div class="section">
++          <div class="section-title">Description of Task</div>
++          <div class="small-note">${esc(taskDescription || 'No task description.')}</div>
+         </div>
+         <div class="section">
+-          <button id="compareBtn" class="pill" style="width:100%;justify-content:center;padding:10px;cursor:pointer;background:var(--accent-2);color:var(--bg);">
+-            ${state.compareNodeId ? 'Compare with ' + esc(state.compareNodeId) : 'Set as compare target'}
+-          </button>
++          <div class="section-title">Assets That Belong To Node</div>
++          ${assetsBlock}
+         </div>
+-        <div id="comparePanel"></div>`;
++        <div class="section">
++          <div class="section-title">Immediate Parent Node</div>
++          ${parentBlock}
++        </div>
++        <div class="section">
++          <div class="section-title">Config</div>
++          <pre>${esc(JSON.stringify(configPayload, null, 2))}</pre>
++        </div>
++        <div class="section"><div class="section-title">My Notes</div>
++          <div>${editableText(nid, 'notes', d.notes||'', 'textarea')}</div>
++        </div>`;
+ 
+       host.querySelectorAll('[data-node-id]').forEach(el => { el.addEventListener('click', async()=>{ await loadDetail(el.dataset.nodeId); await refreshSearch(); renderAll(); }); });
+-      document.getElementById('compareBtn').addEventListener('click', () => {
+-        (async () => {
+-          if (!state.compareNodeId) { state.compareNodeId = state.selectedNodeId; renderInspector(); }
+-          else if (state.compareNodeId !== state.selectedNodeId) {
+-            const p = await fetchJson('/api/compare?a='+encodeURIComponent(state.compareNodeId)+'&b='+encodeURIComponent(state.selectedNodeId));
+-            state.comparison = p.comparison; renderCompare();
+-          }
+-        })().catch(e => toast('Compare failed: '+e.message, 'error'));
+-      });
++      if (d.type === 'mutation') {
++        setupInspectorAssetField({
++          nodeId: nid,
++          assetType: 'checkpoint',
++          inputId: 'ins-checkpoint-input',
++          dropZoneId: 'ins-checkpoint-drop',
++          uploadBtnId: 'ins-checkpoint-upload',
++          downloadBtnId: 'ins-checkpoint-download',
++        });
++        setupInspectorAssetField({
++          nodeId: nid,
++          assetType: 'video',
++          inputId: 'ins-video-input',
++          dropZoneId: 'ins-video-drop',
++          uploadBtnId: 'ins-video-upload',
++          downloadBtnId: 'ins-video-download',
++        });
++      }
+     }
+ 
+     function renderCompare() {
+@@ -1653,6 +1908,16 @@ HTML = """<!doctype html>
+ 
+ class Handler(BaseHTTPRequestHandler):
+     store_root: Path = DEFAULT_ROOT
++    ASSET_RULES = {
++        "checkpoint": {
++            "folder": "checkpoints",
++            "extensions": {".pt"},
++        },
++        "video": {
++            "folder": "videos",
++            "extensions": {".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v"},
++        },
++    }
+ 
+     def _json(self, payload: dict, code: int = 200) -> None:
+         body = json.dumps(payload, indent=2).encode("utf-8")
+@@ -1662,6 +1927,171 @@ class Handler(BaseHTTPRequestHandler):
+         self.end_headers()
+         self.wfile.write(body)
+ 
++    @classmethod
++    def _asset_rule(cls, asset_type: str) -> dict:
++        normalized = str(asset_type or "").strip().lower()
++        if normalized not in cls.ASSET_RULES:
++            raise ValueError(f"Unsupported asset type: {asset_type}")
++        return cls.ASSET_RULES[normalized]
++
++    def _asset_dir(self, asset_type: str) -> Path:
++        rule = self._asset_rule(asset_type)
++        target = self.store_root / str(rule["folder"])
++        target.mkdir(parents=True, exist_ok=True)
++        return target
++
++    def _sanitize_asset_filename(self, asset_type: str, filename: str) -> str:
++        rule = self._asset_rule(asset_type)
++        base_name = Path(str(filename or "").strip()).name
++        if not base_name:
++            raise ValueError("Missing asset filename.")
++        ext = Path(base_name).suffix.lower()
++        if ext not in set(rule["extensions"]):
++            allowed = ", ".join(sorted(rule["extensions"]))
++            raise ValueError(f"{asset_type} file must end with one of: {allowed}")
++        stem = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(base_name).stem).strip("._-")
++        if not stem:
++            stem = str(asset_type)
++        return f"{stem}{ext}"
++
++    def _managed_asset_target(self, asset_type: str, filename: str) -> tuple[Path, str]:
++        safe_name = self._sanitize_asset_filename(asset_type, filename)
++        suffix = Path(safe_name).suffix
++        stem = Path(safe_name).stem
++        asset_dir = self._asset_dir(asset_type)
++        folder_name = str(self._asset_rule(asset_type)["folder"])
++        for _ in range(12):
++            managed_name = f"{stem}-{uuid4().hex[:10]}{suffix}"
++            target = asset_dir / managed_name
++            if not target.exists():
++                return target, (Path(folder_name) / managed_name).as_posix()
++        raise RuntimeError("Unable to allocate a unique asset filename.")
++
++    def _managed_checkpoint_target(self, filename: str) -> tuple[Path, str]:
++        return self._managed_asset_target("checkpoint", filename)
++
++    def _resolve_asset_file(self, asset_value: str) -> Path:
++        raw = str(asset_value or "").strip()
++        if not raw:
++            raise ValueError("Asset path is empty.")
++        candidate = Path(raw).expanduser()
++        if candidate.is_absolute():
++            resolved = candidate.resolve(strict=False)
++        else:
++            resolved = (self.store_root / candidate).resolve(strict=False)
++            root_resolved = self.store_root.resolve(strict=False)
++            try:
++                resolved.relative_to(root_resolved)
++            except ValueError as exc:
++                raise ValueError(
++                    "Relative asset path must stay inside tracker store."
++                ) from exc
++        if not resolved.exists():
++            raise FileNotFoundError(f"Asset file not found: {resolved}")
++        if not resolved.is_file():
++            raise ValueError(f"Asset path is not a file: {resolved}")
++        return resolved
++
++    def _resolve_checkpoint_file(self, checkpoint_value: str) -> Path:
++        return self._resolve_asset_file(checkpoint_value)
++
++    def _mutation_asset_path(
++        self, graph: dict, node_id: str, asset_type: str
++    ) -> str:
++        node = graph.get("nodes", {}).get(node_id)
++        if not node:
++            raise FileNotFoundError(f"Unknown node: {node_id}")
++        if node.get("type") != "mutation":
++            raise ValueError(
++                f"{asset_type} assets are only supported for mutation nodes."
++            )
++        asset_key = str(asset_type).strip().lower()
++        if asset_key not in {"checkpoint", "video"}:
++            raise ValueError(f"Unsupported asset type: {asset_type}")
++        value = str(node.get("data", {}).get("run", {}).get(asset_key, "")).strip()
++        if not value:
++            raise FileNotFoundError(f"Mutation has no {asset_key} asset set.")
++        return value
++
++    def _send_asset_file(self, file_path: Path, *, as_attachment: bool) -> None:
++        data = file_path.read_bytes()
++        file_name = file_path.name.replace('"', "")
++        content_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
++        self.send_response(HTTPStatus.OK)
++        self.send_header("Content-Type", content_type)
++        if as_attachment:
++            self.send_header(
++                "Content-Disposition", f'attachment; filename="{file_name}"'
++            )
++        self.send_header("Content-Length", str(len(data)))
++        self.end_headers()
++        self.wfile.write(data)
++
++    def _upload_asset(self, asset_type: str) -> dict:
++        normalized = str(asset_type or "").strip().lower()
++        self._asset_rule(normalized)
++        form = self._read_multipart_form()
++        field = None
++        for key in (normalized, "file", "checkpoint", "video"):
++            if key not in form:
++                continue
++            candidate = form[key]
++            if isinstance(candidate, list):
++                candidate = candidate[0]
++            if getattr(candidate, "filename", None):
++                field = candidate
++                break
++        if field is None:
++            raise ValueError(f"Missing {normalized} file field.")
++        filename = str(getattr(field, "filename", "") or "").strip()
++        if not filename:
++            raise ValueError("Missing asset filename.")
++        upload_stream = getattr(field, "file", None)
++        if upload_stream is None:
++            raise ValueError("Missing asset file content.")
++        target_path, asset_path = self._managed_asset_target(normalized, filename)
++        with target_path.open("wb") as out:
++            shutil.copyfileobj(upload_stream, out)
++        append_event(
++            {
++                "event": "upload_asset",
++                "asset_type": normalized,
++                "asset_path": asset_path,
++                "bytes": target_path.stat().st_size,
++            },
++            self.store_root,
++        )
++        payload = {
++            "ok": True,
++            "managed": True,
++            "asset_type": normalized,
++            "asset_path": asset_path,
++        }
++        if normalized == "checkpoint":
++            payload["checkpoint_path"] = asset_path
++        if normalized == "video":
++            payload["video_path"] = asset_path
++        return payload
++
++    def _read_multipart_form(self) -> cgi.FieldStorage:
++        content_type = str(self.headers.get("Content-Type", ""))
++        if "multipart/form-data" not in content_type.lower():
++            raise ValueError("Content-Type must be multipart/form-data.")
++        length = int(self.headers.get("Content-Length", 0))
++        if length <= 0:
++            raise ValueError("Missing upload body.")
++        payload = self.rfile.read(length)
++        return cgi.FieldStorage(
++            fp=io.BytesIO(payload),
++            headers=self.headers,
++            environ={
++                "REQUEST_METHOD": "POST",
++                "CONTENT_TYPE": content_type,
++                "CONTENT_LENGTH": str(length),
++            },
++            keep_blank_values=True,
++        )
++
+     def do_GET(self) -> None:
+         parsed = urlparse(self.path)
+         if parsed.path == "/":
+@@ -1723,6 +2153,35 @@ class Handler(BaseHTTPRequestHandler):
+             graph = load_graph(self.store_root)
+             self._json({"ok": True, "comparison": compare_nodes(graph, node_a, node_b)})
+             return
++        if parsed.path in {
++            "/api/download-checkpoint",
++            "/api/download-asset",
++            "/api/asset-stream",
++        }:
++            params = parse_qs(parsed.query)
++            node_id = params.get("node_id", [""])[0].strip()
++            if not node_id:
++                self._json({"ok": False, "error": "Missing node_id"}, 400)
++                return
++            asset_type = (
++                "checkpoint"
++                if parsed.path == "/api/download-checkpoint"
++                else params.get("asset", ["checkpoint"])[0].strip().lower() or "checkpoint"
++            )
++            graph = load_graph(self.store_root)
++            try:
++                asset_value = self._mutation_asset_path(graph, node_id, asset_type)
++                asset_file = self._resolve_asset_file(asset_value)
++            except FileNotFoundError as exc:
++                self._json({"ok": False, "error": str(exc)}, 404)
++                return
++            except ValueError as exc:
++                self._json({"ok": False, "error": str(exc)}, 400)
++                return
++            self._send_asset_file(
++                asset_file, as_attachment=(parsed.path != "/api/asset-stream")
++            )
++            return
+         if parsed.path == "/download/lineage.md":
+             out = export_mermaid_markdown(self.store_root)
+             data = out.read_bytes()
+@@ -1766,6 +2225,29 @@ class Handler(BaseHTTPRequestHandler):
+             excel = export_excel_xml(self.store_root)
+             self._json({"ok": True, "mermaid": str(mermaid), "excel": str(excel)})
+             return
++        if parsed.path == "/api/upload-checkpoint":
++            try:
++                self._json(self._upload_asset("checkpoint"))
++            except Exception as exc:
++                self._json({"ok": False, "error": str(exc)}, 400)
++            return
++        if parsed.path == "/api/upload-asset":
++            params = parse_qs(parsed.query)
++            asset_type = params.get("asset", [""])[0].strip().lower()
++            if not asset_type:
++                self._json(
++                    {
++                        "ok": False,
++                        "error": "Missing asset type. Use ?asset=checkpoint or ?asset=video.",
++                    },
++                    400,
++                )
++                return
++            try:
++                self._json(self._upload_asset(asset_type))
++            except Exception as exc:
++                self._json({"ok": False, "error": str(exc)}, 400)
++            return
+         if parsed.path == "/api/create-task":
+             try:
+                 body = self._read_body()
+@@ -1809,6 +2291,7 @@ class Handler(BaseHTTPRequestHandler):
+                     expected_outcome=body.get("expected_outcome", ""),
+                     command=body.get("command", ""),
+                     checkpoint=body.get("checkpoint", ""),
++                    video=body.get("video", ""),
+                     metrics=body.get("metrics"),
+                 )
+                 node = add_node(
+@@ -1875,7 +2358,7 @@ class Handler(BaseHTTPRequestHandler):
+                             data[k] = body[k]
+                             changed = True
+                     run = dict(data.get("run", {}))
+-                    for k in ("command", "checkpoint"):
++                    for k in ("command", "checkpoint", "video"):
+                         if k in body:
+                             run[k] = body[k]
+                             changed = True
+diff --git a/tracker_store.py b/tracker_store.py
+index 06a410d..f637b26 100644
+--- a/tracker_store.py
++++ b/tracker_store.py
+@@ -58,7 +58,15 @@ def ensure_store(root: Optional[Path] = None) -> Dict[str, Path]:
+     if not paths["index"].exists():
+         write_json(
+             paths["index"],
+-            {"tasks": {}, "mutations": {}, "runs": {}, "checkpoints": {}, "tags": {}},
++            {
++                "tasks": {},
++                "mutations": {},
++                "runs": {},
++                "checkpoints": {},
++                "videos": {},
++                "tags": {},
++                "changed_paths": {},
++            },
+         )
+     return paths
+ 
+@@ -281,6 +289,7 @@ def normalize_mutation_data(
+     expected_outcome: str = "",
+     command: str = "",
+     checkpoint: str = "",
++    video: str = "",
+     metrics: Optional[Dict[str, Any]] = None,
+ ) -> Dict[str, Any]:
+     if task_id not in graph["nodes"] or graph["nodes"][task_id]["type"] != "task":
+@@ -314,6 +323,7 @@ def normalize_mutation_data(
+     run_data = {
+         "command": command,
+         "checkpoint": checkpoint,
++        "video": video,
+         "metrics": metrics if isinstance(metrics, dict) else {},
+     }
+     return {
+@@ -412,6 +422,7 @@ def _upgrade_graph(graph: Dict[str, Any]) -> Dict[str, Any]:
+             data["run"] = {
+                 "command": str(run.get("command", "")),
+                 "checkpoint": str(run.get("checkpoint", "")),
++                "video": str(run.get("video", "")),
+                 "metrics": run.get("metrics") if isinstance(run.get("metrics"), dict) else {},
+             }
+     upgraded["version"] = GRAPH_VERSION
+@@ -653,6 +664,7 @@ def build_index(graph: Dict[str, Any]) -> Dict[str, Any]:
+         "tasks": {},
+         "mutations": {},
+         "checkpoints": {},
++        "videos": {},
+         "tags": {},
+         "changed_paths": {},
+     }
+@@ -669,6 +681,9 @@ def build_index(graph: Dict[str, Any]) -> Dict[str, Any]:
+             checkpoint = node.get("data", {}).get("run", {}).get("checkpoint")
+             if checkpoint:
+                 index["checkpoints"][checkpoint] = node_id
++            video = node.get("data", {}).get("run", {}).get("video")
++            if video:
++                index["videos"][video] = node_id
+     return index
+ 
+ 
+@@ -785,6 +800,7 @@ def explain_node(graph: Dict[str, Any], node_id: str) -> Dict[str, Any]:
+             "run": {
+                 "command": str(run.get("command", "")),
+                 "checkpoint": str(run.get("checkpoint", "")),
++                "video": str(run.get("video", "")),
+                 "metrics": _deep_copy(run.get("metrics", {})),
+             },
+         }
+@@ -834,6 +850,7 @@ def search_nodes(
+             run = data.get("run", {})
+             haystacks["command"] = run.get("command", "")
+             haystacks["checkpoint"] = run.get("checkpoint", "")
++            haystacks["video"] = run.get("video", "")
+             haystacks["metrics"] = _stringify(run.get("metrics", {}))
+         score = 0
+         matched_fields: List[str] = []
+@@ -882,7 +899,7 @@ def build_summary(graph: Dict[str, Any]) -> Dict[str, Any]:
+     for mutation in by_type["mutation"]:
+         changed_paths.update(_iter_change_paths(mutation))
+         run = mutation.get("data", {}).get("run", {})
+-        if run.get("command") or run.get("metrics"):
++        if run.get("command") or run.get("checkpoint") or run.get("video") or run.get("metrics"):
+             task_id = mutation.get("data", {}).get("task_id", "")
+             if task_id:
+                 children_of_task.setdefault(task_id, {"mutations": 0, "with_runs": 0})

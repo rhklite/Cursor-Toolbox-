@@ -1,0 +1,1199 @@
+# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2021 ETH Zurich, Nikita Rudin
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Copyright (c) 2024 Beijing RobotEra TECHNOLOGY CO.,LTD. All rights reserved.
+
+import copy
+import os
+from humanoid import LEGGED_GYM_ROOT_DIR
+
+from humanoid.envs import *
+from humanoid.utils import get_args, task_registry, Logger
+from humanoid.utils.camera import update_camera_position
+from isaacgym.torch_utils import *
+from isaacgym import gymapi, gymtorch
+
+import torch
+from tqdm import tqdm
+import humanoid.utils.video_processor as vp
+from humanoid.utils.write_to_csv import write_csv
+from datetime import datetime
+from collections import deque
+import subprocess
+
+# 训练格式CSV转换函数，将RobotData转换为符合配置文件期望的格式
+def convert_robot_data_list_to_training_format(data_list, output_path):
+    """
+    将机器人数据列表转换为训练格式CSV文件，列名符合配置文件期望的格式
+
+    Args:
+        data_list: 机器人数据列表（字典列表）
+        output_path: 输出CSV文件路径
+    """
+    import pandas as pd
+    import os
+
+    # 确保输出目录存在
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    # 转换每一行数据
+    converted_rows = []
+    for data_dict in data_list:
+        row = {}
+
+        # 1. root_linear_velocity_in_body -> "Pelvis Velocity 0", "Pelvis Velocity 1", "Pelvis Velocity 2"
+        root_lin_vel = (
+            data_dict.get('state', {}).get('cartesian', {}).get('root_in_world', {}).get('linear_velocity', [0, 0, 0])
+        )
+        if isinstance(root_lin_vel, list) and len(root_lin_vel) >= 3:
+            row['Pelvis Velocity 0'] = root_lin_vel[0]
+            row['Pelvis Velocity 1'] = root_lin_vel[1]
+            row['Pelvis Velocity 2'] = root_lin_vel[2]
+        else:
+            row['Pelvis Velocity 0'] = 0.0
+            row['Pelvis Velocity 1'] = 0.0
+            row['Pelvis Velocity 2'] = 0.0
+
+        # 2. root_angular_velocity_in_body -> "Pelvis Velocity 3", "Pelvis Velocity 4", "Pelvis Velocity 5"
+        root_ang_vel = (
+            data_dict.get('state', {}).get('cartesian', {}).get('root_in_world', {}).get('angular_velocity', [0, 0, 0])
+        )
+        if isinstance(root_ang_vel, list) and len(root_ang_vel) >= 3:
+            row['Pelvis Velocity 3'] = root_ang_vel[0]
+            row['Pelvis Velocity 4'] = root_ang_vel[1]
+            row['Pelvis Velocity 5'] = root_ang_vel[2]
+        else:
+            row['Pelvis Velocity 3'] = 0.0
+            row['Pelvis Velocity 4'] = 0.0
+            row['Pelvis Velocity 5'] = 0.0
+
+        # 3. ankle_pos 和 ankle_vel (配置文件中是空字符串，不需要在CSV中包含这些列)
+        # 这些数据会在 process_mocap_data.py 中通过 Isaac Gym 计算得出
+
+        # 4. 关节位置和速度
+        joint_data = data_dict.get('state', {}).get('joint', {})
+
+        # 左腿关节位置 (leg_L_joint_1_pos 到 leg_L_joint_6_pos)
+        leg_l_joints = sorted([k for k in joint_data.keys() if 'leg_l' in k.lower()])
+        for i in range(6):
+            if i < len(leg_l_joints):
+                joint_name = leg_l_joints[i]
+                pos = joint_data[joint_name].get('position', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Left Leg Joint State {i}'] = pos
+            else:
+                row[f'Left Leg Joint State {i}'] = 0.0
+
+        # 右腿关节位置 (leg_R_joint_1_pos 到 leg_R_joint_6_pos)
+        leg_r_joints = sorted([k for k in joint_data.keys() if 'leg_r' in k.lower()])
+        for i in range(6):
+            if i < len(leg_r_joints):
+                joint_name = leg_r_joints[i]
+                pos = joint_data[joint_name].get('position', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Right Leg Joint State {i}'] = pos
+            else:
+                row[f'Right Leg Joint State {i}'] = 0.0
+
+        # 腰部关节位置 (waist_joints_pos)
+        waist_joints = sorted([k for k in joint_data.keys() if 'waist' in k.lower()])
+        for i in range(3):
+            if i < len(waist_joints):
+                joint_name = waist_joints[i]
+                pos = joint_data[joint_name].get('position', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Waist Joint State {i}'] = pos
+            else:
+                row[f'Waist Joint State {i}'] = 0.0
+
+        # 左臂关节位置 (arm_L_joint_1_pos 到 arm_L_joint_4_pos)
+        arm_l_joints = sorted([k for k in joint_data.keys() if 'arm_l' in k.lower()])
+        for i in range(4):
+            if i < len(arm_l_joints):
+                joint_name = arm_l_joints[i]
+                pos = joint_data[joint_name].get('position', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Left Arm Joint State {i}'] = pos
+            else:
+                row[f'Left Arm Joint State {i}'] = 0.0
+
+        # 右臂关节位置 (arm_R_joint_1_pos 到 arm_R_joint_4_pos)
+        arm_r_joints = sorted([k for k in joint_data.keys() if 'arm_r' in k.lower()])
+        for i in range(4):
+            if i < len(arm_r_joints):
+                joint_name = arm_r_joints[i]
+                pos = joint_data[joint_name].get('position', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Right Arm Joint State {i}'] = pos
+            else:
+                row[f'Right Arm Joint State {i}'] = 0.0
+
+        # 左腿关节速度 (leg_L_joints_vel)
+        for i in range(6):
+            if i < len(leg_l_joints):
+                joint_name = leg_l_joints[i]
+                vel = joint_data[joint_name].get('velocity', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Left Leg Joint Velocity {i}'] = vel
+            else:
+                row[f'Left Leg Joint Velocity {i}'] = 0.0
+
+        # 右腿关节速度 (leg_R_joints_vel)
+        for i in range(6):
+            if i < len(leg_r_joints):
+                joint_name = leg_r_joints[i]
+                vel = joint_data[joint_name].get('velocity', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Right Leg Joint Velocity {i}'] = vel
+            else:
+                row[f'Right Leg Joint Velocity {i}'] = 0.0
+
+        # 腰部关节速度 (waist_joints_vel)
+        for i in range(3):
+            if i < len(waist_joints):
+                joint_name = waist_joints[i]
+                vel = joint_data[joint_name].get('velocity', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Waist Joint Velocity {i}'] = vel
+            else:
+                row[f'Waist Joint Velocity {i}'] = 0.0
+
+        # 左臂关节速度 (arm_L_joint_1_vel 到 arm_L_joint_4_vel)
+        for i in range(4):
+            if i < len(arm_l_joints):
+                joint_name = arm_l_joints[i]
+                vel = joint_data[joint_name].get('velocity', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Left Arm Joint Velocity {i}'] = vel
+            else:
+                row[f'Left Arm Joint Velocity {i}'] = 0.0
+
+        # 右臂关节速度 (arm_R_joint_1_vel 到 arm_R_joint_4_vel)
+        for i in range(4):
+            if i < len(arm_r_joints):
+                joint_name = arm_r_joints[i]
+                vel = joint_data[joint_name].get('velocity', 0.0) if isinstance(joint_data[joint_name], dict) else 0.0
+                row[f'Right Arm Joint Velocity {i}'] = vel
+            else:
+                row[f'Right Arm Joint Velocity {i}'] = 0.0
+
+        # 5. root_position -> "Pelvis State 0", "Pelvis State 1", "Pelvis State 2"
+        root_pos = data_dict.get('state', {}).get('cartesian', {}).get('root_in_world', {}).get('position', [0, 0, 0])
+        if isinstance(root_pos, list) and len(root_pos) >= 3:
+            row['Pelvis State 0'] = root_pos[0]
+            row['Pelvis State 1'] = root_pos[1]
+            row['Pelvis State 2'] = root_pos[2]
+        else:
+            row['Pelvis State 0'] = 0.0
+            row['Pelvis State 1'] = 0.0
+            row['Pelvis State 2'] = 0.0
+
+        # 6. root_quat -> "Pelvis State 4", "Pelvis State 5", "Pelvis State 6", "Pelvis State 3"
+        # 注意：配置文件中顺序是 [x, y, z, w]，但存储顺序是 [w, x, y, z]
+        # CartesianState 使用 'quaternion' 字段，不是 'orientation'
+        root_quat = (
+            data_dict.get('state', {}).get('cartesian', {}).get('root_in_world', {}).get('quaternion', [1, 0, 0, 0])
+        )
+        if isinstance(root_quat, list) and len(root_quat) >= 4:
+            # 假设输入是 [w, x, y, z]，需要转换为 [x, y, z, w]
+            row['Pelvis State 4'] = root_quat[1] if len(root_quat) > 1 else 0.0  # x
+            row['Pelvis State 5'] = root_quat[2] if len(root_quat) > 2 else 0.0  # y
+            row['Pelvis State 6'] = root_quat[3] if len(root_quat) > 3 else 0.0  # z
+            row['Pelvis State 3'] = root_quat[0] if len(root_quat) > 0 else 1.0  # w
+        else:
+            row['Pelvis State 4'] = 0.0
+            row['Pelvis State 5'] = 0.0
+            row['Pelvis State 6'] = 0.0
+            row['Pelvis State 3'] = 1.0
+
+        # 7. projected_gravity (配置文件中是空字符串，不需要在CSV中包含这些列)
+        # 这些数据会在 process_mocap_data.py 中通过 Isaac Gym 计算得出
+
+        converted_rows.append(row)
+
+    # 创建DataFrame并保存
+    df = pd.DataFrame(converted_rows)
+
+    # 确保所有数值列都是浮点数类型（避免pandas推断为整数类型）
+    for col in df.columns:
+        if df[col].dtype != 'object':  # 跳过非数值列
+            df[col] = pd.to_numeric(df[col], errors='coerce').astype(float)
+
+    df.to_csv(output_path, index=False)
+    print(f"✅ 训练格式CSV已保存: {output_path}")
+    print(f"   CSV列数: {len(df.columns)}, 行数: {len(df)}")
+
+
+class FallDetector:
+    """
+    摔倒检测器，用于判断机器人是否即将摔倒
+    """
+
+    def __init__(self, env, fall_thresholds=None):
+        """
+        初始化摔倒检测器
+
+        Args:
+            env: 环境对象
+            fall_thresholds: 摔倒检测阈值字典
+        """
+        self.env = env
+        self.device = env.device
+
+        # 默认摔倒检测阈值
+        default_thresholds = {
+            'height_min': 0.9,  # 最小高度阈值 (m)
+            'height_max': 1.05,  # 最大高度阈值 (m)
+            'orientation_threshold': 0.2,  # 姿态倾斜阈值 (重力投影)
+            'angular_vel_threshold': 2.0,  # 角速度阈值 (rad/s)
+            'linear_vel_z_threshold': 0.8,  # Z轴线速度阈值 (m/s)
+            'joint_vel_threshold': 6.0,  # 关节速度阈值 (rad/s)
+            'contact_force_min': 0.0,  # 最小接触力阈值 (N)
+        }
+
+        if fall_thresholds is None:
+            fall_thresholds = default_thresholds
+
+        self.fall_thresholds = {**default_thresholds, **fall_thresholds}
+
+        # 摔倒状态历史
+        self.fall_history = []
+        self.history_length = 3
+        self.startup_delay = 100  # 启动延迟步数
+
+        print(f"✅ Fall detector initialized")
+        print(
+            f"   Height threshold: {self.fall_thresholds['height_min']:.2f} - {self.fall_thresholds['height_max']:.2f} m"
+        )
+        print(f"   Orientation threshold: {self.fall_thresholds['orientation_threshold']:.2f}")
+        print(f"   Angular velocity threshold: {self.fall_thresholds['angular_vel_threshold']:.2f} rad/s")
+
+    def detect_fall_risk(self, step_count=0):
+        """
+        检测摔倒风险
+
+        Args:
+            step_count: 当前步数
+
+        Returns:
+            bool: True表示有摔倒风险，False表示安全
+            dict: 详细的检测结果
+        """
+        # 启动延迟：前几步不进行摔倒检测
+        if step_count < self.startup_delay:
+            return False, {}
+
+        # 获取当前状态
+        root_height = self.env.root_states[0, 2].item()
+        projected_gravity = self.env.projected_gravity[0]
+        base_ang_vel = self.env.base_ang_vel[0]
+        base_lin_vel = self.env.base_lin_vel[0]
+        dof_vel = self.env.dof_vel[0]
+        contact_forces = self.env.contact_forces[0, self.env.feet_indices, 2]
+
+        # 计算检测指标
+        orientation_deviation = torch.norm(projected_gravity[:2]).item()
+        angular_vel_magnitude = torch.norm(base_ang_vel).item()
+        linear_vel_z = abs(base_lin_vel[2].item())
+        max_joint_vel = torch.max(torch.abs(dof_vel)).item()
+        min_contact_force = torch.min(contact_forces).item()
+
+        # 检测结果
+        detection_results = {
+            'height_low': root_height < self.fall_thresholds['height_min'],
+            'height_high': root_height > self.fall_thresholds['height_max'],
+            'orientation_unstable': orientation_deviation > self.fall_thresholds['orientation_threshold'],
+            'angular_vel_high': angular_vel_magnitude > self.fall_thresholds['angular_vel_threshold'],
+            'linear_vel_z_high': linear_vel_z > self.fall_thresholds['linear_vel_z_threshold'],
+            'joint_vel_high': max_joint_vel > self.fall_thresholds['joint_vel_threshold'],
+            'contact_force_low': min_contact_force < self.fall_thresholds['contact_force_min'],
+        }
+
+        # 判断是否有摔倒风险
+        fall_risk = any(detection_results.values())
+
+        # 更新历史
+        self.fall_history.append(fall_risk)
+        if len(self.fall_history) > self.history_length:
+            self.fall_history.pop(0)
+
+        # 使用历史信息进行更稳定的判断
+        stable_fall_risk = sum(self.fall_history) >= 2
+
+        return stable_fall_risk, detection_results
+
+    def get_detection_info(self, step_count=0):
+        """
+        获取检测信息字符串
+
+        Args:
+            step_count: 当前步数
+
+        Returns:
+            str: 检测信息
+        """
+        fall_risk, results = self.detect_fall_risk(step_count)
+
+        # 启动延迟期间
+        if step_count < self.startup_delay:
+            return f"Starting up... ({step_count}/{self.startup_delay})"
+
+        # 如果没有检测结果，返回安全状态
+        if not results:
+            return "Status safe"
+
+        info_parts = []
+        if results.get('height_low', False):
+            info_parts.append("Height too low")
+        if results.get('height_high', False):
+            info_parts.append("Height too high")
+        if results.get('orientation_unstable', False):
+            info_parts.append("Orientation unstable")
+        if results.get('angular_vel_high', False):
+            info_parts.append("Angular velocity too high")
+        if results.get('linear_vel_z_high', False):
+            info_parts.append("Z-axis velocity too high")
+        if results.get('joint_vel_high', False):
+            info_parts.append("Joint velocity too high")
+        if results.get('contact_force_low', False):
+            info_parts.append("Insufficient contact force")
+
+        if info_parts:
+            return f"Fall risk: {', '.join(info_parts)}"
+        else:
+            return "Status safe"
+
+
+class RandomPusher:
+    """
+    随机推力器，用于给机器人施加随机干扰力
+    """
+
+    def __init__(self, env, push_config=None):
+        """
+        初始化随机推力器
+
+        Args:
+            env: 环境对象
+            push_config: 推力配置字典
+        """
+        self.env = env
+        self.device = env.device
+
+        # 获取各个推力位置的索引
+        self.push_positions = self._get_push_positions(env)
+
+        # 默认推力配置
+        default_config = {
+            'push_interval_min': 100,  # 减少到100步
+            'push_interval_max': 200,  # 减少到200步
+            'push_duration': 10,  # 增加推力持续时间
+            'push_force_waist': 600.0,  # 髋部推力大小
+            'push_force_chest': 400.0,  # 胸部推力大小
+            'push_force_shoulder': 200.0,  # 肩部推力大小
+            'push_directions': ['forward', 'backward', 'left', 'right'],
+            'push_positions': ['all'],
+        }
+
+        if push_config is None:
+            push_config = default_config
+
+        self.push_config = {**default_config, **push_config}
+
+        # 推力状态
+        self.next_push_step = self._get_next_push_step(0)
+        self.current_push_duration = 0
+        self.current_push_force = torch.zeros(3, device=self.device)
+        self.current_push_position = None
+        self.is_pushing = False
+
+        print(f"✅ Random pusher initialized")
+        print(f"   Push positions: {list(self.push_positions.keys())}")
+        print(
+            f"   Push interval: {self.push_config['push_interval_min']}-{self.push_config['push_interval_max']} steps"
+        )
+        print(
+            f"   Push force - Waist: {self.push_config['push_force_waist']:.1f} N, Chest: {self.push_config['push_force_chest']:.1f} N, Shoulder: {self.push_config['push_force_shoulder']:.1f} N"
+        )
+        print(f"   Push duration: {self.push_config['push_duration']} steps")
+
+    def _get_push_positions(self, env):
+        """
+        获取各个推力位置的索引和配置
+
+        Returns:
+            dict: 推力位置配置字典
+        """
+        positions = {}
+
+        # 胯部位置 (pelvis/base_link)
+        try:
+            base_index = env.gym.find_actor_rigid_body_handle(env.envs[0], env.actor_handles[0], "base_link")
+            positions['waist'] = {
+                'index': base_index,
+                'name': 'base_link',
+                'offset': [0, 0, 0],
+                'description': '胯部',
+            }
+        except:
+            positions['waist'] = {'index': 0, 'name': 'root', 'offset': [0, 0, 0], 'description': '胯部'}
+
+        # 胸部位置
+        try:
+            torso_index = env.torso_index
+            positions['chest'] = {
+                'index': torso_index,
+                'name': 'waist_link3',
+                'offset': [0, 0, 0.25],
+                'description': '胸部',
+            }
+        except:
+            positions['chest'] = positions['waist'].copy()
+            positions['chest']['offset'] = [0, 0, 0.25]
+            positions['chest']['description'] = '胸部'
+
+        # 左肩位置
+        try:
+            left_shoulder_index = env.gym.find_actor_rigid_body_handle(env.envs[0], env.actor_handles[0], "arm_l_link2")
+            positions['left_shoulder'] = {
+                'index': left_shoulder_index,
+                'name': 'arm_l_link2',
+                'offset': [0, 0.15, 0.35],
+                'description': '左肩',
+            }
+        except:
+            positions['left_shoulder'] = positions['chest'].copy()
+            positions['left_shoulder']['offset'] = [0, 0.15, 0.35]
+            positions['left_shoulder']['description'] = '左肩'
+
+        # 右肩位置
+        try:
+            right_shoulder_index = env.gym.find_actor_rigid_body_handle(
+                env.envs[0], env.actor_handles[0], "arm_r_link2"
+            )
+            positions['right_shoulder'] = {
+                'index': right_shoulder_index,
+                'name': 'arm_r_link2',
+                'offset': [0, -0.15, 0.35],
+                'description': '右肩',
+            }
+        except:
+            positions['right_shoulder'] = positions['chest'].copy()
+            positions['right_shoulder']['offset'] = [0, -0.15, 0.35]
+            positions['right_shoulder']['description'] = '右肩'
+
+        return positions
+
+    def _get_next_push_step(self, current_step):
+        """获取下一次推力的步数"""
+        interval = torch.randint(
+            self.push_config['push_interval_min'], self.push_config['push_interval_max'] + 1, (1,)
+        ).item()
+        return current_step + interval
+
+    def _select_push_position(self):
+        """选择推力位置"""
+        positions_config = self.push_config['push_positions']
+
+        if 'all' in positions_config:
+            available_positions = list(self.push_positions.keys())
+        elif 'random' in positions_config:
+            available_positions = list(self.push_positions.keys())
+        else:
+            available_positions = [pos for pos in positions_config if pos in self.push_positions]
+            if not available_positions:
+                available_positions = ['chest']
+
+        selected_position = torch.randint(0, len(available_positions), (1,)).item()
+        return available_positions[selected_position]
+
+    def _generate_push_force(self):
+        """生成推力"""
+        # 根据推力位置选择相应的推力大小
+        if self.current_push_position == 'waist':
+            force_magnitude = self.push_config['push_force_waist']
+        elif self.current_push_position == 'chest':
+            force_magnitude = self.push_config['push_force_chest']
+        elif self.current_push_position in ['left_shoulder', 'right_shoulder']:
+            force_magnitude = self.push_config['push_force_shoulder']
+        else:
+            force_magnitude = self.push_config['push_force_chest']  # 默认使用胸部推力大小
+
+        # 随机选择推力方向
+        directions = self.push_config['push_directions']
+        direction_idx = torch.randint(0, len(directions), (1,)).item()
+        direction = directions[direction_idx]
+
+        # 根据方向生成推力向量
+        if direction == 'forward':
+            force_vector = torch.tensor([force_magnitude, 0.0, 0.0], device=self.device)
+        elif direction == 'backward':
+            force_vector = torch.tensor([-force_magnitude, 0.0, 0.0], device=self.device)
+        elif direction == 'left':
+            force_vector = torch.tensor([0.0, force_magnitude, 0.0], device=self.device)
+        elif direction == 'right':
+            force_vector = torch.tensor([0.0, -force_magnitude, 0.0], device=self.device)
+        else:
+            force_vector = torch.tensor([force_magnitude, 0.0, 0.0], device=self.device)
+
+        return force_vector, direction
+
+    def _get_direction_from_force(self, force_vector):
+        """从推力向量中提取方向信息"""
+        # 找到最大分量的索引
+        max_component = torch.argmax(torch.abs(force_vector))
+        max_value = force_vector[max_component]
+
+        if max_component == 0:  # X轴
+            return 'forward' if max_value > 0 else 'backward'
+        elif max_component == 1:  # Y轴
+            return 'left' if max_value > 0 else 'right'
+        else:  # Z轴（通常不使用）
+            return 'up' if max_value > 0 else 'down'
+
+    def update(self, step_count, data_collector=None):
+        """
+        更新推力状态并施加推力
+
+        Args:
+            step_count: 当前步数
+            data_collector: 数据收集器引用，用于显示统计信息
+
+        Returns:
+            dict: 推力信息
+        """
+        push_info = {
+            'is_pushing': False,
+            'force_magnitude': 0.0,
+            'direction': 'none',
+            'position': 'none',
+            'remaining_duration': 0,
+        }
+
+        # 检查是否应该开始新的推力
+        if not self.is_pushing and step_count >= self.next_push_step:
+            self.is_pushing = True
+            self.current_push_duration = self.push_config['push_duration']
+            self.current_push_position = self._select_push_position()  # 先选择位置
+            self.current_push_force, direction = self._generate_push_force()  # 再生成推力
+
+            position_info = self.push_positions[self.current_push_position]
+
+            # 推力开始时增加计数
+            if data_collector:
+                data_collector.push_count += 1
+
+            # 推力开始，不显示信息（数据收集完成后一起显示）
+
+        # 如果正在推力中
+        if self.is_pushing:
+            position_info = self.push_positions[self.current_push_position]
+            body_index = position_info['index']
+            body_pos = self.env.rigid_state[0, body_index, 0:3]
+
+            # 检查是否使用GPU pipeline
+            use_gpu_pipeline = (
+                self.device != "cpu" and hasattr(self.env, 'sim_params') and self.env.sim_params.use_gpu_pipeline
+            )
+
+            if use_gpu_pipeline:
+                # 使用tensor API（GPU pipeline模式）
+                force_tensor = torch.zeros([self.env.num_envs, self.env.num_bodies, 3], device=self.device)
+                force_tensor[0, body_index, :] = self.current_push_force
+                force_tensor = gymtorch.unwrap_tensor(force_tensor)
+                self.env.gym.apply_rigid_body_force_tensors(self.env.sim, force_tensor)
+            else:
+                # 使用传统API（CPU pipeline模式）
+                self.env.gym.apply_body_force_at_pos(
+                    self.env.envs[0],
+                    body_index,
+                    gymapi.Vec3(
+                        self.current_push_force[0].item(),
+                        self.current_push_force[1].item(),
+                        self.current_push_force[2].item(),
+                    ),
+                    gymapi.Vec3(body_pos[0].item(), body_pos[1].item(), body_pos[2].item()),
+                    gymapi.LOCAL_SPACE,
+                )
+
+            push_info['is_pushing'] = True
+            push_info['force_magnitude'] = torch.norm(self.current_push_force).item()
+            push_info['position'] = position_info['description']
+            push_info['direction'] = self._get_direction_from_force(self.current_push_force)  # 添加方向信息
+            push_info['remaining_duration'] = self.current_push_duration
+
+            # 减少推力持续时间
+            self.current_push_duration -= 1
+
+            # 检查是否推力结束
+            if self.current_push_duration <= 0:
+                self.is_pushing = False
+                self.current_push_force = torch.zeros(3, device=self.device)
+                self.current_push_position = None
+                self.next_push_step = self._get_next_push_step(step_count)
+                # 推力结束，不显示信息
+
+        return push_info
+
+    def get_push_info(self, step_count):
+        """获取推力信息字符串"""
+        if self.is_pushing:
+            position_info = self.push_positions[self.current_push_position]
+            return f"Push in progress: {torch.norm(self.current_push_force):.1f}N at {position_info['description']} ({self.current_push_duration} steps)"
+        else:
+            steps_to_next = self.next_push_step - step_count
+            return f"Next push in {steps_to_next} steps"
+
+
+class DataCollector:
+    """
+    数据收集器，用于收集推力后的数据直到机器人即将失稳
+    """
+
+    def __init__(self):
+        """
+        初始化数据收集器
+        """
+        self.is_collecting = False
+        self.collect_start_step = 0
+        self.collected_data = []
+        self.all_collected_data = []
+        self.push_start_step = 0
+        self.push_count = 0
+        self.valid_fall_count = 0  # 有效摔倒次数
+        self.current_push_info = {}  # 保存当前推力的信息
+        self.reset_pre_filter_steps = 0  # 不再过滤reset前的数据，收集到reset为止
+
+        print(f"✅ Data collector initialized")
+        print(f"   Reset pre-filter: {self.reset_pre_filter_steps} steps (collect until reset)")
+
+    def start_collection(self, step_count, push_info):
+        """
+        开始数据收集
+
+        Args:
+            step_count: 当前步数
+            push_info: 推力信息
+        """
+        if push_info.get('is_pushing', False) and not self.is_collecting:
+            self.is_collecting = True
+            self.collect_start_step = step_count
+            self.push_start_step = step_count
+            self.collected_data = []
+            # 保存推力信息
+            self.current_push_info = {
+                'position': push_info.get('position', 'unknown'),
+                'force': push_info.get('force_magnitude', 0.0),
+                'direction': push_info.get('direction', 'unknown'),
+            }
+            # 数据收集开始，不显示信息（数据收集完成后一起显示）
+
+    def should_collect(self, step_count, fall_risk, push_info):
+        """
+        判断是否应该收集数据
+
+        Args:
+            step_count: 当前步数
+            fall_risk: 是否有摔倒风险
+            push_info: 推力信息
+
+        Returns:
+            bool: 是否应该收集数据
+        """
+        if not self.is_collecting:
+            return False
+
+        # 如果推力结束，继续收集一段时间（等待可能的摔倒）
+        if not push_info.get('is_pushing', False):
+            # 推力结束后，再收集250步，看是否会发生摔倒
+            if step_count - self.push_start_step > 250:  # 推力结束后250步内没有摔倒，则停止收集
+                self.is_collecting = False
+                # 推力结束但没有摔倒，数据无效
+                if len(self.collected_data) > 0:
+                    self.finalize_collection(step_count, False, False)
+                return False
+
+        return True
+
+    def add_data(self, robot_data, step_count):
+        """
+        添加数据
+
+        Args:
+            robot_data: 机器人数据
+            step_count: 当前步数
+        """
+        if self.is_collecting:
+            # 为数据添加步数信息，用于后续过滤
+            if isinstance(robot_data, dict):
+                robot_data['step'] = step_count
+            self.collected_data.append(robot_data)
+
+    def finalize_collection(self, step_count, fall_risk, robot_fell):
+        """
+        完成数据收集，判断数据是否有效
+
+        Args:
+            step_count: 当前步数
+            fall_risk: 是否有摔倒风险
+            robot_fell: 机器人是否摔倒（环境reset）
+        """
+        if self.collected_data:
+            # 显示完整的推力信息
+            print(f"📊 Push #{self.push_count} completed")
+            print(f"   📍 Position: {self.current_push_info.get('position', 'unknown')}")
+            print(f"   💪 Force: {self.current_push_info.get('force', 0.0):.1f}N")
+            print(f"   🎯 Direction: {self.current_push_info.get('direction', 'unknown')}")
+
+            if robot_fell:  # 环境reset表示机器人摔倒
+                # 数据有效：机器人摔倒（环境reset）
+                # 直接使用所有收集的数据，不过滤
+                self.all_collected_data.extend(self.collected_data)
+                self.valid_fall_count += 1
+                print(f"   ✅ Result: VALID (robot fell)")
+                print(f"   📊 Collected data: {len(self.collected_data)} frames")
+                print(f"   📊 Total data: {len(self.all_collected_data)} frames")
+                print(f"   📈 Success rate: {self.valid_fall_count}/{self.push_count} (valid/total)")
+            else:
+                # 数据无效：没有摔倒，不保存数据
+                print(f"   ❌ Result: INVALID (robot didn't fall)")
+                print(f"   📊 Data discarded: {len(self.collected_data)} frames")
+                print(f"   📊 Total valid data: {len(self.all_collected_data)} frames")
+                print(f"   📈 Success rate: {self.valid_fall_count}/{self.push_count} (valid/total)")
+
+            print("─" * 60)  # 分隔线
+            self.collected_data = []
+
+    def get_collected_data(self):
+        """
+        获取收集的数据
+
+        Returns:
+            list: 收集的数据列表
+        """
+        return self.all_collected_data
+
+    def get_stats(self):
+        """
+        获取收集统计信息
+
+        Returns:
+            dict: 统计信息
+        """
+        return {
+            'push_count': self.push_count,
+            'valid_fall_count': self.valid_fall_count,
+            'total_frames_collected': len(self.all_collected_data),
+        }
+
+
+def convert_csv_to_json(csv_file, config_yaml, output_folder, task="r01_plus_amp_with_4dof_arms", sim_device="cpu"):
+    """
+    转换单个CSV文件为JSON格式
+
+    Args:
+        csv_file: CSV文件路径
+        config_yaml: 配置文件路径
+        output_folder: 输出文件夹
+        task: 任务名称
+        sim_device: 仿真设备
+    """
+    cmd = [
+        "python",
+        "datasets/tool/process_mocap_data.py",
+        "--mocap_data",
+        csv_file,
+        "--config_yaml",
+        config_yaml,
+        "--output_folder",
+        output_folder,
+        "--task",
+        task,
+        "--sim_device",
+        sim_device,
+    ]
+
+    print(f"🔄 正在转换CSV到JSON: {os.path.basename(csv_file)}")
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=LEGGED_GYM_ROOT_DIR)
+        print(f"✅ 转换成功: {os.path.basename(csv_file)}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"❌ 转换失败: {os.path.basename(csv_file)}")
+        print(f"错误信息: {e.stderr}")
+        return False
+
+
+def play_walk_data_collection(args) -> None:
+    """
+    运行行走数据收集演示
+
+    Args:
+        args: 命令行参数
+    """
+
+    if args.total_steps < 1:
+        raise ValueError("Total play steps must be greater than 0")
+
+    # 使用行走任务的配置
+    env_cfg, train_cfg = task_registry.get_cfgs(name="r01_plus_amp_with_4dof_arms")
+
+    # 覆盖一些参数用于测试
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
+    env_cfg.terrain.curriculum = False
+    env_cfg.terrain.num_rows = 5
+    env_cfg.terrain.num_cols = 5
+    env_cfg.noise.add_noise = False
+    env_cfg.domain_rand.push_robots = False
+    env_cfg.domain_rand.add_rand_joint_torque_perturbation = False
+    env_cfg.domain_rand.randomize_com_displacement = False
+    env_cfg.domain_rand.randomize_restitution = False
+    env_cfg.domain_rand.randomize_motor_strength = False
+    env_cfg.domain_rand.randomize_Kp_factor = False
+    env_cfg.domain_rand.randomize_Kd_factor = False
+    env_cfg.domain_rand.joint_angle_noise = 0.0
+    env_cfg.noise.curriculum = False
+    env_cfg.noise.noise_level = 0.5
+    env_cfg.commands.heading_command = False
+    env_cfg.env.enable_graphics_device = True
+
+    if env_cfg.terrain.mesh_type == 'trimesh':
+        env_cfg.env.reference_state_initialization = False
+        env_cfg.init_state.pos = [0.0, 0.0, 1.0]
+        env_cfg.terrain.terrain_proportions = [0, 0, 1, 0, 0]
+        env_cfg.viewer.pos = [15, 1.0, 3]
+        env_cfg.viewer.lookat = [0, 1.0, 0]
+    else:
+        env_cfg.terrain.mesh_type = 'plane'
+
+    train_cfg.seed = 123145
+
+    # 准备环境
+    env, _ = task_registry.make_env(name="r01_plus_amp_with_4dof_arms", args=args, env_cfg=env_cfg)
+    env.set_camera(env_cfg.viewer.pos, env_cfg.viewer.lookat)
+
+    obs = env.get_observations()
+
+    # 加载行走策略
+    walk_model_path = (
+        "/home/jiamingzhang1/software/motion_rl/humanoid-gym/logs/r01_plus_amp_with_4dof_arms/example/model_15000.pt"
+    )
+    print(f"🔄 Loading walking policy: {walk_model_path}")
+
+    # 临时修改args，避免系统查找错误的路径
+    original_load_run = args.load_run
+    args.load_run = None
+
+    # 为行走策略创建临时配置（深拷贝避免污染原始 train_cfg）
+    walk_train_cfg = copy.deepcopy(train_cfg)
+    walk_train_cfg.runner.resume = True
+    walk_train_cfg.resume_path = walk_model_path
+
+    walk_ppo_runner, _ = task_registry.make_alg_runner(
+        env=env, name="r01_plus_amp_with_4dof_arms", args=args, train_cfg=walk_train_cfg, log_root=args.log_root
+    )
+    walk_policy = walk_ppo_runner.get_inference_policy(device=env.device)
+
+    # 恢复args
+    args.load_run = original_load_run
+
+    # 创建摔倒检测器
+    fall_detector = FallDetector(env, args.fall_thresholds)
+
+    # 创建随机推力器
+    random_pusher = RandomPusher(env, args.push_config)
+
+    # 创建数据收集器
+    data_collector = DataCollector()
+
+    # 设置输出目录
+    output_dir = os.getcwd()
+    if args.output_dir and args.output_dir != 'None':
+        output_dir = args.output_dir
+    os.makedirs(output_dir, exist_ok=True)
+
+    # 初始化视频录制
+    video_processor = None
+    if args.record_video:
+        video_name_wo_ext = f"walk_data_collection_{datetime.now().strftime('%Y%b%d_%H-%M-%S')}"
+        video_processor = vp.VideoRecorder(env, output_dir, video_name_wo_ext)
+        video_processor.start_recording()
+
+    # 初始化CSV数据列表
+    robot_data_list = []
+
+    print(f"🚀 Starting walk data collection demo")
+    print(f"   Output directory: {output_dir}")
+    print(f"   Total steps: {args.total_steps}")
+
+    # 主循环
+    total_play_steps = args.total_steps
+    for i in range(total_play_steps):
+        update_camera_position(env)
+
+        # 更新随机推力
+        push_info = random_pusher.update(i, data_collector)
+
+        # 检测摔倒风险
+        fall_risk, _ = fall_detector.detect_fall_risk(i)
+
+        # 获取行走策略的动作
+        actions = walk_policy(obs.detach())
+
+        # 设置命令（总是使用前进命令）
+        env.commands[:, 0] = 1.0  # 前进速度
+        env.commands[:, 1] = 0.0  # 侧向速度
+        env.commands[:, 2] = 0.0  # 转向速度
+
+        # 创建机器人数据
+        robot_data = env.make_robot_data(actions[0])
+
+        # 数据收集逻辑
+        data_collector.start_collection(i, push_info)
+
+        if data_collector.should_collect(i, fall_risk, push_info):
+            data_collector.add_data(robot_data.asdict(), i)
+
+        # 总是记录到完整列表
+        robot_data_list.append(robot_data.asdict())
+
+        # 环境步进
+        obs, critic_obs, rews, dones, infos, *_ = env.step(actions.detach())
+
+        # 检测reset并处理数据收集
+        if torch.any(dones):
+            # 在reset前完成当前数据收集
+            data_collector.finalize_collection(i, fall_risk, True)  # reset表示机器人摔倒
+
+            # 重置摔倒检测器的历史
+            fall_detector.fall_history = []
+            # 重置推力器状态
+            random_pusher.is_pushing = False
+            random_pusher.current_push_duration = 0
+            random_pusher.current_push_force = torch.zeros(3, device=random_pusher.device)
+            random_pusher.current_push_position = None
+            random_pusher.next_push_step = random_pusher._get_next_push_step(i)
+            # Reset detected, silently resetting state
+
+        # 录制视频
+        if args.record_video:
+            try:
+                text_map = {
+                    "green": (f"Walking", (50, 20)),
+                    "red": (fall_detector.get_detection_info(i), (50, 50)),
+                    "blue": (f"Push count: {data_collector.push_count}", (50, 80)),
+                    "yellow": (f"Valid falls: {data_collector.valid_fall_count}", (50, 110)),
+                }
+                video_processor.record_frame(text_map)
+            except Exception as e:
+                print(f"Video recording failed: {e}")
+
+        # 移除每步的状态显示，保持界面简洁
+
+    # 输出结果
+    print(f"\n📊 Demo finished!")
+    stats = data_collector.get_stats()
+    print(f"   Total push count: {stats['push_count']}")
+    print(f"   Valid fall count: {stats['valid_fall_count']}")
+    print(f"   Total frames collected: {stats['total_frames_collected']}")
+
+    # 输出奖励信息
+    for k, v in env.episode_sums.items():
+        print(f'[play_walk_data_collection.py] {k}: {v.item()}')
+
+    # 保存CSV数据
+    if args.output_csv or args.output_training_csv:
+        date_stamp = datetime.now().strftime('%Y%b%d_%H-%M-%S')
+
+        # 获取收集的数据
+        collected_data = data_collector.get_collected_data()
+        print(f"📊 收集的数据统计:")
+        print(f"   有效摔倒数据点: {len(collected_data)}")
+        print(f"   完整数据点: {len(robot_data_list)}")
+
+        # 保存有效数据到CSV
+        if args.output_csv and collected_data:
+            csv_file_name = f'walk_push_fall_data_{date_stamp}.csv'
+            write_csv(collected_data, output_dir, csv_file_name)
+            print(f"✅ 有效摔倒数据已保存: {csv_file_name}")
+        elif args.output_csv:
+            print(f"⚠️  没有收集到有效数据，保存完整数据")
+            csv_file_name = f'walk_demo_{date_stamp}.csv'
+            write_csv(robot_data_list, output_dir, csv_file_name)
+            print(f"✅ 完整数据已保存: {csv_file_name}")
+
+        # 生成训练格式的CSV文件
+        training_csv_path = None
+        if args.output_training_csv and collected_data:
+            try:
+                training_csv_name = f'walk_push_fall_training_{date_stamp}.csv'
+                training_csv_path = os.path.join(output_dir, training_csv_name)
+
+                print(f"🔄 正在生成训练格式数据: {training_csv_name}")
+                convert_robot_data_list_to_training_format(collected_data, output_path=training_csv_path)
+                print(f"✅ 训练格式数据已保存: {training_csv_path}")
+            except Exception as e:
+                print(f"❌ 生成训练格式数据时出错: {e}")
+        elif args.output_training_csv:
+            print(f"⚠️  没有收集到有效数据，生成完整训练格式数据")
+            try:
+                training_csv_name = f'walk_training_{date_stamp}.csv'
+                training_csv_path = os.path.join(output_dir, training_csv_name)
+
+                print(f"🔄 正在生成完整训练格式数据: {training_csv_name}")
+                convert_robot_data_list_to_training_format(robot_data_list, output_path=training_csv_path)
+                print(f"✅ 完整训练格式数据已保存: {training_csv_path}")
+            except Exception as e:
+                print(f"❌ 生成完整训练格式数据时出错: {e}")
+
+        # 如果启用了JSON输出且生成了训练格式CSV，则转换为JSON
+        if args.output_json and training_csv_path and os.path.exists(training_csv_path):
+            try:
+                # 默认配置文件路径
+                config_yaml = os.path.join(LEGGED_GYM_ROOT_DIR, "datasets/tool/config/walk_push_fall_data.yaml")
+
+                # 如果配置文件不存在，尝试使用默认配置
+                if not os.path.exists(config_yaml):
+                    # 尝试查找其他可能的配置文件
+                    default_config = os.path.join(
+                        LEGGED_GYM_ROOT_DIR, "datasets/tool/config/r01_simple_with_4dof_arms.yaml"
+                    )
+                    if os.path.exists(default_config):
+                        config_yaml = default_config
+                        print(f"⚠️  使用默认配置文件: {config_yaml}")
+                    else:
+                        print(f"❌ 配置文件不存在: {config_yaml}")
+                        print(f"   请确保配置文件存在，或手动运行转换脚本")
+                        return
+
+                # JSON输出文件夹（与CSV在同一目录）
+                json_output_folder = output_dir
+
+                # 转换CSV到JSON
+                # 使用固定的任务名称，因为数据收集脚本总是使用 r01_plus_amp_with_4dof_arms
+                convert_csv_to_json(
+                    csv_file=training_csv_path,
+                    config_yaml=config_yaml,
+                    output_folder=json_output_folder,
+                    task="r01_plus_amp_with_4dof_arms",
+                    sim_device="cpu",
+                )
+            except Exception as e:
+                print(f"❌ 转换JSON时出错: {e}")
+
+    # 停止视频录制
+    if args.record_video:
+        video_processor.stop_recording()
+
+
+if __name__ == '__main__':
+    extra_params = [
+        {"name": "--fall_thresholds", "type": str, "default": None, "help": "Fall detection thresholds, JSON string"},
+        {
+            "name": "--push_force_waist",
+            "type": float,
+            "default": 4000.0,
+            "help": "Push force magnitude for waist in Newtons (default: 800.0)",
+        },
+        {
+            "name": "--push_force_chest",
+            "type": float,
+            "default": 3000.0,
+            "help": "Push force magnitude for chest in Newtons (default: 600.0)",
+        },
+        {
+            "name": "--push_force_shoulder",
+            "type": float,
+            "default": 2000.0,
+            "help": "Push force magnitude for shoulders in Newtons (default: 400.0)",
+        },
+        {
+            "name": "--push_directions",
+            "type": str,
+            "default": "all",
+            "choices": ["forward", "backward", "left", "right", "all"],
+            "help": "Push directions (forward/backward/left/right/all)",
+        },
+        {
+            "name": "--push_positions",
+            "type": str,
+            "default": "all",
+            "choices": ["all", "waist", "chest", "left_shoulder", "right_shoulder", "random"],
+            "help": "Push positions (all/waist/chest/left_shoulder/right_shoulder/random)",
+        },
+        {"name": "--log_data", "action": "store_true", "help": "Log data"},
+        {"name": "--total_steps", "type": int, "default": 50000, "help": "Total simulation steps"},
+        {"name": "--record_video", "action": "store_true", "help": "Record video"},
+        {"name": "--output_csv", "action": "store_true", "help": "Output CSV file"},
+        {"name": "--output_training_csv", "action": "store_true", "help": "Output training format CSV file"},
+        {
+            "name": "--output_json",
+            "action": "store_true",
+            "help": "Output JSON file (converts training CSV to JSON format)",
+        },
+        {"name": "--output_dir", "type": str, "default": None, "help": "Output directory path"},
+    ]
+
+    args = get_args(extra_params)
+
+    # 解析摔倒检测阈值
+    if args.fall_thresholds:
+        import json
+
+        try:
+            args.fall_thresholds = json.loads(args.fall_thresholds)
+        except json.JSONDecodeError:
+            print("Warning: Fall detection thresholds format error, using default values")
+            args.fall_thresholds = None
+
+    # 解析推力配置
+    args.push_config = {
+        'push_interval_min': 100,
+        'push_interval_max': 200,
+        'push_duration': 10,
+        'push_force_waist': args.push_force_waist,  # 髋部推力大小
+        'push_force_chest': args.push_force_chest,  # 胸部推力大小
+        'push_force_shoulder': args.push_force_shoulder,  # 肩部推力大小
+        'push_directions': ['forward', 'backward', 'left', 'right'],
+        'push_positions': ['all'],
+    }
+
+    # 解析推力方向配置
+    if args.push_directions == "all":
+        args.push_config['push_directions'] = ['forward', 'backward', 'left', 'right']
+    elif args.push_directions in ["forward", "backward", "left", "right"]:
+        args.push_config['push_directions'] = [args.push_directions]
+    else:
+        args.push_config['push_directions'] = ['forward', 'backward', 'left', 'right']
+
+    # 解析推力位置配置
+    if args.push_positions == "all":
+        args.push_config['push_positions'] = ['all']
+    elif args.push_positions == "random":
+        args.push_config['push_positions'] = ['random']
+    elif args.push_positions in ["waist", "chest", "left_shoulder", "right_shoulder"]:
+        args.push_config['push_positions'] = [args.push_positions]
+    else:
+        args.push_config['push_positions'] = ['all']
+
+    play_walk_data_collection(args)
+    os._exit(0)
