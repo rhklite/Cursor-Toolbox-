@@ -9,11 +9,13 @@ description: Post-run analysis for RL experiments. Reads training metrics, logs,
 
 Structured post-run analysis that extracts maximum learning from each training run. Reads all available artifacts, diagnoses what happened, and proposes concrete next steps.
 
-## Model recommendation
-
-> This skill runs best on **Opus (Agent mode)**.
-
 ## Steps
+
+### 0. Model confirmation
+
+Before proceeding, prompt the user: "This skill runs best on **Opus (Agent mode)**. Are you currently on Opus in Agent mode? If not, please switch before we continue."
+
+Do not proceed to step 1 until the user confirms.
 
 ### 1. Gather artifact locations
 
