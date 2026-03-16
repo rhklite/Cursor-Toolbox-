@@ -33,6 +33,17 @@ All steps are automated. Do not pause for user input until the final verificatio
 
 ### 3. Automated verification
 
+#### 3a. Test-passage check
+
+Before running intent-vs-implementation checks, verify that implementation tests exist and pass:
+
+- Look for test files related to the current changes (search for recently created or modified test files via `git diff` or glob for `test_*.py` / `*_test.py` in relevant directories).
+- If test files are found, run them. Report each as PASS or MISMATCH.
+- If no test files are found, flag: `[MISMATCH] No implementation tests found. The implementation workflow should have created tests before reaching preflight.`
+- If any tests fail, flag: `[MISMATCH] N implementation tests failing. These should have been resolved before reaching preflight.`
+
+#### 3b. Intent-vs-implementation checks
+
 Compare intent (from hypothesis.md) against implementation (from code). For each stated change, report PASS or MISMATCH:
 
 - **Value mismatches**: hypothesis says "set X to 2.0" but code shows X = 1.0

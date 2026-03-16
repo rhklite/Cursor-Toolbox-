@@ -96,10 +96,15 @@ Any of: "act on this", "implement this", "go ahead", "let's do it", "make the ch
 ### Transition steps
 
 1. Switch to **Agent mode** if not already active (use `~/.cursor/skills/cursor-command-proxy/scripts/send_shortcut.sh "i" "command down"`)
-2. Implement the changes based on the agreed hypothesis and action items
-3. After implementation is complete, automatically read and follow the **rl-preflight** skill at `~/.cursor/skills/rl-preflight/SKILL.md` — do not wait for the user to invoke it
-
-The preflight skill handles verification against the hypothesis.
+2. **Distill hypothesis** — read the conversation history from the thinking session. Extract the agreed hypothesis, proposed changes, expected outcome, and exit criteria. Write them to a `hypothesis.md` file in the workspace root. This file is the on-disk artifact that rl-preflight will consume.
+3. **Implement changes** based on the agreed hypothesis and action items.
+4. **Write tests** — create tests that verify the implementation matches the design intent. Cover whichever of these are relevant to the change:
+   - Reward function correctness (given a specific state, a reward term produces the expected value with correct sign)
+   - Config value assertions (parameter equals the value specified in the hypothesis)
+   - Observation-space shape and content checks
+   - Environment-step smoke tests (env resets and steps without error)
+5. **Run tests and iterate** — execute the tests. If any fail, diagnose whether the implementation or the test is wrong, fix accordingly, and re-run. Max 5 cycles. If failures remain after 5 cycles, report the remaining failures and stop.
+6. **Auto-run rl-preflight** — only after all tests pass. Read and follow the preflight skill at `~/.cursor/skills/rl-preflight/SKILL.md`. Do not wait for the user to invoke it.
 
 ## Humanoid robot whitelist nudge
 
