@@ -15,22 +15,34 @@ Structured post-run analysis that extracts maximum learning from each training r
 
 ## Steps
 
-### 1. Locate run
+### 1. Gather artifact locations
 
-- If the user provides a run directory path, use it.
-- Otherwise, auto-detect: find the most recently modified directory under `runs/` (excluding `archive/`).
-- Confirm with the user: "Analyzing run at [path]. Correct?"
+Prompt the user to provide paths for the artifacts they have available. Present this checklist and ask them to supply whichever paths they can:
+
+1. **Run directory** — a single directory containing some or all artifacts below
+2. **Metrics** — training metrics file (e.g., `metrics.jsonl`, TensorBoard `events.out.tfevents.*`, or wandb logs)
+3. **Training log** — human-readable log (e.g., `train.log`)
+4. **Config** — the config used for the run (e.g., `config.yaml`, or a Python config class path)
+5. **Hypothesis** — `hypothesis.md` or equivalent describing the experiment hypothesis and expected behavior
+6. **Video** — video of the trained agent (e.g., `best.mp4`, evaluation recording)
+
+Rules:
+- If the user provides a run directory, scan it for artifacts not explicitly provided.
+- If the user provides individual file paths without a run directory, use those directly; do not attempt auto-detection for missing artifacts — ask the user for any additional files needed.
+- If the user provides neither, attempt auto-detect: find the most recently modified directory under `runs/` or `logs/` (excluding `archive/`).
+- Always confirm with the user before proceeding: "Analyzing with the following artifacts: [list]. Correct?"
 
 ### 2. Read artifacts
 
-Read all available files from the run directory:
+Read all artifacts resolved from step 1. Accept any of these formats:
 
-- **metrics.jsonl** — one JSON object per line with training metrics (reward, loss, entropy, clip fraction, SPS, etc.)
-- **train.log** — human-readable log with per-update progress, best-checkpoint saves, early stopping events
-- **config.yaml** — the exact config used for this run
-- **hypothesis.md** — the hypothesis, expected outcome, and expected visual behavior (if present)
+- **Metrics** — `metrics.jsonl` (one JSON object per line), TensorBoard event files, wandb logs, or `metric.json` evaluation snapshots
+- **Training log** — `train.log` or equivalent human-readable log with per-update progress
+- **Config** — `config.yaml`, Python config class, or wandb config
+- **Hypothesis** — `hypothesis.md` or equivalent with the hypothesis, expected outcome, and expected visual behavior
+- **Video** — `.mp4`, `.webm`, or `.avi` file of the trained agent
 
-If any file is missing, note it and proceed with what is available.
+When a user-provided path overrides an auto-detected file, use the user-provided path. If any artifact is unavailable after prompting, note it and proceed with what is available.
 
 ### 3. Training dynamics analysis
 
@@ -54,7 +66,9 @@ Analyze the metrics and log systematically. For each dimension, report a short f
 Attempt video analysis using the following fallback hierarchy:
 
 **Primary — Task tool with video attachment:**
-Use the Task tool with `subagent_type: "generalPurpose"` and the `attachments` parameter pointing to the best video file (e.g., `best.mp4` or the most recent video in the run's `videos/` directory). Include in the prompt:
+Use the video path provided by the user in step 1. If no video was provided, prompt the user: "Do you have a video of the trained agent? If so, provide the path." If no video is available, skip directly to Fallback 2.
+
+Use the Task tool with `subagent_type: "generalPurpose"` and the `attachments` parameter pointing to the video file. Include in the prompt:
 - The expected behavior from step 4
 - Ask: "Watch this video of a trained RL agent. Describe the agent's behavior in detail. Then compare it against this expected behavior: [expected]. List specific discrepancies and hypothesize root causes."
 
