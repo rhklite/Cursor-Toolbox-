@@ -52,7 +52,7 @@ Any of: "act on this", "implement this", "go ahead", "let's do it", "make the ch
 2. Implement the changes based on the agreed hypothesis and action items
 3. After implementation is complete, automatically read and follow the **rl-preflight** skill at `~/.cursor/skills/rl-preflight/SKILL.md` — do not wait for the user to invoke it
 
-The preflight skill handles verification against the hypothesis and the cross-family critique handoff (including automated model switching).
+The preflight skill handles verification against the hypothesis and the cross-family critique handoff.
 
 ## Humanoid robot whitelist nudge
 

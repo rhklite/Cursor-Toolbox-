@@ -89,52 +89,16 @@ Read the files listed above. Given this hypothesis and the proposed changes:
 4. Is there anything in the implementation that contradicts the stated rationale?
 ```
 
-### 5. Automated cross-family critique handoff
+### 5. Cross-family critique handoff
 
-After generating the critique prompt, the agent automates the model and mode switch. Do not ask the user to switch manually.
-
-#### 5a. Notify and switch forward
-
-1. Display this notification banner in chat:
+Display this banner prominently at the end of the response:
 
 > **WORKFLOW TRANSITION: CROSS-FAMILY CRITIQUE**
 >
-> Preflight complete. Switching to Gemini 2.5 Pro (Ask mode) for independent critique.
-> The critique prompt above will be reviewed by the cross-family model.
-
-2. Fire a macOS desktop notification:
-```bash
-bash ~/.cursor/scripts/cursor_notify.sh "RL Preflight" "Switching to Gemini for cross-family critique"
-```
-
-3. Switch mode to Ask:
-```bash
-bash ~/.cursor/skills/cursor-command-proxy/scripts/send_shortcut.sh "a" "control down" "shift down"
-```
-
-4. Switch model to Gemini:
-```bash
-bash ~/.cursor/skills/cursor-command-proxy/scripts/cmd_palette.sh "Change Model" "gemini-2.5-pro"
-```
-
-5. End the response by telling the user: "Model and mode switched. Send the critique prompt above (or say 'review') to start the Gemini critique."
-
-#### 5b. Switch back after critique
-
-After the Gemini critique is complete, the user must return to Opus Agent mode. Since Ask mode cannot execute shell commands, include this banner at the end of the critique prompt itself so the reviewing model displays it:
-
-```
---- END OF CRITIQUE ---
-To continue: switch back to Agent mode and Opus.
-Run these commands, or say "back to agent":
-  bash ~/.cursor/skills/cursor-command-proxy/scripts/send_shortcut.sh "i" "command down"
-  bash ~/.cursor/skills/cursor-command-proxy/scripts/cmd_palette.sh "Change Model" "claude-4-opus"
-```
-
-When the user says "back to agent", "switch back", "done with critique", or similar, and the agent is in a mode that can execute commands, run the switch-back commands automatically and notify:
-
-```bash
-bash ~/.cursor/scripts/cursor_notify.sh "RL Preflight" "Switching back to Opus Agent mode"
-bash ~/.cursor/skills/cursor-command-proxy/scripts/send_shortcut.sh "i" "command down"
-bash ~/.cursor/skills/cursor-command-proxy/scripts/cmd_palette.sh "Change Model" "claude-4-opus"
-```
+> Preflight complete. To get an independent critique from a different model family:
+>
+> 1. Switch to **Gemini 2.5 Pro** in the model selector
+> 2. Switch to **Ask mode**
+> 3. Paste the critique prompt above into the new context
+>
+> After the Gemini review, switch back to **Opus** in **Agent mode** to finalize and launch the run.
