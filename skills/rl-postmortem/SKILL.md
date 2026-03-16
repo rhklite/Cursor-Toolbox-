@@ -38,8 +38,6 @@ Rules:
 2. The user proactively provides a text description of the hypothesis during artifact gathering.
 3. If neither (1) nor (2), prompt the user: "No hypothesis file found. Please describe: (a) what change you made and why, (b) what outcome you expected, and (c) what behavior you expected to see in the agent." Do not proceed until the user provides this.
 
-Record whether the hypothesis came from a file or from user-provided text — this affects how it is passed in the Gemini handoff (step 8).
-
 **Artifact confirmation (blocking).** After resolving all artifacts, present the full list to the user and wait for confirmation before proceeding:
 
 > Analyzing with the following artifacts:
@@ -164,65 +162,4 @@ Write the full diagnosis report from step 6 to a file. Use the current timestamp
 - Create `docs/postmortem/` if it does not exist (`mkdir -p docs/postmortem`)
 - The file should contain the complete diagnosis report as written in step 6
 
-Record the timestamp prefix (e.g. `0315_1430`) for use in the Gemini handoff prompt.
-
-### 8. Gemini handoff and workflow banner
-
-Generate a self-contained prompt for the Gemini postmortem. This prompt must be fully copy-pasteable. Structure:
-
-```
-INDEPENDENT POSTMORTEM — GEMINI
-================================
-
-You are performing an independent postmortem analysis of an RL training run.
-Analyze the artifacts below and produce your own diagnosis. Do NOT read any
-existing postmortem reports — form your own conclusions independently.
-
-## Hypothesis (REQUIRED — read this first)
-
-[If hypothesis came from a file, include:]
-- Hypothesis file: [path]
-
-[If hypothesis was provided as inline text, embed it directly:]
-> [full user-provided hypothesis text]
-
-Read the hypothesis BEFORE analyzing any other artifacts. The hypothesis
-defines what change was made, why, and what outcome was expected. All
-analysis must be framed against these expectations.
-
-## Artifacts to read
-- Run directory: [path]
-- Metrics: [path]
-- Training log: [path, or "not available"]
-- Config: [path]
-- Video: [path, or "not available"]
-
-## Analysis instructions
-1. Read the hypothesis first — understand what was changed, the reasoning,
-   and the expected outcome before looking at any data
-2. Read all remaining artifacts listed above
-3. Analyze training dynamics: reward trajectory, loss components, entropy,
-   clip fraction, SPS, episode length, death/termination breakdown
-4. If a video path is provided, analyze agent behavior
-5. Evaluate all findings against the hypothesis: did the expected mechanism
-   play out? Did the predicted outcome materialize? If not, why not?
-6. Produce a structured diagnosis report with: run summary, what worked,
-   what failed, behavior vs expectation (explicitly referencing the
-   hypothesis), next experiments (max 3), recommendation
-
-## File export
-Write your full diagnosis report to: docs/postmortem/[TIMESTAMP]_GE.md
-Create the directory if it does not exist (mkdir -p docs/postmortem).
-```
-
-Replace `[path]` placeholders with the actual artifact paths resolved in step 1. Replace `[TIMESTAMP]` with the same timestamp prefix used in step 7 (e.g. `0315_1430`). For inline-text hypotheses, embed the full text as a quoted block under the Hypothesis section.
-
-Then display this banner prominently at the end of the response:
-
-> **WORKFLOW TRANSITION: DUAL-MODEL POSTMORTEM**
->
-> Opus postmortem complete. Report saved to `docs/postmortem/[TIMESTAMP]_OP.md`.
->
-> Next steps:
-> 1. Switch to **Gemini 2.5 Pro (Agent mode)** and paste the Gemini postmortem prompt above
-> 2. After Gemini finishes, run `/postmortem-synthesis` to synthesize both reports and begin planning the next iteration
+The postmortem is complete after this step.
