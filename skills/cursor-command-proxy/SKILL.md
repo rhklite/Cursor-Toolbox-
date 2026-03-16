@@ -44,10 +44,12 @@ bash ~/.cursor/skills/cursor-command-proxy/scripts/send_shortcut.sh "b" "command
 bash ~/.cursor/skills/cursor-command-proxy/scripts/cmd_palette.sh "Markdown Preview Enhanced: Open Preview to the Side"
 ```
 
-**Model selection** (open picker, search, arrow to position, confirm):
+**Model selection** (focus chat, open picker, search, arrow to position, confirm):
 ```bash
 bash ~/.cursor/skills/cursor-command-proxy/scripts/select_model.sh "opus" 2
+bash ~/.cursor/skills/cursor-command-proxy/scripts/select_model.sh "gemini" 1 "Experiment-Tracker"
 ```
+The optional third argument is a window title substring for multi-window setups.
 See the "Known models" table in [commands-reference.md](commands-reference.md) for search terms and positions.
 
 ## Quick reference (most common commands)
