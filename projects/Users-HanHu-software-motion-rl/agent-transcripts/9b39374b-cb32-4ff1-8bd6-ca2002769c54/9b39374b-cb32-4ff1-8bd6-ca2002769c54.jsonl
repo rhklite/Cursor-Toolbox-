@@ -1,1 +1,0 @@
-{"role":"user","message":{"content":[{"type":"text","text":"<user_query>\nUpdate the rule that critiques everything I ask. Do you only apply that to agent and plan mode? Agent, plan, and debug mode, not the ask mode. Make ask mode the exception.\n</user_query>"}]}}

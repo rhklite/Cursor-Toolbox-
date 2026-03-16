@@ -1,5 +1,0 @@
-{"role":"user","message":{"content":[{"type":"text","text":"<user_query>\nI previously asked you to create a training deployment oscillator. Do you recall that?\n</user_query>"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"I’ll quickly check your prior chat transcripts for that exact request so I can answer accurately.\n\n**Planning transcript search for recall**"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"**Searching for oscillator occurrences**"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"**Confirming current transcript match only**"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"I don’t have independent memory of requests outside the current chat context. I also checked your available chat transcripts for that phrase and only found this current message, not an earlier one.\n\nIf you share the goal/requirements again, I can continue from there immediately.\n\n**Confirming no prior transcript**"}]}}

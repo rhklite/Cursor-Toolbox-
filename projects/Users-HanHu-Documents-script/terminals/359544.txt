@@ -1,7 +1,0 @@
----
-pid: 51948
-cwd: "/Users/HanHu/Documents/script/MacOS-Audio-input-source.-Switch-script--main"
-command: "pkill -f \"input_source_menubar.py\" || true; python3 \"input_source_menubar.py\""
-started_at: 2026-03-05T21:43:31.271Z
-running_for_ms: 435185   
----
