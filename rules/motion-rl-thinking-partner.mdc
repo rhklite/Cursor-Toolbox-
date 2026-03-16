@@ -1,6 +1,6 @@
 ---
 description: Auto-invokes the rl-thinking-partner skill when working in the motion_rl repository.
-globs: "/home/huh/software/motion_rl/**"
+globs: "/Users/rhklite/Documents/software/motion_rl/**"
 alwaysApply: false
 ---
 
