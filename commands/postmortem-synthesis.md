@@ -2,11 +2,11 @@
 
 Synthesize the Opus and Gemini postmortem reports into a unified diagnosis, then transition into the thinking partner session to plan the next iteration.
 
-## 0. Model confirmation
+## 0. Model confirmation (MANDATORY)
 
-Before proceeding, prompt the user: "This command runs best on **Opus Max (Ask mode)**. Are you currently on Opus Max in Ask mode? If not, please switch before we continue."
+Before proceeding, prompt the user: "This command requires **Opus Max in Ask mode**. Are you currently on Opus Max in Ask mode? If not, please switch before we continue."
 
-Do not proceed until the user confirms.
+This is a hard gate. The agent MUST NOT proceed to step 1 until the user explicitly confirms they are on the correct model and mode.
 
 ## 1. Locate postmortem reports
 

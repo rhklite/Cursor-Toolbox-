@@ -2,11 +2,11 @@
 
 Perform a full independent postmortem analysis of a completed training run. This command is designed for Gemini in Agent mode.
 
-## 0. Model confirmation
+## 0. Model confirmation (MANDATORY)
 
-Before proceeding, prompt the user: "This command runs best on **Gemini 2.5 Pro (Agent mode)**. Are you currently on Gemini in Agent mode? If not, please switch before we continue."
+Before proceeding, prompt the user: "This command requires **Gemini 2.5 Pro in Agent mode**. Are you currently on Gemini 2.5 Pro in Agent mode? If not, please switch before we continue."
 
-Do not proceed until the user confirms.
+This is a hard gate. The agent MUST NOT proceed to step 1 until the user explicitly confirms they are on the correct model and mode.
 
 ## 1. Gather artifact locations
 
