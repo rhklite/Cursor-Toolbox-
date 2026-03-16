@@ -61,16 +61,20 @@ Analyze the metrics and log systematically. For each dimension, report a short f
 - Read the "Expected visual behavior" or "Expected outcome" section from `hypothesis.md`.
 - If `hypothesis.md` is missing or has no expected behavior section, prompt the user: "Describe what behavior you expected to see in the trained agent (1-2 sentences)."
 
-### 5. Video analysis
+### 5. Video analysis and cross-family critique
 
-Attempt video analysis using the following fallback hierarchy:
+Attempt video analysis using the following fallback hierarchy. When video analysis routes to a Gemini model (via video attachment), the prompt piggybacks a broader cross-family critique of the entire training run alongside the video behavioral analysis. This provides an independent perspective from a different model family without requiring a manual model switch.
 
-**Primary — Task tool with video attachment:**
+**Primary — Task tool with video attachment (Gemini piggyback):**
 Use the video path provided by the user in step 1. If no video was provided, prompt the user: "Do you have a video of the trained agent? If so, provide the path." If no video is available, skip directly to Fallback 2.
 
 Use the Task tool with `subagent_type: "generalPurpose"` and the `attachments` parameter pointing to the video file. Include in the prompt:
 - The expected behavior from step 4
-- Ask: "Watch this video of a trained RL agent. Describe the agent's behavior in detail. Then compare it against this expected behavior: [expected]. List specific discrepancies and hypothesize root causes."
+- A summary of the training dynamics findings from step 3 (reward trajectory, loss trends, entropy, clip fraction, episode length)
+- The config and hypothesis summaries from steps 1-2
+- Ask: "You are performing a cross-family postmortem review. Do two things:
+  1. **Video analysis**: Watch this video of a trained RL agent. Describe the agent's behavior in detail. Compare it against this expected behavior: [expected]. List specific discrepancies and hypothesize root causes.
+  2. **Training dynamics critique**: Given the metrics summary and config below, independently assess: Were the hyperparameters reasonable? Are there signs of reward hacking, entropy collapse, or value function issues that the primary analysis might have overlooked? What alternative explanations exist for the observed training trajectory?"
 
 **Fallback 1 — Keyframe extraction:**
 If the Task tool video analysis fails or returns an error:
@@ -87,6 +91,7 @@ Report:
 - What behavior the video actually shows
 - Discrepancies from the expected behavior
 - Hypothesized causes for each discrepancy
+- Cross-family critique findings (if Gemini piggyback was used)
 
 ### 6. Diagnosis report
 
@@ -129,6 +134,7 @@ Display this banner prominently at the end of the response:
 > **WORKFLOW TRANSITION: NEXT ITERATION**
 >
 > Postmortem complete. To plan the next iteration:
-> 1. Switch to **Opus Max (Ask mode)**
-> 2. Use the **rl-thinking-partner** skill to explore the next design
-> 3. When the design is ready, switch to **Opus (Agent mode)** and run `/preflight`
+> 1. Switch to **Opus Max (Ask mode)** and use the **rl-thinking-partner** skill to explore the next design
+> 2. After design is agreed, switch to **Gemini 2.5 Pro (Ask mode)** for cross-family critique of the design
+> 3. Switch to **Opus (Agent mode)** to implement and run preflight verification
+> 4. Launch the run

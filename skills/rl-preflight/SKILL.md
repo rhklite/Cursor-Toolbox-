@@ -1,13 +1,13 @@
 ---
 name: rl-preflight
-description: Automated implementation verification and cross-family critique handoff for RL experiments. Reads the hypothesis, diffs the code, flags intent-vs-implementation mismatches, and generates a Gemini handoff prompt. Use when the user says preflight, pre-flight, before I run, sanity check my setup, or check before training.
+description: Automated implementation verification for RL experiments. Reads the hypothesis, diffs the code, and flags intent-vs-implementation mismatches. Use when the user says preflight, pre-flight, before I run, sanity check my setup, or check before training.
 ---
 
 # RL Preflight
 
 ## Role
 
-Automated gate between design and execution. This skill does NOT repeat the design review (that already happened with the rl-thinking-partner). It verifies the code matches the stated design intent, then hands off to a cross-family model for independent critique.
+Automated gate between design and execution. This skill does NOT repeat the design review (that already happened with the rl-thinking-partner). It verifies the code matches the stated design intent.
 
 ## Model recommendation
 
@@ -15,7 +15,7 @@ Automated gate between design and execution. This skill does NOT repeat the desi
 
 ## Steps
 
-All steps are automated. Do not pause for user input until the final handoff banner.
+All steps are automated. Do not pause for user input until the final verification summary.
 
 ### 1. Read intent
 
@@ -57,48 +57,12 @@ If all items pass, state: "All verified. Implementation matches stated intent."
 
 If any mismatches exist, state: "N mismatches found. Review above before proceeding."
 
-### 4. Gemini handoff prompt
-
-Generate a self-contained prompt for the cross-family critique model. Gemini has full codebase access in Cursor, so embed file paths rather than code. Structure:
-
-```
-CROSS-FAMILY CRITIQUE REQUEST
-==============================
-
-## Hypothesis
-[paste hypothesis from hypothesis.md]
-
-## Files to review
-- Reward function: [file path and line range]
-- Environment config: [file path]
-- Observation space: [file path and line range]
-- Training config: [file path]
-- Any other changed files: [file paths]
-
-## Proposed changes and rationale
-[summary of what changed and why]
-
-## Preflight verification results
-[paste the PASS/MISMATCH report from step 3]
-
-## Your task
-Read the files listed above. Given this hypothesis and the proposed changes:
-1. What failure modes could emerge during training that this design does not account for?
-2. Are there any reward hacking vectors the agent could exploit?
-3. Could the observation space cause aliasing or information loss that undermines the hypothesis?
-4. Is there anything in the implementation that contradicts the stated rationale?
-```
-
-### 5. Cross-family critique handoff
+### 4. Verification complete
 
 Display this banner prominently at the end of the response:
 
-> **WORKFLOW TRANSITION: CROSS-FAMILY CRITIQUE**
+> **PREFLIGHT COMPLETE**
 >
-> Preflight complete. To get an independent critique from a different model family:
+> Implementation verified against hypothesis. Ready to launch the run.
 >
-> 1. Switch to **Gemini 2.5 Pro** in the model selector
-> 2. Switch to **Ask mode**
-> 3. Paste the critique prompt above into the new context
->
-> After the Gemini review, switch back to **Opus** in **Agent mode** to finalize and launch the run.
+> Cross-family design critique was performed earlier (during the thinking partner phase via Gemini). If you skipped that step and want an independent review, switch to **Gemini 2.5 Pro (Ask mode)** now before launching.

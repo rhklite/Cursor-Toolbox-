@@ -38,9 +38,50 @@ Do NOT jump to implementation or code unless the user explicitly asks.
 3. **Narrowing** — agree on the minimal experiment that would falsify or confirm
 4. **Exit criteria** — define what "this worked" looks like before running anything
 
+## Cross-family critique handoff
+
+When the thinking partner session concludes (hypothesis and action items agreed upon), display this banner prominently **before** transitioning to implementation:
+
+> **WORKFLOW TRANSITION: CROSS-FAMILY DESIGN CRITIQUE**
+>
+> Design session complete. Before implementing, get an independent critique from a different model family:
+>
+> 1. Switch to **Gemini 2.5 Pro** in the model selector
+> 2. Stay in **Ask mode**
+> 3. Paste the critique prompt below into the new context
+>
+> After the Gemini review, switch to **Opus (Agent mode)** and say "implement this" to proceed.
+
+Generate a self-contained critique prompt for Gemini. Structure:
+
+```
+CROSS-FAMILY DESIGN CRITIQUE REQUEST
+=====================================
+
+## Hypothesis
+[paste the agreed hypothesis from the thinking partner session]
+
+## Proposed changes
+[summary of what will be changed: reward terms, observations, architecture, config, curriculum]
+
+## Expected outcome
+[what the user expects to see if the hypothesis is correct]
+
+## Exit criteria
+[the agreed definition of success from the session]
+
+## Your task
+Given this hypothesis and proposed design:
+1. What failure modes could emerge during training that this design does not account for?
+2. Are there any reward hacking vectors the agent could exploit?
+3. Could the observation space cause aliasing or information loss that undermines the hypothesis?
+4. Does the exit criteria actually test what the hypothesis claims?
+5. What is the strongest argument against this design?
+```
+
 ## Workflow continuation: implementation and preflight
 
-When the thinking partner session concludes (hypothesis and action items agreed upon) and the user asks to act on the results, the agent transitions into implementation and preflight automatically. The user does not need to invoke the preflight skill separately.
+When the user returns from the Gemini critique (or explicitly asks to proceed without it) and requests implementation, the agent transitions into implementation and preflight automatically. The user does not need to invoke the preflight skill separately.
 
 ### Trigger phrases
 
@@ -52,7 +93,7 @@ Any of: "act on this", "implement this", "go ahead", "let's do it", "make the ch
 2. Implement the changes based on the agreed hypothesis and action items
 3. After implementation is complete, automatically read and follow the **rl-preflight** skill at `~/.cursor/skills/rl-preflight/SKILL.md` — do not wait for the user to invoke it
 
-The preflight skill handles verification against the hypothesis and the cross-family critique handoff.
+The preflight skill handles verification against the hypothesis.
 
 ## Humanoid robot whitelist nudge
 
