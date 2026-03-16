@@ -162,4 +162,14 @@ Write the full diagnosis report from step 6 to a file. Use the current timestamp
 - Create `docs/postmortem/` if it does not exist (`mkdir -p docs/postmortem`)
 - The file should contain the complete diagnosis report as written in step 6
 
+### 8. Key findings summary
+
+After writing the report, print a concise key findings summary directly in the chat so the user sees it without opening the file. Format:
+
+> **KEY FINDINGS (Opus)**
+>
+> - [3-5 bullet points: the most important findings from the diagnosis]
+> - Each bullet should be one sentence stating a finding and its implication
+> - Prioritize: what worked, what failed, and the single most impactful next step
+
 The postmortem is complete after this step.

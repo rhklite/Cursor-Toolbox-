@@ -97,7 +97,17 @@ Write the full diagnosis report to a file:
 - If no `_OP.md` file exists, use the current timestamp: `MMDD_HHMM_GE.md`
 - Create `docs/postmortem/` if it does not exist (`mkdir -p docs/postmortem`)
 
-## 8. Completion banner
+## 8. Key findings summary
+
+After writing the report, print a concise key findings summary directly in the chat so the user sees it without opening the file. Format:
+
+> **KEY FINDINGS (Gemini)**
+>
+> - [3-5 bullet points: the most important findings from the diagnosis]
+> - Each bullet should be one sentence stating a finding and its implication
+> - Prioritize: what worked, what failed, and the single most impactful next step
+
+## 9. Completion banner
 
 Display this banner at the end:
 
