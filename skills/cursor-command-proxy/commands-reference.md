@@ -12,24 +12,17 @@ Commands with known shortcuts. The agent uses `scripts/send_shortcut.sh` for the
 | "switch to plan mode", "plan mode" | `composerMode.plan` | Cmd+L | `"l" "command down"` |
 | "switch to ask mode", "ask mode", "chat mode" | `composerMode.chat` | Ctrl+Shift+A | `"a" "control down" "shift down"` |
 | "open model picker", "switch model", "change model" | `composer.openModelToggle` | Ctrl+Shift+M | `"m" "control down" "shift down"` |
-
-### Model selection (via select_model.sh)
-
-The model picker is a dropdown, not a palette input. Use `scripts/select_model.sh` to select a specific model. Do NOT use `cmd_palette.sh` for this.
-
-Known models (search term and 1-based position in filtered results):
-
-| User says | Search term | Position | select_model.sh call |
-|---|---|---|---|
-| "switch to opus max" | opus | 1 | `select_model.sh "opus" 1` |
-| "switch to opus" | opus | 2 | `select_model.sh "opus" 2` |
-| "switch to sonnet" | sonnet | 1 | `select_model.sh "sonnet" 1` |
-| "switch to gpt-4o" | gpt-4o | 1 | `select_model.sh "gpt-4o" 1` |
-| "switch to o3" | o3 | 1 | `select_model.sh "o3" 1` |
-| "switch to gemini" | gemini | 1 | `select_model.sh "gemini" 1` |
-
-If the model is not listed, open the model picker manually and note the search term and position, then add it to this table.
 | "maximize chat", "maximize agent", "full screen chat" | `composer.maxMode` | Ctrl+Shift+X | `"x" "control down" "shift down"` |
+
+### Model selection (manual)
+
+Automated model selection is **not supported**. The model picker dropdown is too fragile for keystroke automation (timing, focus, and multi-window issues). When the user asks to switch to a specific model (e.g. "switch to opus"), do the following:
+
+1. Fire a desktop notification:
+   ```bash
+   bash ~/.cursor/scripts/cursor_notify.sh "Cursor: Model Switch" "Model switching cannot be done automatically. Click the model name at the bottom of the chat panel to switch manually."
+   ```
+2. Tell the user in your chat response to click the model name at the bottom of the chat panel to switch manually.
 
 ### UI toggles
 

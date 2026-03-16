@@ -28,7 +28,10 @@ Read [commands-reference.md](commands-reference.md) and match the user's intent 
 
 - **Layer 1 (direct shortcut)**: If the command has a known shortcut in `commands-reference.md`, use `scripts/send_shortcut.sh`.
 - **Layer 2 (palette relay)**: If no shortcut exists, use `scripts/cmd_palette.sh` with the Command Palette text, then auto-promote (see below).
-- **Model selection**: For "switch to [model name]", use `scripts/select_model.sh` with the search term and position from the "Known models" table in `commands-reference.md`. Do NOT use `cmd_palette.sh` for model switching — the model picker is a dropdown, not a palette secondary input. **Limitation**: this is unreliable with multiple Cursor windows open — the chat panel must have focus for Ctrl+Shift+M to open the model picker instead of Settings > Models. If automation fails, tell the user to click the model name at the bottom of the chat panel manually.
+- **Model selection**: Automated model selection is **not supported** — the model picker dropdown is too fragile for keystroke automation. When the user asks to switch to a specific model (e.g. "switch to opus"), fire a desktop notification and tell them to do it manually:
+  ```bash
+  bash ~/.cursor/scripts/cursor_notify.sh "Cursor: Model Switch" "Model switching cannot be done automatically. Click the model name at the bottom of the chat panel to switch manually."
+  ```
 - **Settings change**: If the command is a settings change (font size, theme), use the `update-cursor-settings` skill instead.
 - **SSH connection**: For "connect to [host]", prefer CLI: `cursor --remote ssh-remote+HOSTNAME /path`
 
@@ -44,13 +47,11 @@ bash ~/.cursor/skills/cursor-command-proxy/scripts/send_shortcut.sh "b" "command
 bash ~/.cursor/skills/cursor-command-proxy/scripts/cmd_palette.sh "Markdown Preview Enhanced: Open Preview to the Side"
 ```
 
-**Model selection** (focus chat, open picker, search, arrow to position, confirm):
+**Model selection** (notify user to switch manually):
 ```bash
-bash ~/.cursor/skills/cursor-command-proxy/scripts/select_model.sh "opus" 2
-bash ~/.cursor/skills/cursor-command-proxy/scripts/select_model.sh "gemini" 1 "Experiment-Tracker"
+bash ~/.cursor/scripts/cursor_notify.sh "Cursor: Model Switch" "Model switching cannot be done automatically. Click the model name at the bottom of the chat panel to switch manually."
 ```
-The optional third argument is a window title substring for multi-window setups.
-See the "Known models" table in [commands-reference.md](commands-reference.md) for search terms and positions.
+Also tell the user in your chat response to click the model name at the bottom of the chat panel.
 
 ## Quick reference (most common commands)
 
@@ -60,7 +61,7 @@ See the "Known models" table in [commands-reference.md](commands-reference.md) f
 | "plan mode" | shortcut | `send_shortcut.sh "l" "command down"` |
 | "ask mode" / "chat mode" | shortcut | `send_shortcut.sh "a" "control down" "shift down"` |
 | "switch model" / "model picker" | shortcut | `send_shortcut.sh "m" "control down" "shift down"` |
-| "switch to [model]" | model script | `select_model.sh "<search>" <pos>` (see commands-reference.md) |
+| "switch to [model]" | notification | `bash ~/.cursor/scripts/cursor_notify.sh "Cursor: Model Switch" "..."` (manual only) |
 | "maximize chat" | shortcut | `send_shortcut.sh "x" "control down" "shift down"` |
 | "toggle sidebar" | shortcut | `send_shortcut.sh "b" "command down"` |
 | "zoom in" | shortcut | `send_shortcut.sh "=" "command down"` |
