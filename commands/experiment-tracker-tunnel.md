@@ -1,8 +1,8 @@
-# Exp-Tracker Tunnel
+# Experiment Tracker Tunnel
 
 Manage the resilient SSH tunnel to huh.desktop.us that forwards port 8765 (experiment tracker dashboard).
 
-Invoke as `/tunnel-exp-tracker`.
+Invoke as `/experiment-tracker-tunnel`.
 
 ## Subcommands
 
