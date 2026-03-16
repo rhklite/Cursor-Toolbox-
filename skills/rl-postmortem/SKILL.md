@@ -63,20 +63,16 @@ Analyze the metrics and log systematically. For each dimension, report a short f
 - Read the "Expected visual behavior" or "Expected outcome" section from `hypothesis.md`.
 - If `hypothesis.md` is missing or has no expected behavior section, prompt the user: "Describe what behavior you expected to see in the trained agent (1-2 sentences)."
 
-### 5. Video analysis and cross-family critique
+### 5. Video analysis
 
-Attempt video analysis using the following fallback hierarchy. When video analysis routes to a Gemini model (via video attachment), the prompt piggybacks a broader cross-family critique of the entire training run alongside the video behavioral analysis. This provides an independent perspective from a different model family without requiring a manual model switch.
+Attempt video analysis using the following fallback hierarchy:
 
-**Primary — Task tool with video attachment (Gemini piggyback):**
+**Primary — Task tool with video attachment:**
 Use the video path provided by the user in step 1. If no video was provided, prompt the user: "Do you have a video of the trained agent? If so, provide the path." If no video is available, skip directly to Fallback 2.
 
 Use the Task tool with `subagent_type: "generalPurpose"` and the `attachments` parameter pointing to the video file. Include in the prompt:
 - The expected behavior from step 4
-- A summary of the training dynamics findings from step 3 (reward trajectory, loss trends, entropy, clip fraction, episode length)
-- The config and hypothesis summaries from steps 1-2
-- Ask: "You are performing a cross-family postmortem review. Do two things:
-  1. **Video analysis**: Watch this video of a trained RL agent. Describe the agent's behavior in detail. Compare it against this expected behavior: [expected]. List specific discrepancies and hypothesize root causes.
-  2. **Training dynamics critique**: Given the metrics summary and config below, independently assess: Were the hyperparameters reasonable? Are there signs of reward hacking, entropy collapse, or value function issues that the primary analysis might have overlooked? What alternative explanations exist for the observed training trajectory?"
+- Ask: "Watch this video of a trained RL agent. Describe the agent's behavior in detail. Then compare it against this expected behavior: [expected]. List specific discrepancies and hypothesize root causes."
 
 **Fallback 1 — Keyframe extraction:**
 If the Task tool video analysis fails or returns an error:
@@ -93,7 +89,6 @@ Report:
 - What behavior the video actually shows
 - Discrepancies from the expected behavior
 - Hypothesized causes for each discrepancy
-- Cross-family critique findings (if Gemini piggyback was used)
 
 ### 6. Diagnosis report
 
@@ -129,14 +124,58 @@ POSTMORTEM DIAGNOSIS
 [One sentence: adjust rewards / adjust architecture / adjust hyperparameters / adjust curriculum / redesign observation space]
 ```
 
-### 7. Model-switch banner
+### 7. File export
 
-Display this banner prominently at the end of the response:
+Write the full diagnosis report from step 6 to a file. Use the current timestamp to name the file:
 
-> **WORKFLOW TRANSITION: NEXT ITERATION**
+- Path: `docs/postmortem/MMDD_HHMM_OP.md` (e.g. `0315_1430_OP.md`)
+- Create `docs/postmortem/` if it does not exist (`mkdir -p docs/postmortem`)
+- The file should contain the complete diagnosis report as written in step 6
+
+Record the timestamp prefix (e.g. `0315_1430`) for use in the Gemini handoff prompt.
+
+### 8. Gemini handoff and workflow banner
+
+Generate a self-contained prompt for the Gemini postmortem. This prompt must be fully copy-pasteable. Structure:
+
+```
+INDEPENDENT POSTMORTEM — GEMINI
+================================
+
+You are performing an independent postmortem analysis of an RL training run.
+Analyze the artifacts below and produce your own diagnosis. Do NOT read any
+existing postmortem reports — form your own conclusions independently.
+
+## Artifacts to read
+- Run directory: [path]
+- Metrics: [path]
+- Training log: [path, if available]
+- Config: [path]
+- Hypothesis: [path, if available]
+- Video: [path, if available]
+
+## Analysis instructions
+1. Read all available artifacts listed above
+2. Analyze training dynamics: reward trajectory, loss components, entropy,
+   clip fraction, SPS, episode length, death/termination breakdown
+3. If a video path is provided, analyze agent behavior
+4. Compare observed behavior against the hypothesis (if available)
+5. Produce a structured diagnosis report with: run summary, what worked,
+   what failed, behavior vs expectation, next experiments (max 3), recommendation
+
+## File export
+Write your full diagnosis report to: docs/postmortem/[TIMESTAMP]_GE.md
+Create the directory if it does not exist (mkdir -p docs/postmortem).
+```
+
+Replace `[path]` placeholders with the actual artifact paths resolved in step 1. Replace `[TIMESTAMP]` with the same timestamp prefix used in step 7 (e.g. `0315_1430`).
+
+Then display this banner prominently at the end of the response:
+
+> **WORKFLOW TRANSITION: DUAL-MODEL POSTMORTEM**
 >
-> Postmortem complete. To plan the next iteration:
-> 1. Switch to **Opus Max (Ask mode)** and use the **rl-thinking-partner** skill to explore the next design
-> 2. After design is agreed, switch to **Gemini 2.5 Pro (Ask mode)** for cross-family critique of the design
-> 3. Switch to **Opus (Agent mode)** to implement and run preflight verification
-> 4. Launch the run
+> Opus postmortem complete. Report saved to `docs/postmortem/[TIMESTAMP]_OP.md`.
+>
+> Next steps:
+> 1. Switch to **Gemini 2.5 Pro (Agent mode)** and paste the Gemini postmortem prompt above
+> 2. After Gemini finishes, run `/postmortem-synthesis` to synthesize both reports and begin planning the next iteration
