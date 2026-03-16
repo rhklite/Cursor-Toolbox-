@@ -28,7 +28,7 @@ Read [commands-reference.md](commands-reference.md) and match the user's intent 
 
 - **Layer 1 (direct shortcut)**: If the command has a known shortcut in `commands-reference.md`, use `scripts/send_shortcut.sh`.
 - **Layer 2 (palette relay)**: If no shortcut exists, use `scripts/cmd_palette.sh` with the Command Palette text, then auto-promote (see below).
-- **Model selection**: For "switch to [model name]", use `scripts/select_model.sh` with the search term and position from the "Known models" table in `commands-reference.md`. Do NOT use `cmd_palette.sh` for model switching — the model picker is a dropdown, not a palette secondary input.
+- **Model selection**: For "switch to [model name]", use `scripts/select_model.sh` with the search term and position from the "Known models" table in `commands-reference.md`. Do NOT use `cmd_palette.sh` for model switching — the model picker is a dropdown, not a palette secondary input. **Limitation**: this is unreliable with multiple Cursor windows open — the chat panel must have focus for Ctrl+Shift+M to open the model picker instead of Settings > Models. If automation fails, tell the user to click the model name at the bottom of the chat panel manually.
 - **Settings change**: If the command is a settings change (font size, theme), use the `update-cursor-settings` skill instead.
 - **SSH connection**: For "connect to [host]", prefer CLI: `cursor --remote ssh-remote+HOSTNAME /path`
 
