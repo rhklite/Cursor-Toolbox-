@@ -79,6 +79,12 @@ Workflow:
 2. Run the command.
 3. Report downloaded file count and output directory.
 
+**Alternative — link-based tracking:** Instead of downloading artifacts locally, use `link-job-artifacts` to store OSS download URLs on the tracker node. The dashboard then provides direct download links and client-side ZIP packaging. Prefer this for evaluation artifacts (checkpoints, videos, analysis):
+
+```bash
+python3 ~/software/Experiment-Tracker-/tracker_cli.py link-job-artifacts --store-root ~/.exp-tracker --job-name <job_name>
+```
+
 Type mapping from user language:
 - "checkpoint", "model", "weights", ".pt" -> `--type checkpoints`
 - "video", "mp4", "recording" -> `--type videos`
@@ -86,6 +92,7 @@ Type mapping from user language:
 - "metrics", "csv", "results" -> `--type metrics`
 - "logs", "training log" -> `--type logs`
 - "everything", "all artifacts" -> `--type all`
+- "link artifacts", "store artifact links" -> use `link-job-artifacts` CLI instead
 
 ### pull-logs — Fetch training stdout
 

@@ -228,6 +228,7 @@ This step is non-blocking. If it fails for any combo, warn and continue. Do NOT 
   - `bash ~/.cursor/scripts/verify_fuyao_jobs.sh --run-root <run_root> --check-artifacts --poll-interval 60 --max-attempts 15`
 - if tracker succeeded: "To update all combo statuses when sweep completes: `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py update-sweep-status --sweep-id <sweep_id> --status completed`"
 - if tracker succeeded: "To update a single combo: `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py set-status --node-id <mutation_id> --status completed`"
+- if tracker succeeded: "To link artifacts for each combo after evaluation: `python3 ~/software/Experiment-Tracker-/tracker_cli.py link-job-artifacts --store-root ~/.exp-tracker --job-name <job_name>` (run once per combo job_name). Or use the dashboard Sweep Artifacts panel on the parent node to batch-download all combo artifacts."
 
 ## Manual fallback behavior
 

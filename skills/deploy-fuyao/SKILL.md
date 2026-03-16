@@ -164,6 +164,7 @@ This step is non-blocking. If it fails, warn and continue to the Post-Submit Rep
 - **registry:** registered / skipped / failed
 - follow-up commands: `fuyao info --job-name <job_name>` and `fuyao log --job-name <job_name>`
 - if tracker succeeded: "To update status when job completes: `python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py set-status --node-id <mutation_id> --status completed`"
+- if tracker succeeded and job_name is known: "To link artifacts after evaluation: `python3 ~/software/Experiment-Tracker-/tracker_cli.py link-job-artifacts --store-root ~/.exp-tracker --job-name <job_name>`"
 
 ## Manual Fallback (When Skill Resolution Is Not Available)
 

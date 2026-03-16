@@ -35,8 +35,9 @@ TYPE_PATTERNS = {
     "logs": [r"\.log$", r"\.txt$"],
     "videos": [r"\.mp4$", r"\.avi$", r"\.webm$"],
     "onnx": [r"\.onnx$"],
-    "metrics": [r"metrics\.json$", r"\.csv$"],
+    "metrics": [r"metrics?\.json$", r"\.csv$"],
     "tensorboard": [r"events\.out\.tfevents"],
+    "pdf": [r"\.pdf$"],
 }
 
 CANCEL_SIGNALS = {
