@@ -20,7 +20,7 @@ If the user specifies a verbosity level, use it. Otherwise default to moderate.
 
 ## Abstract Requirements
 
-The Abstract is mandatory in every document. It gives the reader an at-a-glance understanding of what was done. Five sub-principles govern it:
+The Abstract is mandatory in every document. It gives the reader an at-a-glance understanding of what was done. Six sub-principles govern it:
 
 1. **Always present** — Every document must have an Abstract section. No exceptions.
 
@@ -37,6 +37,8 @@ The Abstract is mandatory in every document. It gives the reader an at-a-glance 
    - Handoff docs: deliverables and status
 
 5. **Hybrid depth rule** — Tables can appear in compact form in the abstract even if expanded in a later section. Prose must not be repeated.
+
+6. **No table-of-contents tables** — Do not include tables that index or summarize every section/topic of the document. PDF and other export formats generate their own TOC; a summary table that mirrors headings is redundant structure.
 
 ## General Principles
 
