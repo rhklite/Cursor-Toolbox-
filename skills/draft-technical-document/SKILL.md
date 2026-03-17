@@ -18,7 +18,27 @@ Produces technical documents that are scannable by decision makers and detailed 
 
 If the user specifies a verbosity level, use it. Otherwise default to moderate.
 
-## Principles
+## Abstract Requirements
+
+The Abstract is mandatory in every document. It gives the reader an at-a-glance understanding of what was done. Five sub-principles govern it:
+
+1. **Always present** — Every document must have an Abstract section. No exceptions.
+
+2. **Context block first** — Opens with a bold subheading (name is flexible: "Working Condition", "Purpose", "Scope", etc.) and 1-2 sentences establishing the system/subject and its operating conditions.
+
+3. **Core deliverable stated** — The abstract must state the document's central outcome:
+   - Evaluation docs: pass/fail criterion or success definition
+   - Design docs: what was built and why
+   - Handoff docs: scope of the handoff and current status
+
+4. **Key outputs as table** — The most important outputs appear as a compact table in the abstract:
+   - Evaluation docs: key metrics with targets
+   - Design docs: key files, classes, or artifacts
+   - Handoff docs: deliverables and status
+
+5. **Hybrid depth rule** — Tables can appear in compact form in the abstract even if expanded in a later section. Prose must not be repeated.
+
+## General Principles
 
 These are hard requirements. Every draft must satisfy all seven.
 
