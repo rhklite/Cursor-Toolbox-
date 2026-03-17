@@ -1,6 +1,6 @@
 ---
 name: translate-to-chinese
-description: Translates Markdown documents to Chinese while preserving all rendering elements. Use when the user asks to translate a document to Chinese, create a Chinese version, or generate a .zh.md file.
+description: Translates Markdown documents to Chinese while preserving all rendering elements. Use when the user asks to translate a document to Chinese, create a Chinese version, or generate a .zh.md file. Also invoked automatically by the draft-technical-document skill when the user opts for Chinese translation.
 ---
 
 # Translate to Chinese
