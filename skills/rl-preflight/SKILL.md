@@ -52,6 +52,13 @@ Compare intent (from hypothesis.md) against implementation (from code). For each
 - **Commented-out code**: code that should be active is commented out, or vice versa
 - **Wrong variable references**: reward computation references the wrong state variable
 - **Stale values**: a value was changed in one location but not in another where it's duplicated
+- **Curriculum stage mismatches**: hypothesis specifies stage transitions, thresholds, or ordering that differ from what the code implements
+- **Observation space ordering**: hypothesis describes a specific observation layout or ordering that does not match the actual tensor construction
+- **Action space bounds**: hypothesis states an action range or clipping bound that differs from the configured values
+- **Domain randomization parameters**: hypothesis specifies randomization ranges or distributions that are not reflected in the config or environment code
+- **Episode length and termination conditions**: hypothesis defines episode duration, early termination triggers, or timeout values that do not match the implementation
+- **Reward term omission or addition**: hypothesis lists specific reward terms to add, remove, or disable, but the code does not reflect all of them
+- **Weight or coefficient drift**: hypothesis specifies reward weights or loss coefficients, but a subset are stale or were not updated across all config layers (base, task, override)
 
 Output format:
 

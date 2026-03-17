@@ -104,7 +104,43 @@ Any of: "act on this", "implement this", "go ahead", "let's do it", "make the ch
    - Observation-space shape and content checks
    - Environment-step smoke tests (env resets and steps without error)
 5. **Run tests and iterate** — execute the tests. If any fail, diagnose whether the implementation or the test is wrong, fix accordingly, and re-run. Max 5 cycles. If failures remain after 5 cycles, report the remaining failures and stop.
-6. **Auto-run rl-preflight** — only after all tests pass. Read and follow the preflight skill at `~/.cursor/skills/rl-preflight/SKILL.md`. Do not wait for the user to invoke it.
+6. **Self-review (correctness audit)** — only after all tests pass. This step catches runtime-correctness bugs that tests miss due to correlated blind spots (the same agent wrote both the code and the tests).
+
+   **Mindset:** Assume bugs exist. Your goal is to break the code, not confirm it works. Read the diff as if reviewing someone else's code for the first time.
+
+   **Scope:** Run `git diff` to capture exactly what changed. Review only the changed functions and their immediate callers. Do not review unrelated code.
+
+   **RL correctness checklist** — for each changed function, check for:
+
+   - Tensor shape mismatches and silent broadcasting
+   - Wrong reduction operation (mean vs. sum vs. none) in reward or loss computation
+   - Off-by-one errors in observation or action indexing
+   - Missing `.detach()` calls causing unintended gradient flow
+   - Incorrect normalization axis or ordering
+   - Reset logic not reinitializing all relevant state (buffers, counters, history)
+   - Wrong body index, joint index, or link name references in contact or collision detection
+   - Quaternion convention errors (wxyz vs. xyzw)
+   - Clipping or scaling applied in wrong order
+   - Reference frame confusion (world vs. local vs. body)
+
+   **Output format:**
+
+   ```
+   SELF-REVIEW: CORRECTNESS AUDIT
+   ===============================
+   [CRITICAL] reward_func line 42: mean reduction across batch dim loses per-env reward scaling
+   [MEDIUM] _reset_idx line 88: self.step_count not zeroed on reset, will accumulate across episodes
+   [LOW] compute_obs line 15: redundant .clone() — no correctness impact but wastes memory
+   ```
+
+   **Actions:**
+
+   - CRITICAL and MEDIUM findings: fix the code immediately.
+   - LOW findings: log them in the output but do not fix.
+   - After fixing, re-run the **full test suite** on the first fix cycle. On subsequent fix cycles, re-run only tests that exercise the changed functions (tests whose name or scope matches the modified module).
+   - Max 3 review-fix-retest cycles. If findings remain after 3 cycles, report them and stop.
+
+7. **Auto-run rl-preflight** — only after self-review completes (clean or capped). Read and follow the preflight skill at `~/.cursor/skills/rl-preflight/SKILL.md`. Do not wait for the user to invoke it.
 
 ## Humanoid robot whitelist nudge
 
