@@ -154,6 +154,3 @@ Use as starting scaffolding. Adapt headings to fit the document's subject.
 1. Gather the subject, scope, and audience from the user (or infer from context).
 2. Ask for verbosity preference if not specified. Default to moderate.
 3. Draft the document using the template scaffolding and all seven principles.
-4. After the draft is complete, ask: "Generate a Chinese translation (.zh.md)?"
-   - If yes, read and follow `~/.cursor/skills/translate-to-chinese/SKILL.md`. This is mandatory -- do not translate inline without reading the skill first, as it contains a hard requirement for the rendering prompt.
-   - If no, skip.
