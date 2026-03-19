@@ -140,6 +140,14 @@ The registry is the single source of truth for which jobs are tracked and protec
 - Writes are atomic (temp file + rename) to prevent corruption.
 - File locking (fcntl.flock) prevents concurrent corruption.
 
+After any registry mutation (add, remove, clear, protect, unprotect, sync), push to huh.desktop.us:
+
+```bash
+scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/.cursor/tmp/fuyao_job_registry.json
+```
+
+If the push fails (SSH unreachable), warn and continue.
+
 ## Defaults
 
 - `--ssh-alias`: `remote.kernel.fuyo`

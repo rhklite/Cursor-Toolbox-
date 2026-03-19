@@ -1,0 +1,14 @@
+# Sync Job Registry to Desktop
+
+After any operation that modifies the Fuyao job registry (~/.cursor/tmp/fuyao_job_registry.json), push it to huh.desktop.us:
+
+```bash
+scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/.cursor/tmp/fuyao_job_registry.json
+```
+
+This applies after:
+- Job registration via deploy-fuyao or sweep-fuyao skills
+- Registry add, remove, clear, protect, unprotect, or sync operations
+- Any batch registry update
+
+The push is non-blocking. If it fails (SSH unreachable), warn and continue.

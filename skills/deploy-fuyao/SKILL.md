@@ -152,6 +152,14 @@ python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add <job_name> \
 
 This step is non-blocking. If it fails, warn and continue to the Post-Submit Report.
 
+After registry write, push to huh.desktop.us:
+
+```bash
+scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/.cursor/tmp/fuyao_job_registry.json
+```
+
+If the push fails (SSH unreachable), warn and continue.
+
 ## Post-Submit Report
 
 - execution path used (`ssh->(resolved deploy alias)`)
