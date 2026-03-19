@@ -1,21 +1,11 @@
-# Sync Job Registry and Tracker Store to Desktop
+# Remote Sync Architecture
 
-After any operation that modifies the Fuyao job registry or the experiment tracker store, push to huh.desktop.us.
+Job registry and tracker store both live on huh.desktop.us as the single source of truth.
 
 ## Job Registry
 
-After registry mutations (add, remove, clear, protect, unprotect, sync, batch update):
-
-```bash
-scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/software/Experiment-Tracker-/fuyao_job_registry.json
-```
+fuyao_job_manager.py auto-pushes the registry to huh.desktop.us:~/software/Experiment-Tracker-/fuyao_job_registry.json on every write via _save_registry(). No manual sync needed.
 
 ## Tracker Store
 
-After tracker recordings (record-deploy, record-sweep, set-status, update-sweep-status):
-
-```bash
-rsync -az ~/.exp-tracker/{graph.json,index.json,events.jsonl} huh.desktop.us:~/.exp-tracker/
-```
-
-Both pushes are non-blocking. If SSH is unreachable, warn and continue.
+Tracker recordings run directly on huh.desktop.us via record_tracker_remote.sh. The script scp's the payload and executes the tracker CLI on the remote. No local-to-remote sync needed.

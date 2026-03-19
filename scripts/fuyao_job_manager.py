@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 REGISTRY_PATH = Path.home() / ".cursor" / "tmp" / "fuyao_job_registry.json"
+REGISTRY_REMOTE_HOST = "huh.desktop.us"
+REGISTRY_REMOTE_PATH = "~/software/Experiment-Tracker-/fuyao_job_registry.json"
 ARTIFACTS_BASE = Path.home() / ".cursor" / "tmp" / "fuyao_artifacts"
 DEFAULT_SSH_ALIAS = "remote.kernel.fuyo"
 OSS_BASE_URL = "https://xrobot.xiaopeng.link/resource/xrobot-log/user-upload/fuyao"
@@ -89,6 +91,19 @@ def _save_registry(data: Dict[str, Any]) -> None:
         except Exception:
             pass
         raise
+    _push_registry_remote()
+
+
+def _push_registry_remote() -> None:
+    try:
+        subprocess.Popen(
+            ["scp", "-q", str(REGISTRY_PATH),
+             f"{REGISTRY_REMOTE_HOST}:{REGISTRY_REMOTE_PATH}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        pass
 
 
 def _find_jobs(

@@ -170,10 +170,10 @@ Run this step **after a successful sweep dispatch** (Step 8 completed without er
 }
 ```
 
-4. **Write the payload** to `~/.cursor/tmp/tracker_sweep_<timestamp>.json` using the Write tool, then run:
+4. **Write the payload** to `~/.cursor/tmp/tracker_sweep_<timestamp>.json` using the Write tool, then record directly on huh.desktop.us:
 
 ```bash
-python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py record-sweep --store-root ~/.exp-tracker --json-file ~/.cursor/tmp/tracker_sweep_<timestamp>.json
+bash ~/.cursor/scripts/record_tracker_remote.sh --command record-sweep --json-file ~/.cursor/tmp/tracker_sweep_<timestamp>.json
 ```
 
 Field notes:
@@ -183,24 +183,11 @@ Field notes:
 
 6. **Do NOT prompt the user or wait for confirmation** for the tracker step. This is fully automatic.
 
-7. **Push tracker store to huh.desktop.us** so the dashboard reflects the new data:
-
-```bash
-rsync -az ~/.exp-tracker/{graph.json,index.json,events.jsonl} huh.desktop.us:~/.exp-tracker/
-```
-
-If the push fails (SSH unreachable), warn and continue.
-
 ### Idempotency & Deduplication
 
 - The `record-sweep` command checks for existing mutations matching `sweep_id + combo_name` in metadata. Duplicate combos are skipped, making retries safe.
 - If the agent crashes mid-recording and is re-invoked, only unrecorded combos are created.
 - Always pass the same `sweep_id` from the dispatcher output when re-running.
-
-### Store Root
-
-- Always pass `--store-root ~/.exp-tracker` (or the configured store root) to ensure recordings land in the same store as the dashboard.
-- If omitted, the CLI defaults to `~/.local/share/motion-rl-tracker`.
 
 ### Tracker Error Handling
 
@@ -222,15 +209,7 @@ python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add <job_name> \
   --gpus "<gpus_per_node>"
 ```
 
-This step is non-blocking. If it fails for any combo, warn and continue. Do NOT skip the Post-Submit Report.
-
-After all registry writes, push to huh.desktop.us:
-
-```bash
-scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/software/Experiment-Tracker-/fuyao_job_registry.json
-```
-
-If the push fails (SSH unreachable), warn and continue.
+This step is non-blocking. If it fails for any combo, warn and continue. Do NOT skip the Post-Submit Report. The registry auto-pushes to huh.desktop.us on every write (built into fuyao_job_manager.py).
 
 ## Post-Submit Report
 

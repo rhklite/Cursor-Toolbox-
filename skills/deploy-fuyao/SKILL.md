@@ -108,23 +108,15 @@ Field notes:
 - `parent_mutation_id` — optional. If empty, auto-resolved to the latest mutation on the same task + branch. Set explicitly to link to a specific parent (e.g. a sweep combo that produced the best result).
 - `delta` — optional. Include if the user mentioned specific HP or config changes for this deploy (e.g. `{"train.learning_rate": 0.003}`). Leave `{}` if unknown.
 
-3. **Write the payload** to `~/.cursor/tmp/tracker_deploy_<timestamp>.json` using the Write tool, then run:
+3. **Write the payload** to `~/.cursor/tmp/tracker_deploy_<timestamp>.json` using the Write tool, then record directly on huh.desktop.us:
 
 ```bash
-python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py record-deploy --store-root ~/.exp-tracker --json-file ~/.cursor/tmp/tracker_deploy_<timestamp>.json
+bash ~/.cursor/scripts/record_tracker_remote.sh --command record-deploy --json-file ~/.cursor/tmp/tracker_deploy_<timestamp>.json
 ```
 
 4. **Check the result.** Run the command without `|| true`. After execution, check the exit code. If non-zero or the output contains `"ok": false`, capture the error, emit a warning "Tracker recording failed: <error>. Deployment itself succeeded.", and proceed to the Post-Submit Report. On success (`"ok": true`), extract `task_id` and `mutation_id` for the Post-Submit Report. If the output contains `"skipped": true`, the deploy was already recorded (idempotent retry) — note this, don't treat it as an error.
 
 5. **Do NOT prompt the user or wait for confirmation** for the tracker step. This is fully automatic.
-
-6. **Push tracker store to huh.desktop.us** so the dashboard reflects the new data:
-
-```bash
-rsync -az ~/.exp-tracker/{graph.json,index.json,events.jsonl} huh.desktop.us:~/.exp-tracker/
-```
-
-If the push fails (SSH unreachable), warn and continue.
 
 ### Lineage (Parent-Child Chain)
 
@@ -158,15 +150,7 @@ python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add <job_name> \
   --gpus "<gpus_per_node>"
 ```
 
-This step is non-blocking. If it fails, warn and continue to the Post-Submit Report.
-
-After registry write, push to huh.desktop.us:
-
-```bash
-scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/software/Experiment-Tracker-/fuyao_job_registry.json
-```
-
-If the push fails (SSH unreachable), warn and continue.
+This step is non-blocking. If it fails, warn and continue to the Post-Submit Report. The registry auto-pushes to huh.desktop.us on every write (built into fuyao_job_manager.py).
 
 ## Post-Submit Report
 
