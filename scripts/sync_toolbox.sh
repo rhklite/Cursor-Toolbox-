@@ -7,7 +7,7 @@ RESOLUTIONS_DEFAULT="${STATE_DIR_DEFAULT}/latest_resolutions.json"
 DIFF_HELPER="${HOME}/.cursor/scripts/sync_toolbox_diff_summary.py"
 BACKUP_ROOT_LOCAL="${HOME}/.cursor/tmp/sync_toolbox_backups"
 
-TARGET_ALIASES=("huh.desktop.us" "isaacgym" "Richard.laptop.personal" "huh.laptop.us")
+TARGET_ALIASES=("huh.desktop.us" "isaacgym" "richard.laptop.personal" "huh.laptop.us")
 CATEGORIES=("rules" "commands" "skills" "agents" "scripts")
 TOOLBOX_REPO_DIR="${HOME}/.cursor"
 TOOLBOX_GIT_REMOTE="origin"
@@ -349,7 +349,7 @@ import sys
 
 manifests_dir = pathlib.Path(sys.argv[1]).expanduser()
 out_file = pathlib.Path(sys.argv[2]).expanduser()
-ordered_sources = ["local", "huh.desktop.us", "isaacgym", "Richard.laptop.personal", "huh.laptop.us"]
+ordered_sources = ["local", "huh.desktop.us", "isaacgym", "richard.laptop.personal", "huh.laptop.us"]
 
 source_payloads = {}
 for mf in sorted(manifests_dir.glob("manifest_*.json")):
