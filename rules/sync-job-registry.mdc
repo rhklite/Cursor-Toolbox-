@@ -1,14 +1,21 @@
-# Sync Job Registry to Desktop
+# Sync Job Registry and Tracker Store to Desktop
 
-After any operation that modifies the Fuyao job registry (~/.cursor/tmp/fuyao_job_registry.json), push it to huh.desktop.us:
+After any operation that modifies the Fuyao job registry or the experiment tracker store, push to huh.desktop.us.
+
+## Job Registry
+
+After registry mutations (add, remove, clear, protect, unprotect, sync, batch update):
 
 ```bash
 scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/software/Experiment-Tracker-/fuyao_job_registry.json
 ```
 
-This applies after:
-- Job registration via deploy-fuyao or sweep-fuyao skills
-- Registry add, remove, clear, protect, unprotect, or sync operations
-- Any batch registry update
+## Tracker Store
 
-The push is non-blocking. If it fails (SSH unreachable), warn and continue.
+After tracker recordings (record-deploy, record-sweep, set-status, update-sweep-status):
+
+```bash
+rsync -az ~/.exp-tracker/{graph.json,index.json,events.jsonl} huh.desktop.us:~/.exp-tracker/
+```
+
+Both pushes are non-blocking. If SSH is unreachable, warn and continue.

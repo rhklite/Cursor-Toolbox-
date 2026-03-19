@@ -118,6 +118,14 @@ python3 /Users/HanHu/software/policy-lineage-tracker/tracker_cli.py record-deplo
 
 5. **Do NOT prompt the user or wait for confirmation** for the tracker step. This is fully automatic.
 
+6. **Push tracker store to huh.desktop.us** so the dashboard reflects the new data:
+
+```bash
+rsync -az ~/.exp-tracker/{graph.json,index.json,events.jsonl} huh.desktop.us:~/.exp-tracker/
+```
+
+If the push fails (SSH unreachable), warn and continue.
+
 ### Lineage (Parent-Child Chain)
 
 Each recorded deploy becomes a mutation node linked to its parent via `derives_from` edges:

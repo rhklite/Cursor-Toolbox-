@@ -183,6 +183,14 @@ Field notes:
 
 6. **Do NOT prompt the user or wait for confirmation** for the tracker step. This is fully automatic.
 
+7. **Push tracker store to huh.desktop.us** so the dashboard reflects the new data:
+
+```bash
+rsync -az ~/.exp-tracker/{graph.json,index.json,events.jsonl} huh.desktop.us:~/.exp-tracker/
+```
+
+If the push fails (SSH unreachable), warn and continue.
+
 ### Idempotency & Deduplication
 
 - The `record-sweep` command checks for existing mutations matching `sweep_id + combo_name` in metadata. Duplicate combos are skipped, making retries safe.
