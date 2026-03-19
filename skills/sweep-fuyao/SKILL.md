@@ -219,7 +219,7 @@ This step is non-blocking. If it fails for any combo, warn and continue. Do NOT 
 After all registry writes, push to huh.desktop.us:
 
 ```bash
-scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/.cursor/tmp/fuyao_job_registry.json
+scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/software/Experiment-Tracker-/fuyao_job_registry.json
 ```
 
 If the push fails (SSH unreachable), warn and continue.

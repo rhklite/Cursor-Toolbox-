@@ -143,7 +143,7 @@ The registry is the single source of truth for which jobs are tracked and protec
 After any registry mutation (add, remove, clear, protect, unprotect, sync), push to huh.desktop.us:
 
 ```bash
-scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/.cursor/tmp/fuyao_job_registry.json
+scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/software/Experiment-Tracker-/fuyao_job_registry.json
 ```
 
 If the push fails (SSH unreachable), warn and continue.

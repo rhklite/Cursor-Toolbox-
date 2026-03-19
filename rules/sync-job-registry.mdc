@@ -3,7 +3,7 @@
 After any operation that modifies the Fuyao job registry (~/.cursor/tmp/fuyao_job_registry.json), push it to huh.desktop.us:
 
 ```bash
-scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/.cursor/tmp/fuyao_job_registry.json
+scp ~/.cursor/tmp/fuyao_job_registry.json huh.desktop.us:~/software/Experiment-Tracker-/fuyao_job_registry.json
 ```
 
 This applies after:
