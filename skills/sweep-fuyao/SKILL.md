@@ -179,7 +179,7 @@ bash ~/.cursor/scripts/record_tracker_remote.sh --command record-sweep --json-fi
 Field notes:
 - `parent_mutation_id` — optional. If empty, auto-resolved to the latest mutation on the same task + branch. Set explicitly to link the sweep to a specific parent deploy or combo.
 
-5. **Check the result.** Run the command without `|| true`. After execution, check the exit code. If non-zero or the output contains `"ok": false`, capture the error, emit a warning "Tracker recording failed: <error>. Sweep dispatch itself succeeded.", and proceed to the Post-Submit Report. On success, extract `task_id`, `sweep_id`, and per-combo `mutation_id`s. Combos with `"skipped": true` were already recorded (idempotent retry) and should be noted, not treated as errors.
+5. **Check the result.** Run the command without `|| true`. After execution, check the exit code. If non-zero or the output contains `"ok": false`, follow the **Retry-Once Policy** below before proceeding. On success, extract `task_id`, `sweep_id`, and per-combo `mutation_id`s, then run the verification step from the Retry-Once Policy. Combos with `"skipped": true` were already recorded (idempotent retry) and should be noted, not treated as errors.
 
 6. **Do NOT prompt the user or wait for confirmation** for the tracker step. This is fully automatic.
 
@@ -189,12 +189,19 @@ Field notes:
 - If the agent crashes mid-recording and is re-invoked, only unrecorded combos are created.
 - Always pass the same `sweep_id` from the dispatcher output when re-running.
 
-### Tracker Error Handling
+### Tracker Error Handling (Retry-Once Policy)
 
-- If the CLI exits non-zero or returns `"ok": false`, display a warning and continue.
+- If the CLI exits non-zero or returns `"ok": false` on the **first attempt**:
+  1. Wait 3 seconds.
+  2. Retry the exact same `record-sweep` command once.
+  3. If the retry also fails, warn the user with the specific error and include a copy-paste recovery command:
+     `bash ~/.cursor/scripts/record_tracker_remote.sh --command record-sweep --json-file <path_to_payload>`
+- After a **successful** recording, verify by running:
+  `python3 ~/software/Experiment-Tracker-/tracker_cli.py --store-root ~/.exp-tracker explain-node --node-id <first_mutation_id>`
+  If the explain call fails, warn but do not re-record.
 - Individual combo failures should be listed as warnings but do not block the report.
 - If the CLI script is missing or Python is unavailable, skip and warn.
-- Never retry automatically — the user can re-record manually via the policy-lineage-tracker skill.
+- Tracker failures never block the Post-Submit Report.
 
 ## Job Registry Integration (Post-Sweep)
 

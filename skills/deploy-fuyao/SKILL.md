@@ -114,7 +114,7 @@ Field notes:
 bash ~/.cursor/scripts/record_tracker_remote.sh --command record-deploy --json-file ~/.cursor/tmp/tracker_deploy_<timestamp>.json
 ```
 
-4. **Check the result.** Run the command without `|| true`. After execution, check the exit code. If non-zero or the output contains `"ok": false`, capture the error, emit a warning "Tracker recording failed: <error>. Deployment itself succeeded.", and proceed to the Post-Submit Report. On success (`"ok": true`), extract `task_id` and `mutation_id` for the Post-Submit Report. If the output contains `"skipped": true`, the deploy was already recorded (idempotent retry) — note this, don't treat it as an error.
+4. **Check the result.** Run the command without `|| true`. After execution, check the exit code. If non-zero or the output contains `"ok": false`, follow the **Retry-Once Policy** below before proceeding. On success (`"ok": true`), extract `task_id` and `mutation_id` for the Post-Submit Report, then run the verification step from the Retry-Once Policy. If the output contains `"skipped": true`, the deploy was already recorded (idempotent retry) -- note this, don't treat it as an error.
 
 5. **Do NOT prompt the user or wait for confirmation** for the tracker step. This is fully automatic.
 
@@ -131,11 +131,18 @@ Each recorded deploy becomes a mutation node linked to its parent via `derives_f
 
 If `job_name` is non-empty and a mutation with the same `job_name` already exists in metadata, the deploy is skipped and the existing `mutation_id` is returned. Safe to retry.
 
-### Tracker Error Handling
+### Tracker Error Handling (Retry-Once Policy)
 
-- If the CLI exits non-zero or returns `"ok": false`, display a warning and continue.
+- If the CLI exits non-zero or returns `"ok": false` on the **first attempt**:
+  1. Wait 3 seconds.
+  2. Retry the exact same `record-deploy` command once.
+  3. If the retry also fails, warn the user with the specific error and include a copy-paste recovery command:
+     `bash ~/.cursor/scripts/record_tracker_remote.sh --command record-deploy --json-file <path_to_payload>`
+- After a **successful** recording, verify by running:
+  `python3 ~/software/Experiment-Tracker-/tracker_cli.py --store-root ~/.exp-tracker explain-node --node-id <mutation_id>`
+  If the explain call fails, warn but do not re-record.
 - If the script is missing or Python is unavailable, skip and warn.
-- Never retry the tracker call automatically — the user can re-record manually via the policy-lineage-tracker skill.
+- Tracker failures never block the Post-Submit Report.
 
 ## Job Registry Integration (Post-Deploy)
 
