@@ -14,6 +14,7 @@ Activate when user mentions:
 - "show job registry", "what jobs are running", "list registered jobs"
 - "find artifacts on FFF", "compare metrics", "fuyao file finder"
 - "protect job", "unprotect job", "sync registry"
+- "is the poll daemon running", "check daemon status", "restart poll daemon", "show daemon logs"
 
 ## Backing Script
 
@@ -131,20 +132,28 @@ Key behaviors:
 
 ## Registry File
 
-Location: `~/.cursor/tmp/fuyao_job_registry.json`
+**Local registry:** `~/.cursor/tmp/fuyao_job_registry.json`
 
-The registry is the single source of truth for which jobs are tracked and protected. It is:
-- Written by `deploy-fuyao` and `sweep-fuyao` skills after dispatch.
-- Read by this skill before any cancel operation.
-- Updated by `--sync` to reflect live fuyao status.
+The local registry is a dispatch record written by `deploy-fuyao` and `sweep-fuyao` skills after dispatch. It is NOT the source of truth for job status.
+
+**Server registry (authoritative):** `~/software/Experiment-Tracker-/fuyao_job_registry.json` on huh.desktop.us
+
+The server-side polling daemon (`~/software/Experiment-Tracker-/fuyao_poll_daemon.py`) owns the authoritative registry. It:
+- Ingests new jobs from `~/software/Experiment-Tracker-/inbox/` (pushed by `~/.cursor/scripts/fuyao_push_inbox.sh`)
+- Polls fuyao job status every 5 minutes using parallel SSH (up to 10 workers)
+- Links artifacts via `tracker_cli.py link-job-artifacts` when a job becomes terminal
+- Bulk-downloads artifacts when all tracked jobs are terminal (all types for completed, logs/metrics only for failed)
+- Exits when all jobs reach terminal state
+
+Local `registry --sync` remains available for manual one-shot status checks but does not affect the server registry.
+
+Registry properties:
 - Writes are atomic (temp file + rename) to prevent corruption.
 - File locking (fcntl.flock) prevents concurrent corruption.
 
-The registry auto-pushes to huh.desktop.us on every write (built into fuyao_job_manager.py via _save_registry). No manual sync needed.
-
 ## Defaults
 
-- `--ssh-alias`: `remote.kernel.fuyo`
+- `--ssh-alias`: `remote.kernel.fuyao`
 - `--signal`: `7` (Others)
 - `--tail`: `100`
 - `--type`: `all`
@@ -162,17 +171,47 @@ The registry auto-pushes to huh.desktop.us on every write (built into fuyao_job_
 - If invalid regex in --label-pattern or --pattern: reports error with message, does not crash.
 - If non-numeric --gpus: reports error, does not crash.
 
+## Server Daemon Management
+
+The polling daemon runs on huh.desktop.us and is started automatically by `fuyao_push_inbox.sh` after dispatch.
+
+To check daemon status:
+
+```bash
+ssh huh.desktop.us 'PID=$(cat ~/software/Experiment-Tracker-/fuyao_poll_daemon.pid 2>/dev/null) && kill -0 $PID 2>/dev/null && echo "Running (pid $PID)" || echo "Not running"'
+```
+
+To restart the daemon:
+
+```bash
+ssh huh.desktop.us 'cd ~/software/Experiment-Tracker- && rm -f fuyao_poll_daemon.pid && nohup python3 fuyao_poll_daemon.py > /dev/null 2>&1 &'
+```
+
+To view daemon logs:
+
+```bash
+ssh huh.desktop.us 'tail -50 ~/software/Experiment-Tracker-/fuyao_poll_daemon.log'
+```
+
+To run a single poll cycle without starting the daemon:
+
+```bash
+ssh huh.desktop.us 'cd ~/software/Experiment-Tracker- && python3 fuyao_poll_daemon.py --once'
+```
+
 ## NLP Parsing Examples
 
-| User says | Parsed command |
-|-----------|---------------|
-| "cancel all stale jobs" | `cancel --stale --dry-run` (then `--yes` after confirmation) |
-| "cancel the tslv 0.5 jobs" | `cancel --label-pattern tslv_0.5 --dry-run` |
-| "what's the status of my sweep" | `status --sweep-id <latest_sweep_id>` |
-| "download checkpoints from job X" | `pull --job-name X --type checkpoints` |
-| "get the training logs" | `pull-logs --sweep-id <latest_sweep_id>` |
-| "show my job registry" | `registry --list` |
-| "sync registry" | `registry --sync` |
-| "are my jobs still running" | `status --all-running` |
-| "remove job X from registry" | `registry --remove X` |
-| "clear the registry" | `registry --clear` |
+- "cancel all stale jobs" -> `cancel --stale --dry-run` (then `--yes` after confirmation)
+- "cancel the tslv 0.5 jobs" -> `cancel --label-pattern tslv_0.5 --dry-run`
+- "what's the status of my sweep" -> `status --sweep-id <latest_sweep_id>`
+- "download checkpoints from job X" -> `pull --job-name X --type checkpoints`
+- "get the training logs" -> `pull-logs --sweep-id <latest_sweep_id>`
+- "show my job registry" -> `registry --list`
+- "sync registry" -> `registry --sync`
+- "are my jobs still running" -> `status --all-running`
+- "remove job X from registry" -> `registry --remove X`
+- "clear the registry" -> `registry --clear`
+- "is the poll daemon running" -> daemon status check (SSH to huh.desktop.us)
+- "check daemon status" -> daemon status check
+- "restart poll daemon" -> daemon restart (SSH to huh.desktop.us)
+- "show daemon logs" -> `tail` daemon log file

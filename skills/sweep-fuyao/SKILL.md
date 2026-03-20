@@ -25,7 +25,7 @@ Use this as the canonical execution contract for `/sweep-fuyao`.
 
 - `patch_file_rel` (default: `humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py`)
 - `experiment` (default: `huh8/r01`)
-- `ssh_alias` (default: `remote.kernel.fuyo`)
+- `ssh_alias` (default: `remote.kernel.fuyao`)
 - `queue` (default: `rc-wbc-4090`)
 - `project` (default: `rc-wbc`)
 - `site` (default: `fuyao_sh_n2`)
@@ -93,7 +93,7 @@ Prompt order when multiple required inputs are missing:
 ## Deterministic Workflow
 
 1. Pre-flight: verify SSH alias exists:
-   - Run `ssh -G <ssh_alias> >/dev/null 2>&1` (default: `remote.kernel.fuyo`)
+   - Run `ssh -G <ssh_alias> >/dev/null 2>&1` (default: `remote.kernel.fuyao`)
    - If it fails, stop and tell the user: "SSH alias `<ssh_alias>` is not configured in `~/.ssh/config`. Add it before sweeping."
 2. Resolve `branch`, `task`, and `hp_specs` through the prompt contract above.
 3. Resolve optional overrides only when explicitly requested.
@@ -216,7 +216,15 @@ python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add <job_name> \
   --gpus "<gpus_per_node>"
 ```
 
-This step is non-blocking. If it fails for any combo, warn and continue. Do NOT skip the Post-Submit Report. The registry auto-pushes to huh.desktop.us on every write (built into fuyao_job_manager.py).
+Then push all combo jobs to the server inbox in a single batch so the polling daemon picks them up:
+
+```bash
+bash ~/.cursor/scripts/fuyao_push_inbox.sh --jobs '[{"job_name":"<job_name_1>","sweep_id":"<sweep_id>","combo_label":"<combo_label_1>","task":"<task>","queue":"<queue>","gpus":<gpus_per_node>,"dispatched_at":"<ISO-8601>","status":"running","protected":true}, ...]'
+```
+
+Build the JSON array from all combos with valid `job_name`s. All combo jobs go into a single inbox file.
+
+This step is non-blocking. If it fails for any combo, warn and continue. Do NOT skip the Post-Submit Report. The server-side polling daemon on huh.desktop.us is the authoritative source for job status updates, artifact linking, and bulk download.
 
 ## Post-Submit Report
 

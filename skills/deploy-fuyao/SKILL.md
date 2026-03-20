@@ -48,10 +48,10 @@ This skill should be treated as mandatory instruction; only fallback is manual m
    - set upstream `origin/<branch>` if needed
    - `git push` that branch to origin
 6. Pre-flight: verify SSH alias exists:
-   - Run `ssh -G remote.kernel.fuyo >/dev/null 2>&1`
-   - If it fails, stop and tell the user: "SSH alias `remote.kernel.fuyo` is not configured in `~/.ssh/config`. Add it before deploying."
+   - Run `ssh -G remote.kernel.fuyao >/dev/null 2>&1`
+   - If it fails, stop and tell the user: "SSH alias `remote.kernel.fuyao` is not configured in `~/.ssh/config`. Add it before deploying."
 7. Ensure remote kernel SSH target:
-   - Use `remote.kernel.fuyo`
+   - Use `remote.kernel.fuyao`
    - `cd /root/motion_rl`
    - `git fetch origin`
    - checkout `<branch>` or create from `origin/<branch>`
@@ -60,7 +60,7 @@ This skill should be treated as mandatory instruction; only fallback is manual m
 9. Execute exactly:
 
 ```bash
-SSH_ALIAS="remote.kernel.fuyo"
+SSH_ALIAS="remote.kernel.fuyao"
 ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
 
@@ -95,7 +95,7 @@ Run this step **after a successful deploy** (Step 8 exits 0 and output does not 
   "queue": "<queue>",
   "site": "<site if known, else empty>",
   "experiment": "<experiment>",
-  "command": "ssh remote.kernel.fuyo 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project rc-wbc --label dev_r01_v12 --task HuhR01V12SAAmpV0 --experiment huh8/r01 --queue rc-wbc-4090 --yes'",
+  "command": "ssh remote.kernel.fuyao 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project rc-wbc --label dev_r01_v12 --task HuhR01V12SAAmpV0 --experiment huh8/r01 --queue rc-wbc-4090 --yes'",
   "job_name": "<extracted job_name or empty string>",
   "parent_mutation_id": "",
   "delta": {}
@@ -157,7 +157,13 @@ python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add <job_name> \
   --gpus "<gpus_per_node>"
 ```
 
-This step is non-blocking. If it fails, warn and continue to the Post-Submit Report. The registry auto-pushes to huh.desktop.us on every write (built into fuyao_job_manager.py).
+Then push the new job to the server inbox so the polling daemon picks it up:
+
+```bash
+bash ~/.cursor/scripts/fuyao_push_inbox.sh --jobs '[{"job_name":"<job_name>","sweep_id":"","combo_label":"","task":"<task>","queue":"<queue>","gpus":<gpus_per_node>,"dispatched_at":"<ISO-8601 timestamp>","status":"running","protected":true}]'
+```
+
+This step is non-blocking. If it fails, warn and continue to the Post-Submit Report. The server-side polling daemon on huh.desktop.us is the authoritative source for job status updates, artifact linking, and bulk download.
 
 ## Post-Submit Report
 
@@ -178,7 +184,7 @@ This step is non-blocking. If it fails, warn and continue to the Post-Submit Rep
 Use this exact command only if you cannot invoke the skill contract:
 
 ```bash
-SSH_ALIAS="remote.kernel.fuyo"
+SSH_ALIAS="remote.kernel.fuyao"
 ssh "${SSH_ALIAS}" 'set -euo pipefail; cd /root/motion_rl; bash --noprofile --norc ./humanoid-gym/scripts/fuyao_deploy.sh --project <project> --label <label> --task <task> --experiment <experiment> --queue <queue> --yes'
 ```
 
