@@ -2,7 +2,7 @@
 
 Draft a technical document using the draft-technical-document skill conventions.
 
-Invoke as `/draft-document`.
+Invoke as `/draft-tech-doc-guided`.
 
 ## Agent workflow
 
