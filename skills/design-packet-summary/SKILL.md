@@ -111,11 +111,11 @@ Write the packet so that a cheaper drafting model can produce final docs from th
 
 ## Output routing
 
-All markdown files produced by this skill — including design packets, summaries, and any other markdown output — must be saved under a `handoff/` subfolder relative to the directory where the primary output file is written.
+All markdown files produced by this skill — including design packets, summaries, and any other markdown output — must be saved under a `design_packet/` subfolder relative to the directory where the primary output file is written.
 
 Rules:
 - Determine the output directory from context (e.g., the project's docs output folder, the folder currently being discussed, or the workspace root if no specific folder is active).
-- Append `handoff/` to that directory and write all markdown output there.
-- Create the `handoff/` directory if it does not exist.
-- Example: if the active output directory is `docs/my_project/`, write to `docs/my_project/handoff/design_packet.md`.
-- If no output directory can be determined from context, default to `handoff/` relative to the workspace root.
+- Append `design_packet/` to that directory and write all markdown output there.
+- Create the `design_packet/` directory if it does not exist.
+- Example: if the active output directory is `docs/my_project/`, write to `docs/my_project/design_packet/design_packet.md`.
+- If no output directory can be determined from context, default to `design_packet/` relative to the workspace root.
