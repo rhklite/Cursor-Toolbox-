@@ -1,0 +1,34 @@
+---
+description: Sync Cursor keybindings to macOS machines after the agent modifies keybindings.json or auto-promotes a command. Lightweight sync targeting only macOS hosts.
+globs: 
+alwaysApply: true
+---
+
+# Sync Keybindings After Edits
+
+## Mandatory Pre-Done Gate
+
+Before reporting "done" or completing any task, the agent MUST:
+1. Check: did this session modify `~/Library/Application Support/Cursor/User/keybindings.json`?
+   - This includes direct edits, auto-promotion of Layer 2 commands, or adding new keybindings via the cursor-command-proxy skill.
+2. If YES and keybinding sync has not been run yet in this session: STOP. Run the sync step below first.
+3. If NO: proceed normally.
+
+## Sync Step
+
+Run:
+```bash
+bash ~/.cursor/scripts/sync_keybindings.sh sync
+```
+
+This will:
+1. Export live keybindings to `~/.cursor/keybindings/keybindings.json` (canonical copy)
+2. Commit and push to git
+3. SSH to macOS targets only (`Richard.laptop.personal`, `huh.laptop.us`) to pull and import
+4. Linux hosts are skipped entirely (no SSH, no git pull)
+
+## Scope
+
+- This rule only covers keybinding sync
+- It does NOT trigger the full toolbox sync (SyncOrchestrator / ChangeReviewer)
+- Linux hosts catch up on keybinding git commits during their next regular toolbox sync
