@@ -13,10 +13,17 @@ Produces technical documents that are scannable by decision makers and detailed 
 
 **Verbosity** (set by user or default):
 
-- **moderate** (default) — brief paragraphs where needed, tables for structured data, 2-3 sentence rationale per design decision
-- **terse** — one sentence per idea, tables only, no paragraph blocks
+- **terse** (default) — one sentence per idea, tables only, no paragraph blocks
+- **moderate** — brief paragraphs where needed, tables for structured data, 2-3 sentence rationale per design decision
 
-If the user specifies a verbosity level, use it. Otherwise default to moderate.
+If the user specifies a verbosity level, use it. Otherwise default to terse.
+
+**Audience** (set by user or default):
+
+- **decision makers and engineers** (default) — layered depth with executive scanability and implementation detail
+- **custom audience** — follow the audience explicitly specified by the user
+
+If the user specifies an audience, use it. Otherwise default to decision makers and engineers.
 
 ## Abstract Requirements
 
@@ -151,8 +158,17 @@ Use as starting scaffolding. Adapt headings to fit the document's subject.
 *[Closing scope note.]*
 ```
 
+## Output routing
+
+All markdown files produced by this skill must be saved to `docs/design/published/` relative to the workspace root.
+
+Rules:
+- Write all markdown output to `docs/design/published/`.
+- Create the directory if it does not exist (`mkdir -p docs/design/published`).
+- After writing, run `bash docs/update-toc.sh` to refresh the table of contents.
+
 ## Workflow
 
-1. Gather the subject, scope, and audience from the user (or infer from context).
-2. Ask for verbosity preference if not specified. Default to moderate.
+1. Gather the subject and scope from the user (or infer from context).
+2. Apply defaults when not specified: audience is decision makers and engineers; verbosity is terse.
 3. Draft the document using the template scaffolding and all seven principles.
