@@ -1,0 +1,33 @@
+---
+description: Enforce draft technical template for markdown document drafting
+globs: **/*.md
+alwaysApply: false
+---
+
+# Draft Technical Document Template
+
+Apply this rule when producing markdown technical documents.
+
+## Core requirements
+
+- Include an Abstract section in every document.
+- Start Abstract with a bold context subheading and one to two context sentences.
+- State the core deliverable in the Abstract.
+- Include compact key-output tables in the Abstract.
+- Avoid table-of-contents summary tables.
+
+## Structure and style
+
+- Put structured data in tables instead of prose.
+- Add a bold title line directly above each table.
+- Use bold subheadings to break multi-concept sections.
+- Keep rationale concise, one sentence per idea when possible.
+- Avoid repeating the same information across sections.
+- Layer content for decision makers first, engineers second.
+
+## Defaults and precedence
+
+- Default to terse writing when no verbosity is specified.
+- Default audience is decision makers and engineers.
+- Follow explicit user formatting instructions when they conflict with this rule.
+- Exclude workspace-specific output-routing constraints unless explicitly requested.
