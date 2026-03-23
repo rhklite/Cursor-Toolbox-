@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fuyao Job Manager — cancel, status, pull artifacts, FFF queries, and registry management."""
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 import argparse
 import fcntl
@@ -15,7 +15,6 @@ import urllib.parse
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
-from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -23,7 +22,7 @@ REGISTRY_PATH = Path.home() / ".cursor" / "tmp" / "fuyao_job_registry.json"
 REGISTRY_REMOTE_HOST = "huh.desktop.us"
 REGISTRY_REMOTE_PATH = "~/software/Experiment-Tracker-/fuyao_job_registry.json"
 ARTIFACTS_BASE = Path.home() / ".cursor" / "tmp" / "fuyao_artifacts"
-DEFAULT_SSH_ALIAS = "remote.kernel.fuyo"
+DEFAULT_SSH_ALIAS = "remote.kernel.fuyao"
 OSS_BASE_URL = "https://xrobot.xiaopeng.link/resource/xrobot-log/user-upload/fuyao"
 FFF_API_BASE = "https://xrobot.xiaopeng.link/fuyao/api/v1"
 REGISTRY_VERSION = 1
@@ -201,35 +200,63 @@ def _parse_running_jobs(ssh_alias: str, limit: int = 50) -> List[Dict[str, str]]
 
 
 # ---------------------------------------------------------------------------
-# OSS directory listing parser
+# Artifact discovery via xrobot API
 # ---------------------------------------------------------------------------
 
-class _DirListingParser(HTMLParser):
-    """Parse an HTML directory listing for href links."""
-    def __init__(self):
-        super().__init__()
-        self.files: List[str] = []
+def _resolve_job_id(job_name: str, ssh_alias: str = DEFAULT_SSH_ALIAS) -> Optional[int]:
+    """Resolve job_name to numeric job_id via fuyao info over SSH."""
+    rc, output = _ssh_fuyao_cmd(ssh_alias, "fuyao info", job_name, timeout=15)
+    if rc != 0:
+        return None
+    for line in output.splitlines():
+        if "job_id" in line and ":" in line:
+            try:
+                return int(line.split(":", 1)[1].strip())
+            except ValueError:
+                continue
+    return None
 
-    def handle_starttag(self, tag: str, attrs: list) -> None:
-        if tag == "a":
-            for name, value in attrs:
-                if name == "href" and value and not value.startswith(".."):
-                    self.files.append(value)
 
+def _query_job_artifacts(job_name: str, ssh_alias: str = DEFAULT_SSH_ALIAS) -> List[Dict[str, Any]]:
+    """Query xrobot API for registered artifacts of a job."""
+    job_id = _resolve_job_id(job_name, ssh_alias)
+    if job_id is None:
+        print(f"Warning: cannot resolve job_id for {job_name}", file=sys.stderr)
+        return []
 
-def _list_oss_files(job_name: str) -> List[str]:
-    """List files in a job's OSS directory."""
-    url = _oss_url(job_name)
+    url = f"{FFF_API_BASE}/jobs/{job_id}"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "fuyao-job-manager/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
-            html = resp.read().decode("utf-8", errors="replace")
-    except (urllib.error.URLError, urllib.error.HTTPError) as exc:
-        print(f"Warning: cannot list OSS for {job_name}: {exc}", file=sys.stderr)
+            data = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as exc:
+        print(f"Warning: xrobot API error for job {job_id}: {exc}", file=sys.stderr)
         return []
-    parser = _DirListingParser()
-    parser.feed(html)
-    return parser.files
+
+    job_data = data.get("data", {})
+    return job_data.get("artifacts", [])
+
+
+def _list_oss_files(job_name: str, ssh_alias: str = DEFAULT_SSH_ALIAS) -> List[str]:
+    """List artifact files for a job via xrobot API.
+
+    Returns relative paths within the job's OSS directory.
+    """
+    artifacts = _query_job_artifacts(job_name, ssh_alias)
+    if not artifacts:
+        return []
+
+    files: List[str] = []
+    for art in artifacts:
+        path = art.get("path", "")
+        if not path:
+            continue
+        if job_name + "/" in path:
+            rel = path.split(job_name + "/", 1)[-1]
+            files.append(rel)
+        else:
+            files.append(path)
+    return files
 
 
 def _filter_files(files: List[str], file_type: str, pattern: Optional[str] = None) -> List[str]:
@@ -246,27 +273,98 @@ def _filter_files(files: List[str], file_type: str, pattern: Optional[str] = Non
         result = files
 
     if pattern:
-        pat = re.compile(pattern)  # let re.error propagate to caller
+        pat = re.compile(pattern)
         result = [f for f in result if pat.search(f)]
     return result
 
 
-def _download_file(url: str, dest: Path) -> bool:
-    """Download a single file from URL to dest."""
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "fuyao-job-manager/1.0"})
-        with urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT) as resp:
-            with open(dest, "wb") as f:
-                while True:
-                    chunk = resp.read(8192)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-        return True
-    except (urllib.error.URLError, urllib.error.HTTPError) as exc:
-        print(f"  Failed to download {url}: {exc}", file=sys.stderr)
-        return False
+def _download_via_ssh(
+    job_names: List[str],
+    ssh_alias: str,
+    dest_dir: Path,
+    selective: bool = False,
+) -> int:
+    """Download artifacts via SSH to fuyao, then rsync to local dest_dir.
+
+    When selective=True, only eval artifacts and final/best checkpoints are
+    transferred (intermediate .pt files are excluded).
+    """
+    import os as _os
+
+    remote_tmp = f"/tmp/fuyao_pull_{_os.getpid()}"
+    names_json = json.dumps(job_names)
+    py_script = (
+        "from xrobot_dataset import download_artifacts; import os; "
+        f"os.makedirs('{remote_tmp}', exist_ok=True); "
+        f"download_artifacts(fuyao_job_names={names_json}, "
+        f"local_dir='{remote_tmp}', internal=True, parallelism=4, "
+        "ignore_download_error=True); "
+        f"print('PULL_DIR={remote_tmp}')"
+    )
+
+    print("  Downloading from OSS via fuyao remote kernel...")
+    rc, output = _ssh_cmd(ssh_alias, f"python3 -c {shlex.quote(py_script)}", timeout=600)
+    if rc != 0:
+        print(f"  SSH download failed: {output}", file=sys.stderr)
+        return 0
+
+    total = 0
+    for jn in job_names:
+        job_dest = dest_dir / jn
+        job_dest.mkdir(parents=True, exist_ok=True)
+        remote_job = f"{remote_tmp}/{jn}/"
+
+        if selective:
+            rsync_cmd = [
+                "rsync", "-a", "--compress",
+                "--include=*/",
+                "--include=metadata.json",
+                "--include=xbrain_summary.html",
+                "--include=model_*/default_*/**",
+                "--include=*_balancing/**",
+                "--include=model_20000.pt",
+                "--exclude=*.pt",
+                f"{ssh_alias}:{remote_job}",
+                str(job_dest) + "/",
+            ]
+        else:
+            rsync_cmd = [
+                "rsync", "-a", "--compress",
+                f"{ssh_alias}:{remote_job}",
+                str(job_dest) + "/",
+            ]
+
+        print(f"  Syncing {jn}{'  (selective)' if selective else ''}...")
+        result = subprocess.run(rsync_cmd, capture_output=True, text=True, timeout=600)
+        if result.returncode != 0:
+            print(f"  rsync error for {jn}: {result.stderr}", file=sys.stderr)
+        else:
+            count = sum(1 for _ in job_dest.rglob("*") if _.is_file())
+            total += count
+            print(f"  {jn}: {count} file(s)")
+
+        if selective:
+            best_cmd = (
+                f"find {shlex.quote(remote_job)} -maxdepth 1 "
+                f"-name '*best_k_value=*.pt' | sort -t= -k2 -rn | head -1"
+            )
+            rc2, best_out = _ssh_cmd(ssh_alias, best_cmd, timeout=15)
+            best_file = best_out.strip()
+            if best_file:
+                fname = Path(best_file).name
+                scp_cmd = [
+                    "scp", "-q",
+                    f"{ssh_alias}:{best_file}",
+                    str(job_dest / fname),
+                ]
+                subprocess.run(scp_cmd, capture_output=True, timeout=120)
+                print(f"  + best checkpoint: {fname}")
+                total += 1
+
+    print("  Cleaning up remote temp dir...")
+    _ssh_cmd(ssh_alias, f"rm -rf {shlex.quote(remote_tmp)}", timeout=30)
+
+    return total
 
 
 # ---------------------------------------------------------------------------
@@ -421,6 +519,7 @@ def cmd_cancel(args) -> None:
 
 def cmd_pull(args) -> None:
     registry = _load_registry()
+    ssh_alias = args.ssh_alias
 
     if args.sweep_id:
         jobs = _find_jobs(registry, sweep_id=args.sweep_id)
@@ -435,44 +534,28 @@ def cmd_pull(args) -> None:
         print("No jobs found.")
         return
 
+    selective = getattr(args, "selective", False)
     file_type = args.type or "all"
-    total_downloaded = 0
 
     for jn in job_names:
         print(f"\n--- {jn} ---")
-        files = _list_oss_files(jn)
-        if not files:
-            print("  No files found on OSS.")
-            continue
+        files = _list_oss_files(jn, ssh_alias)
+        if files:
+            try:
+                matched = _filter_files(files, file_type, args.pattern)
+            except re.error as exc:
+                print(f"  Error: invalid pattern: {exc}", file=sys.stderr)
+                matched = files
+            print(f"  Registered artifacts: {len(matched)} file(s)")
+            for fname in matched:
+                print(f"    {fname}")
+        else:
+            print("  No registered artifacts found via API.")
 
-        try:
-            matched = _filter_files(files, file_type, args.pattern)
-        except re.error as exc:
-            print(f"  Error: invalid pattern: {exc}", file=sys.stderr)
-            continue
+    out_dir = Path(args.output_dir) if args.output_dir else ARTIFACTS_BASE
 
-        if not matched:
-            print(f"  No files matching type={file_type}" + (f" pattern={args.pattern}" if args.pattern else ""))
-            continue
-
-        print(f"  Found {len(matched)} file(s):")
-        for fname in matched:
-            print(f"    {fname}")
-
-        out_dir = Path(args.output_dir) if args.output_dir else ARTIFACTS_BASE / jn
-        base_url = _oss_url(jn)
-
-        for fname in matched:
-            url = base_url + fname
-            dest = out_dir / fname
-            print(f"  Downloading {fname}...", end=" ", flush=True)
-            if _download_file(url, dest):
-                print("ok")
-                total_downloaded += 1
-            else:
-                print("FAILED")
-
-    print(f"\nTotal: {total_downloaded} file(s) downloaded.")
+    total = _download_via_ssh(job_names, ssh_alias, out_dir, selective=selective)
+    print(f"\nTotal: {total} file(s) downloaded to {out_dir}")
 
 
 # ---------------------------------------------------------------------------
@@ -603,6 +686,7 @@ def _fff_list(args) -> None:
 
 def _fff_compare(args) -> None:
     registry = _load_registry()
+    ssh_alias = getattr(args, "ssh_alias", DEFAULT_SSH_ALIAS)
     if args.sweep_id:
         jobs = _find_jobs(registry, sweep_id=args.sweep_id)
     elif args.job_name:
@@ -615,6 +699,15 @@ def _fff_compare(args) -> None:
     for j in jobs:
         jn = j.get("job_name", "")
         if not jn:
+            continue
+        artifacts = _query_job_artifacts(jn, ssh_alias)
+        found = False
+        for art in artifacts:
+            if art.get("path", "").endswith("metrics.json"):
+                found = True
+                break
+        if not found:
+            metrics[jn] = {"error": "not found"}
             continue
         url = _oss_url(jn) + "metrics.json"
         try:
@@ -658,7 +751,8 @@ def _fff_download(args) -> None:
         print("Error: --job-name required for --download", file=sys.stderr)
         sys.exit(1)
 
-    files = _list_oss_files(args.job_name)
+    ssh_alias = getattr(args, "ssh_alias", DEFAULT_SSH_ALIAS)
+    files = _list_oss_files(args.job_name, ssh_alias)
     if not files:
         print("No files found.")
         return
@@ -675,17 +769,13 @@ def _fff_download(args) -> None:
         print("No files matching pattern.")
         return
 
-    out_dir = Path(args.output_dir) if args.output_dir else ARTIFACTS_BASE / args.job_name
-    base_url = _oss_url(args.job_name)
-
+    print(f"Found {len(files)} file(s):")
     for fname in files:
-        url = base_url + fname
-        dest = out_dir / fname
-        print(f"  Downloading {fname}...", end=" ", flush=True)
-        if _download_file(url, dest):
-            print("ok")
-        else:
-            print("FAILED")
+        print(f"  {fname}")
+
+    out_dir = Path(args.output_dir) if args.output_dir else ARTIFACTS_BASE / args.job_name
+    total = _download_via_ssh([args.job_name], ssh_alias, out_dir)
+    print(f"Downloaded {total} file(s) to {out_dir}")
 
 
 # ---------------------------------------------------------------------------
@@ -923,6 +1013,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_pull.add_argument("--type", choices=["checkpoints", "logs", "videos", "onnx", "metrics", "all"], default="all")
     p_pull.add_argument("--output-dir", help="Download destination directory")
     p_pull.add_argument("--pattern", help="Regex filter on file names")
+    p_pull.add_argument("--selective", action="store_true",
+                        help="Only pull eval artifacts + final/best checkpoints (exclude intermediate .pt)")
     p_pull.add_argument("--ssh-alias", default=DEFAULT_SSH_ALIAS)
 
     # --- pull-logs ---
