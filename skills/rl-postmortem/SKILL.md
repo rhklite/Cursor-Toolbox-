@@ -115,68 +115,37 @@ If no keyframe grids were produced:
 
 ### 5. Diagnosis report
 
-Synthesize the digest data and keyframe analysis into a structured report:
+Synthesize the digest data and keyframe analysis using this standalone template:
 
-```
-POSTMORTEM DIAGNOSIS
-====================
+- `docs/templates/postmortem-report-template.md`
 
-## Run summary
-- Run: [directory name(s)]
-- Survival rate: [from digest]
-- Triggered / total: [from digest]
-- Mode: [linear / angular sweep]
+The human-facing report must follow the template's abstract-first structure, interleaved visual evidence sections, and graceful degradation rules for missing artifacts.
 
-## What worked
-- [1-2 bullet points on positive findings from the digest]
-
-## What failed
-- [Each failure with likely root cause, informed by worst-conditions list and torque table]
-
-## Behavior vs expectation
-- Expected: [from hypothesis]
-- Observed: [from keyframe analysis or digest metrics]
-- Gap: [specific discrepancy and hypothesized cause]
-
-## Sub-hypothesis attribution
-- [Sub-H1 claim]: [supported / unsupported / inconclusive] — [evidence from digest or eval data]
-- [Sub-H2 claim]: [supported / unsupported / inconclusive] — [evidence]
-- ...
-- Data gaps: [sub-hypotheses not verifiable with available artifacts, plus what additional data or experiment is needed]
-
-## Torque concerns
-- [Flag any joints exceeding 80% of hardware limit]
-- [Flag any joints with unusually high torque rates]
-
-## Next experiments (max 3)
-1. [Concrete suggestion: what to change, why, expected effect]
-2. [...]
-3. [...]
-
-## Recommendation
-[One sentence: adjust rewards / adjust architecture / adjust hyperparameters / adjust curriculum / redesign observation space]
-```
+The LLM-facing report must follow the text-only sectioning in the template's LLM diagnosis output.
 
 Diagnosis interpretation rule:
 - The top-level verdict is independent of sub-hypothesis attribution.
 - Sub-hypothesis failures are attribution findings, not blockers.
 - If the top-level passes while a sub-hypothesis is unsupported, frame it as a learning about mechanism contribution rather than an overall failure.
 
-If comparison mode was used, add a section:
-
-```
-## Cross-run comparison
-- [Summary of how runs differ on Tier 1 metrics]
-- [Which variant is strongest and why]
-- [What the comparison suggests for next steps]
-```
+If comparison mode was used, include a cross-run comparison section in both human and LLM reports.
 
 ### 6. File export
 
-Write the full diagnosis report to:
+Export outputs into one timestamped postmortem folder with dual-consumer structure:
 
-- Path: `docs/experiments/postmortems/MMDD_HHMM_OP.md`
-- Create `docs/experiments/postmortems/` if it does not exist
+- Human report:
+  - `docs/experiments/postmortems/MMDD_HH/postmortem.md`
+- LLM artifacts folder:
+  - `docs/experiments/postmortems/MMDD_HH/llm/`
+  - Include `DIGEST_*.md` files
+  - Include `COMPARISON.md` when comparison mode is enabled
+  - Include text-only `diagnosis.md`
+- Visual artifacts in the parent postmortem folder:
+  - Include keyframe grids, Tier 1 visuals, and Tier 4 diagnostic visuals when available
+  - If a visual class is unavailable, report it in artifact gates and data gaps instead of failing the run
+
+Create destination directories if missing.
 
 ### 7. Key findings summary
 
