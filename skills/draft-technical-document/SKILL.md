@@ -27,7 +27,7 @@ If the user specifies an audience, use it. Otherwise default to decision makers 
 
 ## Abstract Requirements
 
-The Abstract is mandatory in every document. It gives the reader an at-a-glance understanding of what was done. Six sub-principles govern it:
+The Abstract is mandatory in every document. It gives the reader an at-a-glance understanding of what was done. Seven sub-principles govern it:
 
 1. **Always present** — Every document must have an Abstract section. No exceptions.
 
@@ -46,6 +46,8 @@ The Abstract is mandatory in every document. It gives the reader an at-a-glance 
 5. **Hybrid depth rule** — Tables can appear in compact form in the abstract even if expanded in a later section. Prose must not be repeated.
 
 6. **No table-of-contents tables** — Do not include tables that index or summarize every section/topic of the document. PDF and other export formats generate their own TOC; a summary table that mirrors headings is redundant structure.
+
+7. **Hypothesis handoff for design docs** — For design docs originating from thinking partner sessions, include a **Hypothesis** subsection in the abstract with top-level hypothesis, sub-hypotheses, and causal chain. Preserve this hypothesis as provided by the thinking partner output; do not generate or rewrite it.
 
 ## General Principles
 
@@ -100,6 +102,22 @@ Use as starting scaffolding. Adapt headings to fit the document's subject.
 | Column | Column | Column |
 |--------|--------|--------|
 | ...    | ...    | ...    |
+
+## Hypothesis
+
+### Top-level hypothesis
+
+- [single sentence with expected outcome and success criterion]
+
+### Sub-hypotheses
+
+- [Sub-H1] [design decision] leads to [intermediate effect], supporting [top-level outcome].
+- [Sub-H2] ...
+
+### Causal chain
+
+- [brief chain of how sub-hypotheses support the top-level]
+- [supporting-not-conjunctive note]
 
 ---
 

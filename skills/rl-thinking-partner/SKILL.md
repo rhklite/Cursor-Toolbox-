@@ -44,6 +44,39 @@ Do NOT jump to implementation or code unless the user explicitly asks.
 3. **Narrowing** — agree on the minimal experiment that would falsify or confirm
 4. **Exit criteria** — define what "this worked" looks like before running anything
 
+## Hypothesis distillation
+
+Before ending the thinking session, distill the agreed design into a hierarchical hypothesis block.
+
+Use this structure:
+
+1. **Top-level hypothesis** — one sentence with expected outcome and success criterion.
+2. **Sub-hypotheses** — one per major design decision; each states:
+   - the mechanism claim
+   - the causal link to the top-level hypothesis
+3. **Causal chain** — concise explanation of how sub-hypotheses support the top-level.
+
+Interpretation rule:
+- Sub-hypotheses are supporting, not conjunctive.
+- A failed sub-hypothesis does not invalidate the top-level if the top-level outcome is still achieved.
+
+Output format:
+
+```markdown
+## Hypothesis
+
+### Top-level hypothesis
+- [single sentence: expected outcome + success criterion]
+
+### Sub-hypotheses
+- [Sub-H1] [design decision] leads to [intermediate effect], which supports [top-level outcome].
+- [Sub-H2] ...
+
+### Causal chain
+- [brief chain showing how sub-hypotheses connect to the top-level outcome]
+- [note that sub-hypothesis failure can still coexist with top-level success]
+```
+
 ## Cross-family critique handoff
 
 When the thinking partner session concludes (hypothesis and action items agreed upon), display this banner prominently **before** transitioning to implementation:
@@ -96,7 +129,15 @@ Any of: "act on this", "implement this", "go ahead", "let's do it", "make the ch
 ### Transition steps
 
 1. Switch to **Agent mode** if not already active (use `~/.cursor/skills/cursor-command-proxy/scripts/send_shortcut.sh "i" "command down"`)
-2. **Distill hypothesis** — read the conversation history from the thinking session. Extract the agreed hypothesis, proposed changes, expected outcome, and exit criteria. Write them to a `hypothesis.md` file in the workspace root. This file is the on-disk artifact that rl-preflight will consume.
+2. **Distill hypothesis** — read the conversation history from the thinking session. Write a structured `hypothesis.md` file in the workspace root using:
+   - top-level hypothesis
+   - sub-hypotheses (one per major design decision, with causal links)
+   - causal chain
+   - proposed changes
+   - expected outcome
+   - exit criteria
+
+   This file is the on-disk artifact that rl-preflight and rl-postmortem consume.
 3. **Implement changes** based on the agreed hypothesis and action items.
 4. **Write tests** — create tests that verify the implementation matches the design intent. Cover whichever of these are relevant to the change:
    - Reward function correctness (given a specific state, a reward term produces the expected value with correct sign)

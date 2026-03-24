@@ -14,6 +14,7 @@ Apply this rule when producing markdown technical documents.
 - Start Abstract with a bold context subheading and one to two context sentences.
 - State the core deliverable in the Abstract.
 - Include compact key-output tables in the Abstract.
+- For design docs from thinking partner sessions, include a Hypothesis subsection in the Abstract with top-level hypothesis and sub-hypotheses.
 - Avoid table-of-contents summary tables.
 
 ## Structure and style

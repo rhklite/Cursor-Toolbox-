@@ -86,6 +86,7 @@ Do NOT read raw CSV files, metric.json, TensorBoard events, or training logs. Th
 ### 3. Behavior alignment
 
 - Read the hypothesis (from step 0).
+- Extract the top-level hypothesis and each sub-hypothesis if a hierarchical hypothesis is provided.
 - Extract the specific expected behavior to compare against the keyframe grids in step 4.
 - If the hypothesis does not contain an explicit expected-behavior statement, infer it from the hypothesis intent and state the inference for the user to verify.
 
@@ -126,6 +127,12 @@ POSTMORTEM DIAGNOSIS
 - Observed: [from keyframe analysis or digest metrics]
 - Gap: [specific discrepancy and hypothesized cause]
 
+## Sub-hypothesis attribution
+- [Sub-H1 claim]: [supported / unsupported / inconclusive] — [evidence from digest or eval data]
+- [Sub-H2 claim]: [supported / unsupported / inconclusive] — [evidence]
+- ...
+- Data gaps: [sub-hypotheses not verifiable with available artifacts, plus what additional data or experiment is needed]
+
 ## Torque concerns
 - [Flag any joints exceeding 80% of hardware limit]
 - [Flag any joints with unusually high torque rates]
@@ -138,6 +145,11 @@ POSTMORTEM DIAGNOSIS
 ## Recommendation
 [One sentence: adjust rewards / adjust architecture / adjust hyperparameters / adjust curriculum / redesign observation space]
 ```
+
+Diagnosis interpretation rule:
+- The top-level verdict is independent of sub-hypothesis attribution.
+- Sub-hypothesis failures are attribution findings, not blockers.
+- If the top-level passes while a sub-hypothesis is unsupported, frame it as a learning about mechanism contribution rather than an overall failure.
 
 If comparison mode was used, add a section:
 
