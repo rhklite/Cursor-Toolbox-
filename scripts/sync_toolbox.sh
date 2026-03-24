@@ -801,17 +801,13 @@ auto_resolve_conflicts() {
   local state_dir="$3"
 
   python3 - "${report_json}" "${resolution_file}" "${state_dir}" <<'PY'
-import difflib
 import json
 import pathlib
-import subprocess
 import sys
-
-THRESHOLD = 50
 
 report_path = pathlib.Path(sys.argv[1]).expanduser()
 resolution_path = pathlib.Path(sys.argv[2]).expanduser()
-state_dir = pathlib.Path(sys.argv[3]).expanduser()
+_state_dir = pathlib.Path(sys.argv[3]).expanduser()
 
 report = json.loads(report_path.read_text(encoding="utf-8"))
 conflicts = report.get("conflicts", [])
@@ -834,38 +830,6 @@ entries_by_file = {}
 for f in report.get("files", []):
     entries_by_file[f["id"]] = f.get("entries", {})
 
-def materialize_local(category, relpath):
-    p = pathlib.Path.home() / ".cursor" / category / relpath
-    if p.exists():
-        return p.read_text(encoding="utf-8", errors="replace")
-    return None
-
-def materialize_remote(source, category, relpath):
-    try:
-        result = subprocess.run(
-            ["ssh", "-n", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
-             source, f'cat "$HOME/.cursor/{category}/{relpath}"'],
-            capture_output=True, text=True, timeout=15,
-        )
-        if result.returncode == 0:
-            return result.stdout
-    except (subprocess.TimeoutExpired, OSError):
-        pass
-    return None
-
-def get_content(source, category, relpath):
-    if source == "local":
-        return materialize_local(category, relpath)
-    return materialize_remote(source, category, relpath)
-
-def diff_line_count(text_a, text_b):
-    a_lines = text_a.splitlines(keepends=True)
-    b_lines = text_b.splitlines(keepends=True)
-    diff = list(difflib.unified_diff(a_lines, b_lines, n=0))
-    return sum(1 for line in diff
-               if line.startswith(("+", "-"))
-               and not line.startswith(("+++", "---")))
-
 decisions = dict(existing)
 auto_resolved = 0
 manual_required = 0
@@ -875,55 +839,29 @@ for conflict in conflicts:
     if cid in existing:
         continue
 
-    category = conflict["category"]
-    relpath = conflict["relpath"]
     sources = conflict.get("present_sources", [])
     entries = entries_by_file.get(cid, {})
-
-    contents = {}
-    for src in sources:
-        content = get_content(src, category, relpath)
-        if content is not None:
-            contents[src] = content
-
-    if len(contents) < 2:
-        manual_required += 1
-        continue
-
-    src_list = list(contents.keys())
-    max_diff = 0
-    for i in range(len(src_list)):
-        for j in range(i + 1, len(src_list)):
-            try:
-                d = diff_line_count(contents[src_list[i]], contents[src_list[j]])
-                max_diff = max(max_diff, d)
-            except Exception:
-                max_diff = THRESHOLD + 1
-                break
-
-    if max_diff > THRESHOLD:
-        manual_required += 1
-        continue
-
-    best_source = None
-    best_mtime = -1
+    ranked = []
     for src in sources:
         entry = entries.get(src, {})
-        mtime = int(entry.get("mtime", -1))
-        if mtime > best_mtime:
-            best_mtime = mtime
-            best_source = src
+        try:
+            mtime = int(entry.get("mtime", -1))
+        except (TypeError, ValueError):
+            mtime = -1
+        ranked.append((mtime, src))
 
-    if best_source:
-        decisions[cid] = best_source
-        auto_resolved += 1
-    else:
+    if not ranked:
         manual_required += 1
+        continue
+
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    decisions[cid] = ranked[0][1]
+    auto_resolved += 1
 
 resolution_path.parent.mkdir(parents=True, exist_ok=True)
 output = {
     "decisions": [{"id": k, "choice": v} for k, v in decisions.items()],
-    "note": "Includes auto-resolved decisions for small conflicts.",
+    "note": "Includes auto-resolved decisions for all conflicts by newest mtime.",
 }
 resolution_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
 print(json.dumps({"auto_resolved": auto_resolved, "manual_required": manual_required}))
@@ -1237,7 +1175,7 @@ main() {
         resolution_file="${RESOLUTIONS_DEFAULT}"
       fi
 
-      log "Auto-resolving small conflicts by newest mtime"
+      log "Auto-resolving all conflicts by newest mtime"
       auto_resolve_conflicts "${json_out}" "${resolution_file}" "${state_dir}"
 
       local unresolved_count
@@ -1262,7 +1200,7 @@ PY
       if [[ "${interactive}" == "true" ]]; then
         show_conflict_prompt "${json_out}" "${resolution_file}" "${state_dir}/materialized"
       elif [[ "${unresolved_count}" -gt 0 ]]; then
-        log "WARNING: ${unresolved_count} conflict(s) too large for auto-resolve. Skipping them."
+        log "WARNING: ${unresolved_count} conflict(s) could not auto-resolve by newest mtime. Skipping them."
       fi
 
       local resolution_tsv="${state_dir}/resolved.tsv"
