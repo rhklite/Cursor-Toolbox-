@@ -34,9 +34,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 OUTPUT_ROOT = Path.home() / "Downloads" / "postmortem_digests"
-KEYFRAME_COUNT = 6
-KEYFRAME_COLS = 3
-KEYFRAME_ROWS = 2
+KEYFRAME_COUNT = 10
 DEFAULT_TOP_N = 5
 
 LINEAR_SWEEP_COLS = ("speed", "push_magnitude", "push_direction")
@@ -377,8 +375,87 @@ def find_video(run_dir: Path) -> Optional[Path]:
     return mp4s[0] if mp4s else None
 
 
+def load_video_map(video_map_path: Path) -> Dict[str, List[Dict[str, str]]]:
+    if not video_map_path.exists():
+        raise FileNotFoundError(f"video map not found: {video_map_path}")
+
+    with open(video_map_path) as f:
+        raw = json.load(f)
+
+    if not isinstance(raw, dict):
+        raise ValueError("video map must be a JSON object keyed by run_label")
+
+    parsed: Dict[str, List[Dict[str, str]]] = {}
+    for run_name, entry in raw.items():
+        if not isinstance(entry, dict):
+            continue
+        videos = entry.get("videos", [])
+        if not isinstance(videos, list):
+            continue
+
+        normalized: List[Dict[str, str]] = []
+        for v in videos:
+            if not isinstance(v, dict):
+                continue
+            p = v.get("path")
+            if not isinstance(p, str) or not p.strip():
+                continue
+            normalized.append(
+                {
+                    "path": p.strip(),
+                    "variant": str(v.get("variant", "")).strip().lower(),
+                    "outcome": str(v.get("outcome", "")).strip().lower(),
+                }
+            )
+        parsed[str(run_name)] = normalized
+
+    return parsed
+
+
+def find_video_from_map(
+    video_map: Dict[str, List[Dict[str, str]]], run_basename: str
+) -> Optional[Path]:
+    candidates = video_map.get(run_basename, [])
+    if not candidates:
+        return None
+
+    ranked = sorted(
+        candidates,
+        key=lambda c: (
+            c.get("variant") != "overlay",
+            c.get("outcome") != "failure",
+            c.get("path", ""),
+        ),
+    )
+
+    for cand in ranked:
+        p = Path(cand.get("path", "")).expanduser()
+        if p.exists():
+            return p
+        print(f"[postmortem_digest] WARNING: mapped video does not exist: {p}")
+    return None
+
+
 def ffmpeg_available() -> bool:
     return shutil.which("ffmpeg") is not None
+
+
+def choose_grid_layout(n_frames: int) -> Tuple[int, int]:
+    n = max(1, n_frames)
+    best: Optional[Tuple[int, int, int, int, int]] = None
+    for rows in range(1, n + 1):
+        cols = math.ceil(n / rows)
+        if cols < rows:
+            continue
+        area = cols * rows
+        wasted = area - n
+        balance = abs(cols - rows)
+        candidate = (wasted, area, balance, cols, rows)
+        if best is None or candidate < best:
+            best = candidate
+    if best is None:
+        return n, 1
+    return best[3], best[4]
 
 
 def generate_keyframe_grid(
@@ -415,14 +492,19 @@ def generate_keyframe_grid(
         step = total_frames / n_frames
         indices = [int(step * i) for i in range(n_frames)]
 
+    if not indices:
+        print("[postmortem_digest] no frames detected, skipping video grid")
+        return False
+
+    tile_cols, tile_rows = choose_grid_layout(len(indices))
     select_expr = "+".join([f"eq(n\\,{idx})" for idx in indices])
     filter_with_ts = (
         f"select='{select_expr}',"
         "drawtext=text='%{pts\\:hms}':x=10:y=10:fontsize=22:"
         "fontcolor=white:borderw=2:bordercolor=black,"
-        f"tile={KEYFRAME_COLS}x{KEYFRAME_ROWS}"
+        f"tile={tile_cols}x{tile_rows}"
     )
-    filter_without_ts = f"select='{select_expr}',tile={KEYFRAME_COLS}x{KEYFRAME_ROWS}"
+    filter_without_ts = f"select='{select_expr}',tile={tile_cols}x{tile_rows}"
 
     def _run_ffmpeg(vf: str) -> subprocess.CompletedProcess:
         cmd = [
@@ -708,6 +790,7 @@ def assemble_digest(
     output_dir: Path,
     baseline_config: Optional[Path],
     top_n: int,
+    video_map: Optional[Dict[str, List[Dict[str, str]]]] = None,
 ) -> Path:
     """Produce DIGEST_{run_basename}.md for a single run."""
     df = read_results_csv(run_dir)
@@ -724,7 +807,10 @@ def assemble_digest(
     digest_name = f"DIGEST_{run_basename}.md"
     digest_path = output_dir / digest_name
 
-    video = find_video(run_dir)
+    if video_map:
+        video = find_video_from_map(video_map, run_basename)
+    else:
+        video = find_video(run_dir)
     grid_path = None
     if video:
         grid_path = output_dir / f"grid_{run_basename}.png"
@@ -874,6 +960,12 @@ def main():
         action="store_true",
         help="Validate artifact presence and schema, then exit without generating digests.",
     )
+    parser.add_argument(
+        "--video-map",
+        type=Path,
+        default=None,
+        help="Optional JSON manifest keyed by run_label to resolve video paths.",
+    )
 
     args = parser.parse_args()
     if not args.run_dirs and not args.remote:
@@ -901,6 +993,17 @@ def main():
         if not valid_dirs:
             raise SystemExit("No valid run directories found.")
 
+        video_map: Optional[Dict[str, List[Dict[str, str]]]] = None
+        if args.video_map:
+            try:
+                video_map = load_video_map(args.video_map)
+                print(
+                    f"[postmortem_digest] loaded video map: {args.video_map} "
+                    f"({len(video_map)} run labels)"
+                )
+            except Exception as e:
+                raise SystemExit(f"[postmortem_digest] ERROR loading --video-map: {e}")
+
         if args.validate:
             print(f"[postmortem_digest] validating {len(valid_dirs)} run directories")
             all_ok = True
@@ -927,7 +1030,13 @@ def main():
         processed_dirs: List[Path] = []
         for rd in valid_dirs:
             try:
-                assemble_digest(rd, output_dir, args.baseline_config, args.top_n)
+                assemble_digest(
+                    rd,
+                    output_dir,
+                    args.baseline_config,
+                    args.top_n,
+                    video_map=video_map,
+                )
                 processed_dirs.append(rd)
             except Exception as e:
                 print(f"[postmortem_digest] ERROR processing {rd}: {e}")

@@ -47,11 +47,21 @@ Do not proceed until the user confirms.
 
 Run the batch digest script to pre-process all artifacts. This step uses zero LLM tokens — it is pure computation.
 
+If curated videos are stored in report-level success and failure folders, generate a video map first:
+
+```bash
+bash ~/.cursor/scripts/generate_video_manifest.sh <report_root> \
+    -o <report_root>/video_manifest.json
+```
+
+Then pass `--video-map <report_root>/video_manifest.json` to the digest script commands below.
+
 First, run schema validation:
 
 ```bash
 python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
     [--remote isaacgym:/path/to/run_1] [--remote isaacgym:/path/to/run_2] \
+    [--video-map <path/to/video_manifest.json>] \
     --validate
 ```
 
@@ -60,6 +70,7 @@ Then run digest generation:
 ```bash
 python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
     [--remote isaacgym:/path/to/run_1] [--remote isaacgym:/path/to/run_2] \
+    [--video-map <path/to/video_manifest.json>] \
     [--compare] \
     [--baseline-config <path>] \
     [--top-n 5]
@@ -67,7 +78,7 @@ python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
 
 The script writes output to `~/Downloads/postmortem_digests/{MMDD_HHMM}/`:
 - `DIGEST_{run_basename}.md` per run — compact text tables with survival, torque, Tier 4 diagnostics, worst conditions
-- `grid_{run_basename}.png` per run (if video exists) — 3x2 keyframe grid with frame timestamps overlayed; if drawtext is unavailable, script falls back to non-timestamp grid
+- `grid_{run_basename}.png` per run (if video exists) — 10 keyframes in auto grid layout with frame timestamps overlayed; if drawtext is unavailable, script falls back to non-timestamp grid
 - `COMPARISON.md` (if --compare was passed with 2+ dirs)
 
 **If the script fails (non-zero exit):** warn the user, then fall back to the legacy workflow described in Appendix A below. Do not silently skip.
@@ -93,7 +104,7 @@ Do NOT read raw CSV files, metric.json, TensorBoard events, or training logs. Th
 ### 4. Keyframe analysis
 
 If keyframe grid images exist in the digest output:
-- Examine each grid image. The grid shows 6 evenly-spaced frames from the evaluation video in a 3x2 layout (top-left = start, bottom-right = end).
+- Examine each grid image. The grid shows 10 evenly-spaced frames from the evaluation video in an auto layout (top-left = start, bottom-right = end).
 - Describe the agent's posture and behavior progression visible in the frames.
 - Compare against expected behavior from step 3.
 - Note specific discrepancies and hypothesize root causes.
