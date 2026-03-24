@@ -1,6 +1,6 @@
 ---
 description: Sync Cursor keybindings to macOS machines after the agent modifies keybindings.json or auto-promotes a command. Lightweight sync targeting only macOS hosts.
-globs: 
+globs:
 alwaysApply: true
 ---
 
@@ -24,7 +24,7 @@ bash ~/.cursor/scripts/sync_keybindings.sh sync
 This will:
 1. Export live keybindings to `~/.cursor/keybindings/keybindings.json` (canonical copy)
 2. Commit and push to git
-3. SSH to macOS targets only (`Richard.laptop.personal`, `huh.laptop.us`) to pull and import
+3. SSH to macOS targets only (`huh.laptop.us`) to pull and import
 4. Linux hosts are skipped entirely (no SSH, no git pull)
 
 ## Scope

@@ -119,5 +119,4 @@ For "connect to [hostname]":
 Known hosts (from `~/.ssh/config`):
 - `huh.desktop.us` -- Remote desktop
 - `isaacgym` -- IsaacGym container
-- `Richard.laptop.personal` -- Personal laptop
 - `huh.laptop.us` -- Work laptop
