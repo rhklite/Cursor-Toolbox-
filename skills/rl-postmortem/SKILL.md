@@ -1,149 +1,121 @@
 ---
 name: rl-postmortem
-description: Post-run analysis for RL experiments. Reads training metrics, logs, config, and hypothesis, analyzes training dynamics, compares behavior video against expectations, and produces a structured diagnosis with next-step suggestions. Use when the user says postmortem, analyze run, what went wrong, diagnose training, or review run results.
+description: Post-run analysis for RL experiments. Pre-digests stability eval artifacts via batch script, then interprets the compact digest to produce a structured diagnosis with next-step suggestions. Use when the user says postmortem, analyze run, what went wrong, diagnose training, or review run results.
 ---
 
 # RL Postmortem
 
 ## Role
 
-Structured post-run analysis that extracts maximum learning from each training run. Reads all available artifacts, diagnoses what happened, and proposes concrete next steps.
+Structured post-run analysis that extracts maximum learning from each experiment run. Pre-processes raw artifacts into a compact digest (zero LLM tokens), then interprets the digest to produce a diagnosis and next steps.
 
 ## Steps
 
-### 0. Model confirmation
+### 0. Gather run directories and hypothesis
 
-Before proceeding, prompt the user: "This skill runs best on **Opus (Agent mode)**. Are you currently on Opus in Agent mode? If not, please switch before we continue."
+Prompt the user for:
 
-Do not proceed to step 1 until the user confirms.
-
-### 1. Gather artifact locations
-
-Prompt the user to provide paths for the artifacts they have available. Present this checklist and ask them to supply whichever paths they can:
-
-1. **Run directory** — a single directory containing some or all artifacts below
-2. **Metrics** — training metrics file (e.g., `metrics.jsonl`, TensorBoard `events.out.tfevents.*`, or wandb logs)
-3. **Training log** — human-readable log (e.g., `train.log`)
-4. **Config** — the config used for the run (e.g., `config.yaml`, or a Python config class path)
-5. **Hypothesis** (REQUIRED) — `hypothesis.md` or equivalent describing the experiment hypothesis and expected behavior
-6. **Video** — video of the trained agent (e.g., `best.mp4`, evaluation recording)
+1. **Run directory (or directories)** — one or more output directories from `play_stability_eval.py`, each containing `stability_eval_results.csv`, `torque_limits.csv`, `metric.json`, and optionally `.mp4` video
+2. **Hypothesis** (REQUIRED) — `hypothesis.md` or a text description of: (a) what change was made and why, (b) what outcome was expected, (c) what behavior was expected in the agent
+3. **Baseline config** (optional) — path to a YAML config for diff; skip if not provided
+4. **Comparison mode** — ask: "Do you want a multi-run comparison digest? (only if 2+ run dirs provided)"
 
 Rules:
-- If the user provides a run directory, scan it for artifacts not explicitly provided.
-- If the user provides individual file paths without a run directory, use those directly; do not attempt auto-detection for missing artifacts — ask the user for any additional files needed.
-- If the user provides neither, attempt auto-detect: find the most recently modified directory under `runs/` or `logs/` (excluding `archive/`).
+- If the user provides a single run directory, scan it for the required CSV/JSON files.
+- Hypothesis is mandatory. Resolve using this fallback order:
+  1. A `hypothesis.md` file in the run directory or provided by the user.
+  2. The user provides a text description during this step.
+  3. If neither, prompt: "No hypothesis found. Please describe: (a) what change you made and why, (b) what outcome you expected, (c) what behavior you expected to see in the agent." Do not proceed until provided.
 
-**Hypothesis is mandatory.** Resolve it using this fallback order:
-1. A `hypothesis.md` file found in the run directory or provided by the user.
-2. The user proactively provides a text description of the hypothesis during artifact gathering.
-3. If neither (1) nor (2), prompt the user: "No hypothesis file found. Please describe: (a) what change you made and why, (b) what outcome you expected, and (c) what behavior you expected to see in the agent." Do not proceed until the user provides this.
+Present the resolved artifact list and wait for confirmation:
 
-**Artifact confirmation (blocking).** After resolving all artifacts, present the full list to the user and wait for confirmation before proceeding:
-
-> Analyzing with the following artifacts:
-> - Run directory: [path]
-> - Metrics: [path]
-> - Training log: [path or "not available"]
-> - Config: [path]
-> - Hypothesis: [file path] or [user-provided text, first ~30 words...]
-> - Video: [path or "not available"]
+> Postmortem setup:
+> - Run dir(s): [paths]
+> - Hypothesis: [file or first ~30 words of text]
+> - Baseline config: [path or "none"]
+> - Comparison mode: [yes/no]
 >
 > Correct?
 
-Do not proceed to step 2 until the user confirms.
+Do not proceed until the user confirms.
 
-### 2. Read artifacts
+### 1. Run digest script
 
-Read all artifacts resolved from step 1. Accept any of these formats:
+Run the batch digest script to pre-process all artifacts. This step uses zero LLM tokens — it is pure computation.
 
-- **Metrics** — `metrics.jsonl` (one JSON object per line), TensorBoard event files, wandb logs, or `metric.json` evaluation snapshots
-- **Training log** — `train.log` or equivalent human-readable log with per-update progress
-- **Config** — `config.yaml`, Python config class, or wandb config
-- **Hypothesis** — `hypothesis.md` or equivalent with the hypothesis, expected outcome, and expected visual behavior
-- **Video** — `.mp4`, `.webm`, or `.avi` file of the trained agent
+**For each run directory**, invoke in parallel:
 
-When a user-provided path overrides an auto-detected file, use the user-provided path. If any optional artifact (training log, video) is unavailable after prompting, note it and proceed with what is available. Hypothesis is not optional — it must be resolved before proceeding (see step 1).
+```bash
+python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
+    [--compare] \
+    [--baseline-config <path>] \
+    [--top-n 5]
+```
 
-### 3. Training dynamics analysis
+The script writes output to `~/Downloads/postmortem_digests/{MMDD_HHMM}/`:
+- `DIGEST_{run_basename}.md` per run — compact text tables with survival, torque, Tier 4 diagnostics, worst conditions
+- `grid_{run_basename}.png` per run (if video exists) — 3x2 keyframe grid
+- `COMPARISON.md` (if --compare was passed with 2+ dirs)
 
-Analyze the metrics and log systematically. For each dimension, report a short finding:
+**If the script fails (non-zero exit):** warn the user, then fall back to the legacy workflow described in Appendix A below. Do not silently skip.
 
-- **Reward trajectory**: overall trend (improving, plateaued, collapsed, oscillating), final value, best value and when it occurred, variance
-- **Loss components**: policy loss stability, value loss magnitude and trend, whether losses diverged
-- **Entropy**: trajectory over training — healthy decay vs premature collapse vs stuck-high
-- **Clip fraction**: average and trend — too high suggests learning rate is too large, too low suggests updates are too conservative
-- **SPS**: stable vs degrading over time (memory leaks, env slowdown)
-- **Episode length**: trend — increasing (agent surviving longer) or stuck (not learning to avoid death)
-- **Death/termination breakdown**: if logged, report the ratio of termination types over training and how they shifted
+### 2. Read digest artifacts
 
-### 4. Behavior alignment
+Read the following files produced by the script:
 
-- Read the "Expected visual behavior" or "Expected outcome" from the hypothesis (file or user-provided text resolved in step 1).
-- Extract the specific expected behavior to compare against the video in step 5. If the hypothesis text does not contain an explicit expected-behavior statement, infer it from the hypothesis intent and state your inference for the user to verify.
+- All `DIGEST_*.md` files in the output directory
+- All `grid_*.png` keyframe images (if present)
+- `COMPARISON.md` (if comparison mode was requested)
+- The hypothesis (file or user-provided text from step 0)
 
-### 5. Video analysis
+Do NOT read raw CSV files, metric.json, TensorBoard events, or training logs. The digest contains all needed data in pre-aggregated form.
 
-Attempt video analysis using the following fallback hierarchy:
+### 3. Behavior alignment
 
-**Primary — Task tool with video attachment:**
-Use the video path provided by the user in step 1. If no video was provided, prompt the user: "Do you have a video of the trained agent? If so, provide the path." If no video is available, skip directly to Fallback 2.
+- Read the hypothesis (from step 0).
+- Extract the specific expected behavior to compare against the keyframe grids in step 4.
+- If the hypothesis does not contain an explicit expected-behavior statement, infer it from the hypothesis intent and state the inference for the user to verify.
 
-Use the Task tool with `subagent_type: "generalPurpose"` and the `attachments` parameter pointing to the video file. Include in the prompt:
-- The expected behavior from step 4
-- Ask: "Watch this video of a trained RL agent. Describe the agent's behavior in detail. Then compare it against this expected behavior: [expected]. List specific discrepancies and hypothesize root causes."
+### 4. Keyframe analysis
 
-**Fallback 1 — Keyframe extraction:**
-If the Task tool video analysis fails or returns an error:
-- Create a temporary directory: `.postmortem_frames/` inside the run directory (e.g. `runs/0315_14/.postmortem_frames/`)
-- Run `ffmpeg` to extract 5 evenly-spaced frames as PNG images **into that directory** (e.g. `ffmpeg -i <video> -vf "select=..." <run_dir>/.postmortem_frames/frame_%03d.png`)
-- Do NOT write frames to the repo root or any directory outside `.postmortem_frames/`
-- Analyze the extracted frames for visible behavior patterns
+If keyframe grid images exist in the digest output:
+- Examine each grid image. The grid shows 6 evenly-spaced frames from the evaluation video in a 3x2 layout (top-left = start, bottom-right = end).
+- Describe the agent's posture and behavior progression visible in the frames.
+- Compare against expected behavior from step 3.
+- Note specific discrepancies and hypothesize root causes.
 
-**Fallback 2 — Manual review prompt:**
-If both above fail:
-- State: "Video analysis unavailable. Please review the video manually."
-- Provide the video file path
-- Ask the user to describe what they see, then proceed with their description
+If no keyframe grids were produced:
+- State: "No video keyframes available."
+- Ask the user if they have a video to review manually, or proceed without visual analysis.
 
-Report:
-- What behavior the video actually shows
-- Discrepancies from the expected behavior
-- Hypothesized causes for each discrepancy
+### 5. Diagnosis report
 
-### 5a. Cleanup temporary files
-
-**This step is mandatory and must not be skipped.**
-
-After step 5 completes (regardless of which fallback was used):
-- Remove the `.postmortem_frames/` directory if it was created: `rm -rf <run_dir>/.postmortem_frames/`
-- Remove any helper scripts created during frame extraction (e.g. `extract_frames.py`) from the repo root
-- Remove any stray image files (`frame_*.jpg`, `frame_*.png`) from the repo root
-- Verify no temporary artifacts remain: `ls frame_*.jpg frame_*.png 2>/dev/null` should return nothing
-
-### 6. Diagnosis report
-
-Synthesize all findings into a structured report:
+Synthesize the digest data and keyframe analysis into a structured report:
 
 ```
 POSTMORTEM DIAGNOSIS
 ====================
 
 ## Run summary
-- Run: [directory name]
-- Duration: [wall clock time or updates completed]
-- Best reward: [value] at update [N]
-- Final reward: [value]
+- Run: [directory name(s)]
+- Survival rate: [from digest]
+- Triggered / total: [from digest]
+- Mode: [linear / angular sweep]
 
 ## What worked
-- [1-2 bullet points on positive findings]
+- [1-2 bullet points on positive findings from the digest]
 
 ## What failed
-- [Each failure with likely root cause]
+- [Each failure with likely root cause, informed by worst-conditions list and torque table]
 
 ## Behavior vs expectation
 - Expected: [from hypothesis]
-- Observed: [from video analysis]
+- Observed: [from keyframe analysis or digest metrics]
 - Gap: [specific discrepancy and hypothesized cause]
+
+## Torque concerns
+- [Flag any joints exceeding 80% of hardware limit]
+- [Flag any joints with unusually high torque rates]
 
 ## Next experiments (max 3)
 1. [Concrete suggestion: what to change, why, expected effect]
@@ -154,22 +126,64 @@ POSTMORTEM DIAGNOSIS
 [One sentence: adjust rewards / adjust architecture / adjust hyperparameters / adjust curriculum / redesign observation space]
 ```
 
-### 7. File export
+If comparison mode was used, add a section:
 
-Write the full diagnosis report from step 6 to a file. Use the current timestamp to name the file:
+```
+## Cross-run comparison
+- [Summary of how runs differ on Tier 1 metrics]
+- [Which variant is strongest and why]
+- [What the comparison suggests for next steps]
+```
 
-- Path: `docs/postmortem/MMDD_HHMM_OP.md` (e.g. `0315_1430_OP.md`)
-- Create `docs/postmortem/` if it does not exist (`mkdir -p docs/postmortem`)
-- The file should contain the complete diagnosis report as written in step 6
+### 6. File export
 
-### 8. Key findings summary
+Write the full diagnosis report to:
 
-After writing the report, print a concise key findings summary directly in the chat so the user sees it without opening the file. Format:
+- Path: `docs/experiments/postmortems/MMDD_HHMM_OP.md`
+- Create `docs/experiments/postmortems/` if it does not exist
 
-> **KEY FINDINGS (Opus)**
+### 7. Key findings summary
+
+Print a concise summary in chat:
+
+> **KEY FINDINGS**
 >
-> - [3-5 bullet points: the most important findings from the diagnosis]
-> - Each bullet should be one sentence stating a finding and its implication
-> - Prioritize: what worked, what failed, and the single most impactful next step
+> - [3-5 bullet points: most important findings from the diagnosis]
+> - Each bullet: one sentence stating a finding and its implication
+> - Prioritize: what worked, what failed, single most impactful next step
 
 The postmortem is complete after this step.
+
+---
+
+## Appendix A: Legacy fallback workflow
+
+Use this workflow ONLY if the digest script in step 1 fails. This consumes significantly more tokens.
+
+### A1. Read raw artifacts
+
+Read all available artifacts directly:
+- `stability_eval_results.csv` — per-trial metrics
+- `torque_limits.csv` — joint torque limits
+- `metric.json` — summary metrics
+- `.mp4` video (if available)
+
+### A2. Training dynamics analysis (if training run, not eval-only)
+
+Analyze metrics for: reward trajectory, loss components, entropy, clip fraction, SPS, episode length, death/termination breakdown.
+
+### A3. Video analysis
+
+Attempt video analysis using this fallback hierarchy:
+
+1. **Task tool with video attachment** — spawn a generalPurpose subagent with the video file.
+2. **Keyframe extraction** — run ffmpeg to extract 5 frames into a `.postmortem_frames/` temp directory inside the run dir. Analyze frames. Clean up after.
+3. **Manual review** — ask the user to describe what they see.
+
+### A4. Cleanup
+
+Remove `.postmortem_frames/` directory if created. Remove any stray frame images from the repo root.
+
+### A5. Produce diagnosis report
+
+Follow step 5 format from the main workflow above.
