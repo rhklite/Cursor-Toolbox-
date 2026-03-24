@@ -15,13 +15,17 @@ Structured post-run analysis that extracts maximum learning from each experiment
 
 Prompt the user for:
 
-1. **Run directory (or directories)** — one or more output directories from `play_stability_eval.py`, each containing `stability_eval_results.csv`, `torque_limits.csv`, `metric.json`, and optionally `.mp4` video
+1. **Run directory (or directories)** — one or more output directories from `play_stability_eval.py`, each containing `stability_eval_results.csv`, `torque_limits.csv`, `metric.json`, and optionally `.mp4` video. This can be either:
+   - local path(s), or
+   - isaacgym remote path(s) like `/home/huh/software/motion_rl/...` (the script will pull these locally first via `--remote isaacgym:/...`)
 2. **Hypothesis** (REQUIRED) — `hypothesis.md` or a text description of: (a) what change was made and why, (b) what outcome was expected, (c) what behavior was expected in the agent
 3. **Baseline config** (optional) — path to a YAML config for diff; skip if not provided
 4. **Comparison mode** — ask: "Do you want a multi-run comparison digest? (only if 2+ run dirs provided)"
 
 Rules:
 - If the user provides a single run directory, scan it for the required CSV/JSON files.
+- If the path looks like an isaacgym path (`/home/huh/...`) or user says artifacts are in isaacgym, treat it as remote and invoke the script with `--remote isaacgym:<path>`.
+- Remote pull prerequisite: SSH alias `isaacgym` and `rsync` must be available on the host running the skill.
 - Hypothesis is mandatory. Resolve using this fallback order:
   1. A `hypothesis.md` file in the run directory or provided by the user.
   2. The user provides a text description during this step.
@@ -43,10 +47,19 @@ Do not proceed until the user confirms.
 
 Run the batch digest script to pre-process all artifacts. This step uses zero LLM tokens — it is pure computation.
 
-**For each run directory**, invoke in parallel:
+First, run schema validation:
 
 ```bash
 python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
+    [--remote isaacgym:/path/to/run_1] [--remote isaacgym:/path/to/run_2] \
+    --validate
+```
+
+Then run digest generation:
+
+```bash
+python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
+    [--remote isaacgym:/path/to/run_1] [--remote isaacgym:/path/to/run_2] \
     [--compare] \
     [--baseline-config <path>] \
     [--top-n 5]
@@ -54,7 +67,7 @@ python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
 
 The script writes output to `~/Downloads/postmortem_digests/{MMDD_HHMM}/`:
 - `DIGEST_{run_basename}.md` per run — compact text tables with survival, torque, Tier 4 diagnostics, worst conditions
-- `grid_{run_basename}.png` per run (if video exists) — 3x2 keyframe grid
+- `grid_{run_basename}.png` per run (if video exists) — 3x2 keyframe grid with frame timestamps overlayed; if drawtext is unavailable, script falls back to non-timestamp grid
 - `COMPARISON.md` (if --compare was passed with 2+ dirs)
 
 **If the script fails (non-zero exit):** warn the user, then fall back to the legacy workflow described in Appendix A below. Do not silently skip.

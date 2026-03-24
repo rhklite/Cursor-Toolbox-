@@ -16,19 +16,18 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import pandas as pd
-    import numpy as np
 except ImportError:
-    sys.exit("pandas and numpy are required: pip install pandas numpy")
+    sys.exit("pandas is required: pip install pandas")
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -50,6 +49,23 @@ TIER4_COLS = [
     "corrective_step_count",
     "action_smoothness_rms",
     "final_posture_offset",
+]
+
+# Initial thresholds for quick triage. Tune per project as needed.
+TIER4_THRESHOLDS = {
+    "peak_excursion_pitch": {"warn": 0.15, "unit": "rad"},
+    "peak_excursion_roll": {"warn": 0.10, "unit": "rad"},
+    "peak_angular_velocity": {"warn": 2.0, "unit": "rad/s"},
+    "corrective_step_count": {"warn": 6.0, "unit": "steps"},
+    "action_smoothness_rms": {"warn": 0.5, "unit": ""},
+    "final_posture_offset": {"warn": 0.2, "unit": "rad"},
+}
+
+CORE_REQUIRED_COLS = [
+    "triggered",
+    "survived",
+    "time_to_stabilize",
+    "peak_joint_torque",
 ]
 
 TIER1_COMPARISON_COLS = [
@@ -92,6 +108,74 @@ def read_metric_json(run_dir: Path) -> Dict[str, Any]:
     return data
 
 
+def parse_remote_spec(spec: str) -> Tuple[str, str]:
+    if ":" not in spec:
+        raise ValueError(
+            f"Invalid --remote '{spec}'. Expected format ssh_alias:/absolute/path"
+        )
+    alias, remote_path = spec.split(":", 1)
+    alias = alias.strip()
+    remote_path = remote_path.strip()
+    if not alias or not remote_path:
+        raise ValueError(
+            f"Invalid --remote '{spec}'. Expected format ssh_alias:/absolute/path"
+        )
+    if not remote_path.startswith("/"):
+        raise ValueError(f"Remote path must be absolute in --remote '{spec}'")
+    return alias, remote_path
+
+
+def pull_remote_run_dirs(
+    remote_specs: List[str], keep_local: bool
+) -> Tuple[List[Path], Optional[Path]]:
+    if not remote_specs:
+        return [], None
+
+    staging_root = Path(tempfile.mkdtemp(prefix="postmortem_pull_"))
+    pulled_dirs: List[Path] = []
+
+    include_args = [
+        "--include=stability_eval_results.csv",
+        "--include=torque_limits.csv",
+        "--include=metric.json",
+        "--include=config.yaml",
+        "--include=*config*.yaml",
+        "--include=*config*.json",
+        "--include=*.mp4",
+        "--exclude=*",
+    ]
+
+    for idx, spec in enumerate(remote_specs, start=1):
+        alias, remote_path = parse_remote_spec(spec)
+        local_dir = staging_root / f"{idx:02d}_{Path(remote_path).name}"
+        local_dir.mkdir(parents=True, exist_ok=True)
+
+        src = f"{alias}:{remote_path.rstrip('/')}/"
+        dst = str(local_dir) + "/"
+        cmd = ["rsync", "-az", "--prune-empty-dirs", *include_args, src, dst]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
+        except subprocess.CalledProcessError as e:
+            err = (e.stderr or e.stdout or "").strip()
+            raise RuntimeError(f"rsync pull failed for {spec}: {err[:300]}")
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"rsync pull timed out for {spec}")
+
+        if not (local_dir / "stability_eval_results.csv").exists():
+            raise RuntimeError(
+                f"Remote pull succeeded but missing stability_eval_results.csv for {spec}"
+            )
+
+        pulled_dirs.append(local_dir)
+        print(f"[postmortem_digest] pulled {spec} -> {local_dir}")
+
+    if keep_local:
+        print(f"[postmortem_digest] keeping staging directory: {staging_root}")
+        return pulled_dirs, staging_root
+
+    return pulled_dirs, staging_root
+
+
 # ---------------------------------------------------------------------------
 # Detect sweep mode
 # ---------------------------------------------------------------------------
@@ -101,6 +185,80 @@ def detect_sweep_cols(df: pd.DataFrame) -> Tuple[str, ...]:
     if "push_ang_magnitude" in df.columns:
         return ANGULAR_SWEEP_COLS
     return LINEAR_SWEEP_COLS
+
+
+def detect_sweep_cols_from_header(columns: List[str]) -> Optional[Tuple[str, ...]]:
+    colset = set(columns)
+    if set(ANGULAR_SWEEP_COLS).issubset(colset):
+        return ANGULAR_SWEEP_COLS
+    if set(LINEAR_SWEEP_COLS).issubset(colset):
+        return LINEAR_SWEEP_COLS
+    return None
+
+
+def validate_run_dir(run_dir: Path) -> Tuple[bool, List[str]]:
+    issues: List[str] = []
+    required_files = ["stability_eval_results.csv", "torque_limits.csv", "metric.json"]
+
+    for fname in required_files:
+        if not (run_dir / fname).exists():
+            issues.append(f"missing file: {fname}")
+
+    mp4s = list(run_dir.glob("*.mp4"))
+    if not mp4s:
+        issues.append("no .mp4 in run dir (allowed, but keyframe grid will be skipped)")
+
+    csv_path = run_dir / "stability_eval_results.csv"
+    if not csv_path.exists():
+        return False, issues
+
+    try:
+        header_df = pd.read_csv(csv_path, nrows=0)
+    except Exception as e:
+        issues.append(f"cannot read CSV header: {e}")
+        return False, issues
+
+    columns = list(header_df.columns)
+    sweep_cols = detect_sweep_cols_from_header(columns)
+    if sweep_cols is None:
+        issues.append(
+            "cannot detect sweep mode; missing expected linear or angular sweep columns"
+        )
+        sweep_cols = ()
+
+    missing = [c for c in [*CORE_REQUIRED_COLS, *sweep_cols, *TIER4_COLS] if c not in columns]
+    if missing:
+        issues.append(f"missing required columns: {', '.join(missing)}")
+
+    pct_cols = [c for c in columns if c.startswith("peak_torque_pct_")]
+    rate_cols = [c for c in columns if c.startswith("peak_torque_rate_")]
+    if not pct_cols:
+        issues.append("missing peak_torque_pct_* columns")
+    if not rate_cols:
+        issues.append("missing peak_torque_rate_* columns")
+
+    tl_path = run_dir / "torque_limits.csv"
+    if tl_path.exists():
+        try:
+            tl_header = list(pd.read_csv(tl_path, nrows=0).columns)
+            for c in ("joint_name", "torque_limit"):
+                if c not in tl_header:
+                    issues.append(f"torque_limits.csv missing column: {c}")
+        except Exception as e:
+            issues.append(f"cannot read torque_limits.csv header: {e}")
+
+    is_ok = not any(
+        issue.startswith("missing file:")
+        or issue.startswith("cannot read CSV header:")
+        or issue.startswith("cannot detect sweep mode;")
+        or issue.startswith("missing required columns:")
+        or issue.startswith("missing peak_torque_pct_")
+        or issue.startswith("missing peak_torque_rate_")
+        or issue.startswith("torque_limits.csv missing column:")
+        or issue.startswith("cannot read torque_limits.csv header:")
+        for issue in issues
+    )
+    return is_ok, issues
 
 
 # ---------------------------------------------------------------------------
@@ -231,10 +389,6 @@ def generate_keyframe_grid(
         print("[postmortem_digest] ffmpeg not found, skipping video grid")
         return False
 
-    # select=expr filters n_frames evenly across the video using scene-agnostic
-    # frame numbering; the tile filter assembles them into COLS x ROWS.
-    select_expr = "+".join([f"eq(n\\,{i})" for i in range(n_frames)])
-
     # First, probe frame count to compute evenly-spaced indices
     probe_cmd = [
         "ffprobe",
@@ -262,28 +416,52 @@ def generate_keyframe_grid(
         indices = [int(step * i) for i in range(n_frames)]
 
     select_expr = "+".join([f"eq(n\\,{idx})" for idx in indices])
+    filter_with_ts = (
+        f"select='{select_expr}',"
+        "drawtext=text='%{pts\\:hms}':x=10:y=10:fontsize=22:"
+        "fontcolor=white:borderw=2:bordercolor=black,"
+        f"tile={KEYFRAME_COLS}x{KEYFRAME_ROWS}"
+    )
+    filter_without_ts = f"select='{select_expr}',tile={KEYFRAME_COLS}x{KEYFRAME_ROWS}"
 
-    cmd = [
-        "ffmpeg",
-        "-i",
-        str(video_path),
-        "-vf",
-        f"select='{select_expr}',tile={KEYFRAME_COLS}x{KEYFRAME_ROWS}",
-        "-vsync",
-        "vfr",
-        "-frames:v",
-        "1",
-        "-y",
-        str(output_path),
-    ]
+    def _run_ffmpeg(vf: str) -> subprocess.CompletedProcess:
+        cmd = [
+            "ffmpeg",
+            "-i",
+            str(video_path),
+            "-vf",
+            vf,
+            "-vsync",
+            "vfr",
+            "-frames:v",
+            "1",
+            "-y",
+            str(output_path),
+        ]
+        return subprocess.run(
+            cmd, capture_output=True, text=True, timeout=120, check=True
+        )
+
     try:
-        subprocess.run(cmd, capture_output=True, timeout=120, check=True)
+        _run_ffmpeg(filter_with_ts)
         return True
     except subprocess.CalledProcessError as e:
+        stderr = (e.stderr or "").strip().splitlines()[-1] if e.stderr else ""
         print(
-            f"[postmortem_digest] ffmpeg grid failed: {e.stderr[:200] if e.stderr else ''}"
+            f"[postmortem_digest] drawtext unavailable or failed ({stderr}); retrying without timestamps"
         )
-        return False
+        try:
+            _run_ffmpeg(filter_without_ts)
+            return True
+        except subprocess.CalledProcessError as inner:
+            print(
+                "[postmortem_digest] ffmpeg grid failed: "
+                f"{((inner.stderr or '').strip().splitlines()[-1] if inner.stderr else '')}"
+            )
+            return False
+        except Exception as inner:
+            print(f"[postmortem_digest] ffmpeg error: {inner}")
+            return False
     except Exception as e:
         print(f"[postmortem_digest] ffmpeg error: {e}")
         return False
@@ -363,11 +541,20 @@ def _fmt(v: float, precision: int = 3) -> str:
     return str(v)
 
 
-def format_header(metric_json: Dict[str, Any], run_dir: Path) -> str:
+def sweep_mode_text(sweep_cols: Tuple[str, ...]) -> str:
+    if tuple(sweep_cols) == ANGULAR_SWEEP_COLS:
+        return "angular sweep (speed x push_ang_magnitude x push_ang_axis)"
+    return "linear sweep (speed x push_magnitude x push_direction)"
+
+
+def format_header(
+    metric_json: Dict[str, Any], run_dir: Path, sweep_cols: Tuple[str, ...]
+) -> str:
     lines = [
         f"# Postmortem Digest: {run_dir.name}",
         "",
         f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        f"Mode: {sweep_mode_text(sweep_cols)}",
         "",
         "## Summary (metric.json)",
         "",
@@ -448,7 +635,7 @@ def format_tier4_table(agg: pd.DataFrame) -> str:
     if agg.empty:
         return "## Tier 4 Diagnostics\n\n(no data)\n"
 
-    headers = ["metric", "mean", "std"]
+    headers = ["metric", "mean", "std", "warn_threshold", "status"]
     lines = [
         "## Tier 4 Diagnostics (across all conditions)",
         "",
@@ -462,7 +649,14 @@ def format_tier4_table(agg: pd.DataFrame) -> str:
         if mean_col in agg.columns:
             m = agg[mean_col].mean()
             s = agg[std_col].mean()
-            lines.append(f"| {col} | {_fmt(m, 3)} | {_fmt(s, 3)} |")
+            threshold = TIER4_THRESHOLDS.get(col, {}).get("warn", float("nan"))
+            if isinstance(m, float) and math.isnan(m):
+                status = "n/a"
+            else:
+                status = "OK" if m <= threshold else "WARN"
+            lines.append(
+                f"| {col} | {_fmt(m, 3)} | {_fmt(s, 3)} | {_fmt(threshold, 3)} | {status} |"
+            )
 
     lines.append("")
     return "\n".join(lines)
@@ -496,6 +690,14 @@ def format_video_note(grid_path: Optional[Path]) -> str:
     return "## Video Keyframes\n\n(no video available)\n"
 
 
+def run_label(run_dir: Path) -> str:
+    parent = run_dir.parent.name
+    name = run_dir.name
+    if parent and parent not in (".", "/"):
+        return f"{parent}_{name}"
+    return name
+
+
 # ---------------------------------------------------------------------------
 # Assembler
 # ---------------------------------------------------------------------------
@@ -518,7 +720,7 @@ def assemble_digest(
     worst = rank_worst_conditions(agg, top_n, sweep_cols)
     config_diff = diff_configs(run_dir, baseline_config)
 
-    run_basename = run_dir.name
+    run_basename = run_label(run_dir)
     digest_name = f"DIGEST_{run_basename}.md"
     digest_path = output_dir / digest_name
 
@@ -530,7 +732,7 @@ def assemble_digest(
             grid_path = None
 
     sections = [
-        format_header(metric_json, run_dir),
+        format_header(metric_json, run_dir, sweep_cols),
         format_survival_table(agg, sweep_cols),
         format_torque_table(torque_rows),
         format_tier4_table(agg),
@@ -563,7 +765,7 @@ def assemble_comparison(run_dirs: List[Path], output_dir: Path) -> Path:
 
         rows.append(
             {
-                "run_name": rd.name,
+                "run_name": run_label(rd),
                 "survival_rate": metric_json.get(
                     "survival_rate",
                     len(survived) / max(len(triggered), 1),
@@ -628,7 +830,7 @@ def main():
     )
     parser.add_argument(
         "run_dirs",
-        nargs="+",
+        nargs="*",
         type=Path,
         help="One or more run output directories containing stability_eval_results.csv",
     )
@@ -655,35 +857,92 @@ def main():
         default=None,
         help="Override output directory (default: ~/Downloads/postmortem_digests/MMDD_HHMM/)",
     )
+    parser.add_argument(
+        "--remote",
+        action="append",
+        default=[],
+        help="Pull run dir from remote before digest (format: ssh_alias:/absolute/path). "
+        "Can be passed multiple times.",
+    )
+    parser.add_argument(
+        "--keep-local",
+        action="store_true",
+        help="Keep local staging directory created by --remote pulls.",
+    )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate artifact presence and schema, then exit without generating digests.",
+    )
 
     args = parser.parse_args()
+    if not args.run_dirs and not args.remote:
+        parser.error("Provide at least one local run_dir or one --remote source.")
 
-    if args.output_dir:
-        output_dir = args.output_dir
-    else:
-        stamp = datetime.now().strftime("%m%d_%H%M")
-        output_dir = OUTPUT_ROOT / stamp
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    for rd in args.run_dirs:
-        if not rd.is_dir():
-            print(f"[postmortem_digest] WARNING: {rd} is not a directory, skipping")
-            continue
-        try:
-            assemble_digest(rd, output_dir, args.baseline_config, args.top_n)
-        except Exception as e:
-            print(f"[postmortem_digest] ERROR processing {rd}: {e}")
-
-    if args.compare and len(args.run_dirs) >= 2:
-        valid_dirs = [rd for rd in args.run_dirs if rd.is_dir()]
-        if len(valid_dirs) >= 2:
+    staging_root: Optional[Path] = None
+    try:
+        all_run_dirs: List[Path] = list(args.run_dirs)
+        if args.remote:
             try:
-                assemble_comparison(valid_dirs, output_dir)
+                pulled_dirs, staging_root = pull_remote_run_dirs(
+                    args.remote, args.keep_local
+                )
+            except Exception as e:
+                raise SystemExit(f"[postmortem_digest] ERROR pulling remote artifacts: {e}")
+            all_run_dirs.extend(pulled_dirs)
+
+        valid_dirs: List[Path] = []
+        for rd in all_run_dirs:
+            if not rd.is_dir():
+                print(f"[postmortem_digest] WARNING: {rd} is not a directory, skipping")
+                continue
+            valid_dirs.append(rd)
+
+        if not valid_dirs:
+            raise SystemExit("No valid run directories found.")
+
+        if args.validate:
+            print(f"[postmortem_digest] validating {len(valid_dirs)} run directories")
+            all_ok = True
+            for rd in valid_dirs:
+                ok, issues = validate_run_dir(rd)
+                status = "OK" if ok else "FAIL"
+                print(f"[postmortem_digest] [{status}] {rd}")
+                for issue in issues:
+                    print(f"  - {issue}")
+                all_ok = all_ok and ok
+            if all_ok:
+                print("[postmortem_digest] validation passed")
+                return
+            raise SystemExit(1)
+
+        if args.output_dir:
+            output_dir = args.output_dir
+        else:
+            stamp = datetime.now().strftime("%m%d_%H%M")
+            output_dir = OUTPUT_ROOT / stamp
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        processed_dirs: List[Path] = []
+        for rd in valid_dirs:
+            try:
+                assemble_digest(rd, output_dir, args.baseline_config, args.top_n)
+                processed_dirs.append(rd)
+            except Exception as e:
+                print(f"[postmortem_digest] ERROR processing {rd}: {e}")
+
+        if args.compare and len(processed_dirs) >= 2:
+            try:
+                assemble_comparison(processed_dirs, output_dir)
             except Exception as e:
                 print(f"[postmortem_digest] ERROR in comparison: {e}")
 
-    print(f"[postmortem_digest] output directory: {output_dir}")
+        print(f"[postmortem_digest] output directory: {output_dir}")
+    finally:
+        if staging_root and staging_root.exists() and not args.keep_local:
+            shutil.rmtree(staging_root, ignore_errors=True)
+            print(f"[postmortem_digest] cleaned staging directory: {staging_root}")
 
 
 if __name__ == "__main__":
