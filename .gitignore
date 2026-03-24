@@ -44,3 +44,6 @@ projects/*/*
 # User's personal scripts
 !scripts/
 !scripts/**
+# Shared templates referenced by skills
+!templates/
+!templates/**

@@ -8,7 +8,7 @@ DIFF_HELPER="${HOME}/.cursor/scripts/sync_toolbox_diff_summary.py"
 BACKUP_ROOT_LOCAL="${HOME}/.cursor/tmp/sync_toolbox_backups"
 
 TARGET_ALIASES=("huh.desktop.us" "huh.laptop.us")
-CATEGORIES=("rules" "commands" "skills" "agents" "scripts")
+CATEGORIES=("rules" "commands" "skills" "agents" "scripts" "templates")
 TOOLBOX_REPO_DIR="${HOME}/.cursor"
 TOOLBOX_GIT_REMOTE="origin"
 
@@ -225,7 +225,7 @@ import sys
 out_file = pathlib.Path(sys.argv[1]).expanduser()
 home = pathlib.Path.home()
 root = home / ".cursor"
-categories = ["rules", "commands", "skills", "agents", "scripts"]
+categories = ["rules", "commands", "skills", "agents", "scripts", "templates"]
 script_suffixes = (".sh", ".bash")
 
 def include_entry(category: str, relpath: str) -> bool:
@@ -288,7 +288,7 @@ import pathlib
 
 home = pathlib.Path.home()
 root = home / '.cursor'
-categories = ['rules', 'commands', 'skills', 'agents', 'scripts']
+categories = ['rules', 'commands', 'skills', 'agents', 'scripts', 'templates']
 script_suffixes = ('.sh', '.bash')
 
 def include_entry(category: str, relpath: str) -> bool:

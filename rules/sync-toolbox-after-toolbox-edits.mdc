@@ -1,6 +1,6 @@
 ---
 description: Run gated toolbox sync after skill/command/rule/script edits. Always active so the agent never forgets.
-globs: "{**/.cursor/skills/**,**/.cursor/commands/**,**/.cursor/rules/**,**/.cursor/scripts/**}"
+globs: "{**/.cursor/skills/**,**/.cursor/commands/**,**/.cursor/rules/**,**/.cursor/scripts/**,**/.cursor/templates/**}"
 alwaysApply: true
 ---
 
@@ -9,7 +9,7 @@ alwaysApply: true
 ## Mandatory Pre-Done Gate
 
 Before reporting "done" or completing any task, the agent MUST:
-1. Check: did this session create or modify any file under ~/.cursor/skills/, ~/.cursor/commands/, ~/.cursor/rules/, or ~/.cursor/scripts/?
+1. Check: did this session create or modify any file under ~/.cursor/skills/, ~/.cursor/commands/, ~/.cursor/rules/, ~/.cursor/scripts/, or ~/.cursor/templates/?
 2. If YES and sync has not been run yet in this session: STOP. Do not report done. Run the sync workflow (steps 1-12 below) first.
 3. If NO: proceed normally.
 
@@ -20,7 +20,7 @@ This gate is non-negotiable. The agent must NOT:
 
 ## Sync Workflow
 
-Use this workflow after creating or modifying toolbox assets under skills, commands, rules, agents, or scripts.
+Use this workflow after creating or modifying toolbox assets under skills, commands, rules, agents, scripts, or templates.
 
 Sync model: the toolbox is a git repo. Changes are committed and pushed to GitHub, then each approved host runs `git pull`.
 
