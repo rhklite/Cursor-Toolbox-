@@ -248,6 +248,12 @@ fi
 echo "Preparing remote staging directory."
 ssh "$ssh_alias" "set -euo pipefail; rm -rf $(printf "%q" "$remote_tmp_dir"); mkdir -p $(printf "%q" "$remote_tmp_dir"); rsync -a --filter=':- .gitignore' $(printf "%q" "$remote_workdir")/ $(printf "%q" "$remote_tmp_dir")/; mkdir -p $(printf "%q" "$remote_tmp_dir")/humanoid-gym/resume $(printf "%q" "$remote_tmp_dir")/humanoid-gym/scripts"
 
+echo "Hydrating staged package with cached repository dependencies."
+ssh "$ssh_alias" "set -euo pipefail; cd $(printf "%q" "$remote_workdir"); mkdir -p /root/.cache/motion_rl_deps; bash ./scripts/update_repo_deps.sh --prefix /root/.cache/motion_rl_deps; cp -r /root/.cache/motion_rl_deps/* $(printf "%q" "$remote_tmp_dir")/"
+
+echo "Verifying required URDF exists in staged package."
+ssh "$ssh_alias" "set -euo pipefail; test -f $(printf "%q" "$remote_tmp_dir")/resources/model_files/r01_v12_serial_ankle/urdf/r01_v12_rl_simplified_plus_simple_foot_change_torque_with_head.urdf || { echo 'ERROR: required URDF not found in staged package.' >&2; exit 1; }"
+
 echo "Injecting eval entrypoint."
 scp "$local_eval_script" "${ssh_alias}:${remote_eval_template}" >/dev/null
 ssh "$ssh_alias" "set -euo pipefail; cp $(printf "%q" "$remote_eval_template") $(printf "%q" "$remote_eval_script"); chmod +x $(printf "%q" "$remote_eval_script")"
