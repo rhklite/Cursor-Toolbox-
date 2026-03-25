@@ -6,9 +6,8 @@ if [ "$#" -eq 0 ]; then
   exit 2
 fi
 
-SSH_ALIAS="isaacgym"
+CONTAINER_NAME="isaacgym"
 WORKDIR="/home/huh/software/motion_rl"
-ENSURE_SSH_SCRIPT="${HOME}/.cursor/skills/isaacgym-ssh-recovery/scripts/ensure-isaacgym-ssh.sh"
 
 # Build a safely escaped command string for remote bash.
 escaped_cmd=""
@@ -21,7 +20,4 @@ for arg in "$@"; do
   fi
 done
 
-# Auto-heal container SSH before command execution.
-bash "${ENSURE_SSH_SCRIPT}" >/dev/null
-
-ssh "${SSH_ALIAS}" "cd ${WORKDIR} && ${escaped_cmd}"
+docker exec "${CONTAINER_NAME}" bash -lc "cd ${WORKDIR} && ${escaped_cmd}"
