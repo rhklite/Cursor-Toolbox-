@@ -83,16 +83,46 @@ The script writes output to `~/Downloads/postmortem_digests/{MMDD_HHMM}/`:
 
 **If the script fails (non-zero exit):** warn the user, then fall back to the legacy workflow described in Appendix A below. Do not silently skip.
 
-### 2. Read digest artifacts
+### 1.5. Generate postmortem charts
 
-Read the following files produced by the script:
+Run the deterministic chart generator to produce all Tier 1 and Tier 4 visual artifacts. This step uses zero LLM tokens — it is pure computation.
+
+Use the same run directories from step 0. Output charts into a `charts/` subdirectory under the digest output directory:
+
+```bash
+python ~/.cursor/scripts/postmortem_charts.py <run_dir_1> [<run_dir_2> ...] \
+    --output-dir ~/Downloads/postmortem_digests/{MMDD_HHMM}/charts/ \
+    [--run-labels label1,label2,...]
+```
+
+If only Tier 1 or Tier 4 charts are needed, pass `--tier1` or `--tier4` respectively. Default generates all charts.
+
+The script produces (when artifacts are available):
+
+- `tier1_dashboard.png` — grouped bar chart: survival rate, mean TTS, max peak torque across runs
+- `survival_heatmap_{label}_{mode}.png` — per-run magnitude x direction/axis survival rate grid
+- `{label}_{mode}_peak_torque.png` and `{label}_{mode}_peak_torque_rate.png` — torque heatmaps from CSV
+- `deceleration_profiles_{mode}.png` — velocity vs time post-failure (requires `vel_traces.npz` in run dir)
+- `velocity_tracking_error_{mode}.png` — tracking error vs time (requires `vel_traces.npz` in run dir)
+- `tier4_flagged_metrics.png` — horizontal bar chart of Tier 4 metrics with OK/WARN thresholds
+
+Run labels default to directory names. Override with `--run-labels` for multi-variant runs (e.g., `--run-labels center,tslv_065,tslv_070,tslv_080`).
+
+**If the script fails (non-zero exit):** warn the user that charts will be unavailable. Continue with digest-only analysis. Report missing chart classes in artifact gates and data gaps.
+
+**Do NOT generate charts ad-hoc.** All visual artifacts must come from this script to ensure consistency across postmortem sessions.
+
+### 2. Read digest and chart artifacts
+
+Read the following files produced by steps 1 and 1.5:
 
 - All `DIGEST_*.md` files in the output directory
 - All `grid_*.png` keyframe images (if present)
 - `COMPARISON.md` (if comparison mode was requested)
+- All chart PNGs in the `charts/` subdirectory (tier1_dashboard, survival_heatmap, torque heatmaps, velocity plots, flagged metrics)
 - The hypothesis (file or user-provided text from step 0)
 
-Do NOT read raw CSV files, metric.json, TensorBoard events, or training logs. The digest contains all needed data in pre-aggregated form.
+Do NOT read raw CSV files, metric.json, TensorBoard events, or training logs. The digest contains all needed data in pre-aggregated form. Do NOT generate any charts or plots yourself — use only the outputs from step 1.5.
 
 ### 3. Behavior alignment
 
@@ -135,17 +165,26 @@ If comparison mode was used, include a cross-run comparison section in both huma
 Export outputs into one timestamped postmortem folder with dual-consumer structure:
 
 - Human report:
-  - `docs/experiments/postmortems/MMDD_HH/postmortem.md`
+  - `docs/experiments/postmortems/YYYYMMDD_HH/postmortem.md`
 - LLM artifacts folder:
-  - `docs/experiments/postmortems/MMDD_HH/llm/`
+  - `docs/experiments/postmortems/YYYYMMDD_HH/llm/`
   - Include `DIGEST_*.md` files
   - Include `COMPARISON.md` when comparison mode is enabled
   - Include text-only `diagnosis.md`
-- Visual artifacts in the parent postmortem folder:
-  - Include keyframe grids, Tier 1 visuals, and Tier 4 diagnostic visuals when available
-  - If a visual class is unavailable, report it in artifact gates and data gaps instead of failing the run
+- Visual artifacts organized by tier:
+  - `docs/experiments/postmortems/YYYYMMDD_HH/visuals/tier1/` — copy from charts/:
+    - `tier1_dashboard.png`
+    - `survival_heatmap_{label}_{mode}.png` (one per run per mode)
+  - `docs/experiments/postmortems/YYYYMMDD_HH/visuals/tier4/` — copy from charts/:
+    - `{label}_{mode}_peak_torque.png` and `{label}_{mode}_peak_torque_rate.png`
+    - `deceleration_profiles_{mode}.png`
+    - `velocity_tracking_error_{mode}.png`
+    - `tier4_flagged_metrics.png`
+  - `docs/experiments/postmortems/YYYYMMDD_HH/visuals/keyframes/` — copy from digest output:
+    - `grid_*.png` keyframe grids
+  - If a visual class is unavailable (script failed or vel_traces.npz missing), report it in artifact gates and data gaps instead of failing the run
 
-Create destination directories if missing.
+Create destination directories if missing. Do NOT generate any visuals during the export step — only copy from step 1 and step 1.5 outputs.
 
 ### 7. Key findings summary
 
