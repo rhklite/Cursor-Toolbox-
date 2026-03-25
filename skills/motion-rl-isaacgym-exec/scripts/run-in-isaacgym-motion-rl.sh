@@ -8,6 +8,8 @@ fi
 
 SSH_ALIAS="isaacgym"
 WORKDIR="/home/huh/software/motion_rl"
+ENSURE_SSH_SCRIPT="${HOME}/.cursor/skills/isaacgym-ssh-recovery/scripts/ensure-isaacgym-ssh.sh"
+
 # Build a safely escaped command string for remote bash.
 escaped_cmd=""
 for arg in "$@"; do
@@ -18,5 +20,8 @@ for arg in "$@"; do
     escaped_cmd="$escaped_cmd $escaped_arg"
   fi
 done
+
+# Auto-heal container SSH before command execution.
+bash "${ENSURE_SSH_SCRIPT}" >/dev/null
 
 ssh "${SSH_ALIAS}" "cd ${WORKDIR} && ${escaped_cmd}"

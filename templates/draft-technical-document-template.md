@@ -1,8 +1,5 @@
 # [Document Title]
 
-**[Metadata key]:** [value]
-**[Metadata key]:** [value]
-
 ---
 
 ## Abstract
