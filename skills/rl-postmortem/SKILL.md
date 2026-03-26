@@ -182,21 +182,22 @@ If comparison mode was used, include a cross-run comparison section in both huma
 
 ### 6. File export
 
-Export the postmortem markdown and create the report-tree symlink.
+Export outputs with reports as canonical destination.
 
-- Human report:
-  - Write `docs/experiments/postmortems/YYYYMMDD_HH/postmortem.md`
+- Canonical human report:
+  - Write `docs/reports/{slug}_{ts}/postmortem.md`
   - All image references in this file MUST use repo-root-absolute paths (leading `/`)
   - Example: `![tier1_dashboard](/docs/reports/{slug}_{ts}/graphics/{model}/tier1_dashboard.png)`
-- LLM artifacts folder:
-  - Write `docs/experiments/postmortems/YYYYMMDD_HH/llm/`
+- Canonical LLM digest bundle:
+  - Write `docs/reports/{slug}_{ts}/llm_postmortem_digest/`
   - Include `DIGEST_*.md` files
   - Include `COMPARISON.md` when comparison mode is enabled
   - Include text-only `diagnosis.md`
-- Report symlink:
-  - `ln -s ../../experiments/postmortems/YYYYMMDD_HH/postmortem.md docs/reports/{slug}_{ts}/postmortem.md`
+- Backward-compatible experiments backlink:
+  - Create `docs/experiments/postmortems/YYYYMMDD_HH/` if missing
+  - Create symlink: `ln -s ../../../reports/{slug}_{ts}/postmortem.md docs/experiments/postmortems/YYYYMMDD_HH/postmortem.md`
 - Keyframe grids:
-  - Copy `grid_*.png` into a stable report-tree location (recommended: `docs/reports/{slug}_{ts}/graphics/{model}/grid_{run_basename}.png`)
+  - Copy `grid_*.png` into `docs/reports/{slug}_{ts}/graphics/{model}/grid_{run_basename}.png`
 
 Do NOT create a `visuals/` folder under `docs/experiments/postmortems/YYYYMMDD_HH/`. All visuals live under `docs/reports/{slug}_{ts}/graphics/{model}/`.
 

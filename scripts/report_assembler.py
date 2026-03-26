@@ -248,6 +248,7 @@ def main() -> int:
 
     for sub in ["artifacts", "videos", "graphics"]:
         (report_dir / sub / args.model_label).mkdir(parents=True, exist_ok=True)
+    (report_dir / "llm_postmortem_digest").mkdir(parents=True, exist_ok=True)
 
     grid_dirs_by_mode: Dict[str, Path] = {}
     for gd in args.grid_dirs:
@@ -290,6 +291,10 @@ def main() -> int:
         chart_rc = generate_charts(grid_dirs_by_mode, args.model_label, graphics_dir)
 
     print(f"[report_assembler] report tree: {report_dir}")
+    print(
+        "[report_assembler] llm digest folder: "
+        f"{report_dir / 'llm_postmortem_digest'}"
+    )
     print(
         f"[report_assembler] artifacts: {len(args.grid_dirs)} grid dirs processed, "
         f"videos: {len(args.video_dirs)} video dirs processed"
