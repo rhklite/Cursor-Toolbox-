@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_SCRIPT="${SCRIPT_DIR}/deploy_fuyao.sh"
+JOB_MANAGER_SCRIPT="${SCRIPT_DIR}/fuyao_job_manager.py"
 
 DEFAULT_ENVS_INIT_REL="humanoid-gym/humanoid/envs/__init__.py"
 DEFAULT_PATCH_FILE_REL="humanoid-gym/humanoid/envs/r01_amp/r01_v12_sa_amp_config_with_arms_and_head_full_scenes.py"
@@ -522,6 +523,114 @@ path.parent.mkdir(parents=True, exist_ok=True)
 with open(path, "w", encoding="utf-8") as f:
     json.dump(payload, f, indent=2, sort_keys=True)
 PY
+}
+
+build_registry_batch_file() {
+    local status_dir="$1"
+    local sweep_id="$2"
+    local task="$3"
+    local queue="$4"
+    local gpus_per_node="$5"
+    local out_path="$6"
+
+    python3 - "$status_dir" "$sweep_id" "$task" "$queue" "$gpus_per_node" "$out_path" <<'PY'
+import json
+import pathlib
+import sys
+from datetime import datetime, timezone
+
+status_dir, sweep_id, task, queue, gpus_per_node, out_path = sys.argv[1:7]
+status_root = pathlib.Path(status_dir)
+output_path = pathlib.Path(out_path)
+
+try:
+    gpus = int(gpus_per_node)
+except Exception:
+    gpus = 0
+
+jobs = []
+included = 0
+skipped = 0
+
+for status_file in sorted(status_root.glob("*.json")):
+    try:
+        data = json.loads(status_file.read_text(encoding="utf-8"))
+    except Exception:
+        skipped += 1
+        continue
+
+    status = str(data.get("status", "")).strip()
+    job_name = str(data.get("job_name", "")).strip()
+    combo_label = str(data.get("combo_label", "")).strip()
+    if status != "success" or not job_name or job_name == "unknown":
+        skipped += 1
+        continue
+
+    jobs.append(
+        {
+            "job_name": job_name,
+            "sweep_id": sweep_id,
+            "combo_label": combo_label,
+            "task": task,
+            "queue": queue,
+            "gpus": gpus,
+            "dispatched_at": datetime.now(timezone.utc).isoformat(),
+            "status": "running",
+            "protected": True,
+        }
+    )
+    included += 1
+
+output_path.parent.mkdir(parents=True, exist_ok=True)
+output_path.write_text(json.dumps(jobs, indent=2), encoding="utf-8")
+print(f"{included} {skipped}")
+PY
+}
+
+register_sweep_jobs() {
+    local status_dir="$1"
+    local sweep_id="$2"
+    local task="$3"
+    local queue="$4"
+    local gpus_per_node="$5"
+    local run_root="$6"
+
+    local registry_batch_path="${run_root}/registry_jobs.json"
+    local batch_stats=""
+    local candidates=0
+    local skipped=0
+    local registered=0
+    local failed=0
+
+    if ! batch_stats="$(
+        build_registry_batch_file \
+            "$status_dir" "$sweep_id" "$task" "$queue" "$gpus_per_node" "$registry_batch_path"
+    )"; then
+        echo "Warning: failed to build registry batch file." >&2
+        echo "0 0 0"
+        return 0
+    fi
+    read -r candidates skipped <<<"$batch_stats"
+
+    if [ "$candidates" -eq 0 ]; then
+        echo "0 ${skipped} 0"
+        return 0
+    fi
+
+    if [ ! -f "$JOB_MANAGER_SCRIPT" ]; then
+        echo "Warning: job manager script not found: ${JOB_MANAGER_SCRIPT}" >&2
+        echo "0 ${skipped} ${candidates}"
+        return 0
+    fi
+
+    if python3 "$JOB_MANAGER_SCRIPT" registry --add-batch "$registry_batch_path" >/dev/null 2>&1; then
+        registered="$candidates"
+    else
+        failed="$candidates"
+        echo "Warning: registry batch registration failed for sweep ${sweep_id}." >&2
+    fi
+
+    echo "${registered} ${skipped} ${failed}"
 }
 
 extract_job_name_from_log() {
@@ -1264,6 +1373,9 @@ EOF
 
     local success_count=0
     local failed_count=0
+    local registry_registered=0
+    local registry_skipped=0
+    local registry_failed=0
     local final_status
     local combo_name status_json combo_status
 
@@ -1290,6 +1402,16 @@ PY
         fi
     done
 
+    if [ "$DRY_RUN" = "true" ]; then
+        registry_registered=0
+        registry_skipped=${#combo_names[@]}
+        registry_failed=0
+    else
+        read -r registry_registered registry_skipped registry_failed <<<"$(
+            register_sweep_jobs "$STATUS_DIR" "$sweep_id" "$TASK" "$QUEUE" "$GPUS_PER_NODE" "$RUN_ROOT"
+        )"
+    fi
+
     echo
     echo "=== Sweep Summary ==="
     echo "Run root: ${RUN_ROOT}"
@@ -1297,6 +1419,7 @@ PY
     echo "Total combos: ${#combos[@]}"
     echo "Succeeded: ${success_count}"
     echo "Failed: ${failed_count}"
+    echo "Registry: registered=${registry_registered} skipped=${registry_skipped} failed=${registry_failed}"
     echo "Dispatch logs: ${LOGS_DIR}/*.dispatch.log"
     echo "Artifacts: ${ARTIFACTS_DIR}"
     echo

@@ -205,26 +205,25 @@ Field notes:
 
 ## Job Registry Integration (Post-Sweep)
 
-After a successful sweep dispatch, register all successfully dispatched combos in the local job registry. For each combo with a valid `job_name`:
+After a successful sweep dispatch, registry updates are handled programmatically by the dispatcher script.
 
 ```bash
-python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add <job_name> \
-  --sweep-id "<sweep_id>" \
-  --label "<combo_label>" \
-  --task "<task>" \
-  --queue "<queue>" \
-  --gpus "<gpus_per_node>"
+~/.cursor/scripts/deploy_fuyao_sweep_dispatcher.sh
+# internally builds <run_root>/registry_jobs.json
+# then calls: python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add-batch <registry_jobs.json>
 ```
 
-Then push all combo jobs to the server inbox in a single batch so the polling daemon picks them up:
+Do not perform manual per-combo `registry --add` during normal operation. The dispatcher summary now reports:
+
+- `Registry: registered=<N> skipped=<N> failed=<N>`
+
+This step remains non-blocking. If automatic registry registration fails, warn and continue with Post-Submit Report.
+
+Manual fallback only when needed:
 
 ```bash
-bash ~/.cursor/scripts/fuyao_push_inbox.sh --jobs '[{"job_name":"<job_name_1>","sweep_id":"<sweep_id>","combo_label":"<combo_label_1>","task":"<task>","queue":"<queue>","gpus":<gpus_per_node>,"dispatched_at":"<ISO-8601>","status":"running","protected":true}, ...]'
+python3 ~/.cursor/scripts/fuyao_job_manager.py registry --add-batch <run_root>/registry_jobs.json
 ```
-
-Build the JSON array from all combos with valid `job_name`s. All combo jobs go into a single inbox file.
-
-This step is non-blocking. If it fails for any combo, warn and continue. Do NOT skip the Post-Submit Report. The server-side polling daemon on huh.desktop.us is the authoritative source for job status updates, artifact linking, and bulk download.
 
 ## Post-Submit Report
 
