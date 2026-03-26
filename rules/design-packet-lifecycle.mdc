@@ -1,0 +1,22 @@
+---
+description: Delete design packets after promotion to published design documents
+alwaysApply: true
+---
+
+# Design Packet Lifecycle
+
+## When this applies
+
+When the draft-technical-document skill produces a polished document whose source is a design packet (any file under a design_packet/ directory).
+
+## Required steps
+
+After the published document has been written to docs/design/published/:
+
+1. Delete every source file from the originating design_packet/ directory.
+2. Remove the design_packet/ directory if it is now empty. Walk from leaves upward if nested.
+3. State which files were deleted in the response.
+
+## Rationale
+
+A design packet is a transient handoff artifact. Once its content lives as a polished published document, the packet is redundant and must be removed to avoid stale duplicates.
