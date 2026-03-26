@@ -105,9 +105,8 @@ If reader context was non-generic, add a final subsection:
 
 ## Output routing
 
-Determine output path:
-1. If the source document is inside a `docs/reference/` directory, save the artifact alongside it: `docs/reference/<source-basename>.md`
-2. If no `docs/reference/` directory exists in the workspace, save to the workspace root: `./<source-basename>-comprehension.md`
-3. If the source is not a workspace file (e.g., a URL or external attachment), prompt the user for a save location.
+Save all artifacts to `~/Downloads/understand-document/<source-basename>.md`.
 
-After writing, run `bash docs/update-toc.sh` if that script exists in the workspace root. Skip silently if it does not exist.
+Create the directory if it does not exist (`mkdir -p ~/Downloads/understand-document`).
+
+Do not save into the workspace or alongside the source document.
