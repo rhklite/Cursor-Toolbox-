@@ -11,6 +11,7 @@ Required:
 
 Options:
   --eval-type TYPE            torque_survey | standard | custom (default: torque_survey)
+  --walk_checkpoint_path PATH Walking model checkpoint (enables model-switch mode).
   --custom-cmd CMD            Required when --eval-type custom.
   --help                      Show this message.
 
@@ -22,6 +23,7 @@ EOF
 
 task_name=""
 checkpoint_path=""
+walk_checkpoint_path=""
 eval_type="torque_survey"
 custom_cmd=""
 declare -a passthrough_args=()
@@ -34,6 +36,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --checkpoint_path)
             checkpoint_path="$2"
+            shift 2
+            ;;
+        --walk_checkpoint_path)
+            walk_checkpoint_path="$2"
             shift 2
             ;;
         --eval-type)
@@ -129,10 +135,29 @@ if [[ ! -f "$resolved_checkpoint" ]]; then
     exit 1
 fi
 
+resolved_walk_ckpt=""
+if [[ -n "$walk_checkpoint_path" ]]; then
+    resolved_walk_ckpt="$walk_checkpoint_path"
+    if [[ ! -f "$resolved_walk_ckpt" ]]; then
+        if [[ -f "/code/$walk_checkpoint_path" ]]; then
+            resolved_walk_ckpt="/code/$walk_checkpoint_path"
+        elif [[ -f "/code/humanoid-gym/resume/walk_model.pt" ]]; then
+            resolved_walk_ckpt="/code/humanoid-gym/resume/walk_model.pt"
+        fi
+    fi
+    if [[ ! -f "$resolved_walk_ckpt" ]]; then
+        echo "ERROR: walk checkpoint not found: $walk_checkpoint_path" >&2
+        exit 1
+    fi
+fi
+
 echo "Eval-only job starting."
 echo "task=$task_name"
 echo "eval_type=$eval_type"
 echo "checkpoint=$resolved_checkpoint"
+if [[ -n "$resolved_walk_ckpt" ]]; then
+    echo "walk_checkpoint=$resolved_walk_ckpt"
+fi
 
 case "$eval_type" in
     torque_survey)
@@ -144,13 +169,18 @@ case "$eval_type" in
         ;;
     standard)
         if [[ "$task_name" == *"stability_priority"* ]]; then
-            python humanoid/scripts/play_stability_eval.py \
-                --task r01_v12_stability_eval \
-                --single_model \
-                --headless \
-                --sim_device cpu \
-                --walk_checkpoint_path "$resolved_checkpoint" \
-                "${passthrough_args[@]}"
+            declare -a stab_args=(
+                python humanoid/scripts/play_stability_eval.py
+                --task r01_v12_stability_eval
+                --headless
+                --checkpoint_path "$resolved_checkpoint"
+            )
+            if [[ -n "$resolved_walk_ckpt" ]]; then
+                stab_args+=(--walk_checkpoint_path "$resolved_walk_ckpt")
+            else
+                stab_args+=(--single_model)
+            fi
+            "${stab_args[@]}" "${passthrough_args[@]}"
         elif [[ "$task_name" != *"mimic"* && "$task_name" != *"fr"* ]]; then
             python humanoid/scripts/play_balancing.py \
                 --task "$task_name" \
