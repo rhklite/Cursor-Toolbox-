@@ -1,6 +1,6 @@
 ---
 name: fuyao-job-manager
-description: Manage Fuyao jobs post-dispatch — cancel, status, pull artifacts from OSS, query FFF, and manage the job registry. Use when the user mentions cancelling jobs, checking job status, downloading checkpoints/logs/videos, or managing the job registry.
+description: Manage Fuyao jobs post-dispatch — cancel, status, pull artifacts from OSS, query FFF, manage the job registry, and query training ETA. Use when the user mentions cancelling jobs, checking job status, downloading checkpoints/logs/videos, managing the job registry, or asking about training progress, ETA, or when jobs will finish.
 ---
 
 # Fuyao Job Manager
@@ -15,16 +15,73 @@ Activate when user mentions:
 - "find artifacts on FFF", "compare metrics", "fuyao file finder"
 - "protect job", "unprotect job", "sync registry"
 - "is the poll daemon running", "check daemon status", "restart poll daemon", "show daemon logs"
+- "ETA", "how long", "when will training finish", "training progress", "time remaining", "when done"
 
-## Backing Script
+## Backing Scripts
 
-All operations go through:
+Most operations go through:
 
 ```bash
 python3 ~/.cursor/scripts/fuyao_job_manager.py <subcommand> [options]
 ```
 
-## Subcommands
+ETA queries use a dedicated script (see below):
+
+```bash
+python3 ~/.cursor/scripts/fuyao_eta.py [--job-name NAME ...] [--all-running] [--sweep-id ID]
+```
+
+## ETA Query — fuyao_eta.py
+
+### Purpose
+
+Deterministic training progress and ETA query. The script does ALL the work. The agent is a passthrough only.
+
+### CLI
+
+```bash
+python3 ~/.cursor/scripts/fuyao_eta.py --job-name NAME [NAME ...]   # explicit jobs
+python3 ~/.cursor/scripts/fuyao_eta.py --all-running                # all running jobs
+python3 ~/.cursor/scripts/fuyao_eta.py --sweep-id ID                # from local registry
+python3 ~/.cursor/scripts/fuyao_eta.py --parallel N --tail N        # optional tuning
+```
+
+### Output
+
+Human-readable table with columns: LABEL, PROGRESS, REMAINING, EST COMPLETION (PT).
+Labels are resolved from fuyao info — the bifrost job name is never shown to the user.
+
+### Agent Workflow (MINIMAL LLM INVOLVEMENT)
+
+1. If user provides bifrost job names or a screenshot containing job names:
+   - Extract the bifrost names (e.g. bifrost-2026032615402001-huh8)
+   - Run: `python3 ~/.cursor/scripts/fuyao_eta.py --job-name <names...>`
+   - Print the script's stdout verbatim. STOP.
+
+2. If user says "all running jobs" or provides no specific target:
+   - Run: `python3 ~/.cursor/scripts/fuyao_eta.py --all-running`
+   - Print the script's stdout verbatim. STOP.
+
+3. If user provides a sweep ID:
+   - Run: `python3 ~/.cursor/scripts/fuyao_eta.py --sweep-id <id>`
+   - Print the script's stdout verbatim. STOP.
+
+4. If user provides no target and it is ambiguous:
+   - Ask the user: "Please provide bifrost job names, a sweep ID, or say 'all running'."
+   - Do NOT guess or run --all-running without confirmation.
+
+**CRITICAL: Agent MUST NOT interpret, summarize, add commentary, or reformat the script output. Print it verbatim.**
+
+### NLP triggers -> command mapping
+
+- "ETA of my jobs" / "when will training finish" / "training progress" -> determine targets, run fuyao_eta.py, print verbatim
+- "ETA of [screenshot with job list]" -> extract bifrost names, pass as --job-name
+- "ETA of all running" -> --all-running
+- "ETA of sweep multigpu-tslv-20260325-1012" -> --sweep-id multigpu-tslv-20260325-1012
+
+---
+
+## Subcommands — fuyao_job_manager.py
 
 ### status — Check job status
 
@@ -201,6 +258,9 @@ ssh huh.desktop.us 'cd ~/software/Experiment-Tracker- && python3 fuyao_poll_daem
 
 ## NLP Parsing Examples
 
+- "ETA of my running jobs" -> `fuyao_eta.py --all-running`, print verbatim
+- "when will training finish" / "how long left" -> `fuyao_eta.py --all-running`, print verbatim
+- "ETA of [screenshot]" -> extract bifrost names, `fuyao_eta.py --job-name <names...>`, print verbatim
 - "cancel all stale jobs" -> `cancel --stale --dry-run` (then `--yes` after confirmation)
 - "cancel the tslv 0.5 jobs" -> `cancel --label-pattern tslv_0.5 --dry-run`
 - "what's the status of my sweep" -> `status --sweep-id <latest_sweep_id>`
