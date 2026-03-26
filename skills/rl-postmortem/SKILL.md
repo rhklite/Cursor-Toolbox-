@@ -43,6 +43,37 @@ Present the resolved artifact list and wait for confirmation:
 
 Do not proceed until the user confirms.
 
+### 0.5. Assemble report tree
+
+Run the report assembler to organize pulled eval artifacts into the standardized report tree. This step uses zero LLM tokens.
+
+Derive the hypothesis slug from the hypothesis file:
+- If hypothesis is a file: strip .md extension, lowercase, replace spaces/special chars with hyphens
+- If hypothesis is user-provided text: ask the user for a short slug, or auto-generate from the first 4-5 words (lowercase, hyphen-separated)
+
+For each model being analyzed, run:
+
+```bash
+python ~/.cursor/scripts/report_assembler.py \
+    --hypothesis-slug <derived-slug> \
+    --model-label <model_name> \
+    --grid-dirs <linear_grid_dir> <angular_grid_dir> \
+    --video-dirs <video_dir_1> <video_dir_2> ... \
+    --output-root /Users/HanHu/software/motion_rl/docs/reports/ \
+    --timestamp <YYYYMMDD_HHMM>
+```
+
+Use the same --timestamp value for all models in the same experiment so they land in the same report folder.
+
+After assembly, the report tree is at: `docs/reports/{slug}_{timestamp}/`
+- `artifacts/{model}/linear/` and `artifacts/{model}/angular/` contain CSV/JSON/NPZ for digest and chart generation
+- `videos/{model}/linear/{success|failure}/` and `videos/{model}/angular/{success|failure}/` contain per-condition .mp4 files
+- `graphics/{model}/` contains all chart PNGs
+
+Record the resolved report root path (for example: `docs/reports/stability-curriculum-push-ramp-v2_20260325_1500`) for use in later steps.
+
+**If the assembler fails (non-zero exit):** warn the user. Fall back to using the original flat directories for steps 1, 1.5, and 6, and note this in artifact gates/data gaps.
+
 ### 1. Run digest script
 
 Run the batch digest script to pre-process all artifacts. This step uses zero LLM tokens — it is pure computation.
@@ -59,7 +90,9 @@ Then pass `--video-map <report_root>/video_manifest.json` to the digest script c
 First, run schema validation:
 
 ```bash
-python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
+python ~/.cursor/scripts/postmortem_digest.py \
+    <report_root>/artifacts/<model_label>/linear \
+    <report_root>/artifacts/<model_label>/angular \
     [--remote isaacgym:/path/to/run_1] [--remote isaacgym:/path/to/run_2] \
     [--video-map <path/to/video_manifest.json>] \
     --validate
@@ -68,7 +101,9 @@ python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
 Then run digest generation:
 
 ```bash
-python ~/.cursor/scripts/postmortem_digest.py <run_dir_1> [<run_dir_2> ...] \
+python ~/.cursor/scripts/postmortem_digest.py \
+    <report_root>/artifacts/<model_label>/linear \
+    <report_root>/artifacts/<model_label>/angular \
     [--remote isaacgym:/path/to/run_1] [--remote isaacgym:/path/to/run_2] \
     [--video-map <path/to/video_manifest.json>] \
     [--compare] \
@@ -83,34 +118,19 @@ The script writes output to `~/Downloads/postmortem_digests/{MMDD_HHMM}/`:
 
 **If the script fails (non-zero exit):** warn the user, then fall back to the legacy workflow described in Appendix A below. Do not silently skip.
 
-### 1.5. Generate postmortem charts
+### 1.5. Verify chart generation
 
-Run the deterministic chart generator to produce all Tier 1 and Tier 4 visual artifacts. This step uses zero LLM tokens — it is pure computation.
+The report assembler (step 0.5) already generated charts into `<report_root>/graphics/<model_label>/` via postmortem_charts.py. Verify these files exist:
 
-Use the same run directories from step 0. Output charts into a `charts/` subdirectory under the digest output directory:
+- `tier1_dashboard.png`
+- `survival_heatmap_<model_label>_linear_linear.png` and/or `survival_heatmap_<model_label>_angular_angular.png`
+- `<model_label>_linear_linear_peak_torque.png` and `<model_label>_linear_linear_peak_torque_rate.png`
+- `<model_label>_angular_angular_peak_torque.png` and `<model_label>_angular_angular_peak_torque_rate.png`
+- `deceleration_profiles_linear.png` and/or `deceleration_profiles_angular.png` (requires `vel_traces.npz`)
+- `velocity_tracking_error_linear.png` and/or `velocity_tracking_error_angular.png` (requires `vel_traces.npz`)
+- `tier4_flagged_metrics.png`
 
-```bash
-python ~/.cursor/scripts/postmortem_charts.py <run_dir_1> [<run_dir_2> ...] \
-    --output-dir ~/Downloads/postmortem_digests/{MMDD_HHMM}/charts/ \
-    [--run-labels label1,label2,...]
-```
-
-If only Tier 1 or Tier 4 charts are needed, pass `--tier1` or `--tier4` respectively. Default generates all charts.
-
-The script produces (when artifacts are available):
-
-- `tier1_dashboard.png` — grouped bar chart: survival rate, mean TTS, max peak torque across runs
-- `survival_heatmap_{label}_{mode}.png` — per-run magnitude x direction/axis survival rate grid
-- `{label}_{mode}_peak_torque.png` and `{label}_{mode}_peak_torque_rate.png` — torque heatmaps from CSV
-- `deceleration_profiles_{mode}.png` — velocity vs time post-failure (requires `vel_traces.npz` in run dir)
-- `velocity_tracking_error_{mode}.png` — tracking error vs time (requires `vel_traces.npz` in run dir)
-- `tier4_flagged_metrics.png` — horizontal bar chart of Tier 4 metrics with OK/WARN thresholds
-
-Run labels default to directory names. Override with `--run-labels` for multi-variant runs (e.g., `--run-labels center,tslv_065,tslv_070,tslv_080`).
-
-**If the script fails (non-zero exit):** warn the user that charts will be unavailable. Continue with digest-only analysis. Report missing chart classes in artifact gates and data gaps.
-
-**Do NOT generate charts ad-hoc.** All visual artifacts must come from this script to ensure consistency across postmortem sessions.
+If any charts are missing (for example, `vel_traces.npz` was absent or chart generation failed), note the gaps for Data Gaps and artifact gates. Do NOT generate charts ad-hoc.
 
 ### 2. Read digest and chart artifacts
 
@@ -119,10 +139,10 @@ Read the following files produced by steps 1 and 1.5:
 - All `DIGEST_*.md` files in the output directory
 - All `grid_*.png` keyframe images (if present)
 - `COMPARISON.md` (if comparison mode was requested)
-- All chart PNGs in the `charts/` subdirectory (tier1_dashboard, survival_heatmap, torque heatmaps, velocity plots, flagged metrics)
+- All chart PNGs in `<report_root>/graphics/<model_label>/`
 - The hypothesis (file or user-provided text from step 0)
 
-Do NOT read raw CSV files, metric.json, TensorBoard events, or training logs. The digest contains all needed data in pre-aggregated form. Do NOT generate any charts or plots yourself — use only the outputs from step 1.5.
+Do NOT read raw CSV files, metric.json, TensorBoard events, or training logs. The digest contains all needed data in pre-aggregated form. Do NOT generate any charts or plots yourself — use only the chart PNGs already generated by the report assembler.
 
 ### 3. Behavior alignment
 
@@ -162,29 +182,25 @@ If comparison mode was used, include a cross-run comparison section in both huma
 
 ### 6. File export
 
-Export outputs into one timestamped postmortem folder with dual-consumer structure:
+Export the postmortem markdown and create the report-tree symlink.
 
 - Human report:
-  - `docs/experiments/postmortems/YYYYMMDD_HH/postmortem.md`
+  - Write `docs/experiments/postmortems/YYYYMMDD_HH/postmortem.md`
+  - All image references in this file MUST use repo-root-absolute paths (leading `/`)
+  - Example: `![tier1_dashboard](/docs/reports/{slug}_{ts}/graphics/{model}/tier1_dashboard.png)`
 - LLM artifacts folder:
-  - `docs/experiments/postmortems/YYYYMMDD_HH/llm/`
+  - Write `docs/experiments/postmortems/YYYYMMDD_HH/llm/`
   - Include `DIGEST_*.md` files
   - Include `COMPARISON.md` when comparison mode is enabled
   - Include text-only `diagnosis.md`
-- Visual artifacts organized by tier:
-  - `docs/experiments/postmortems/YYYYMMDD_HH/visuals/tier1/` — copy from charts/:
-    - `tier1_dashboard.png`
-    - `survival_heatmap_{label}_{mode}.png` (one per run per mode)
-  - `docs/experiments/postmortems/YYYYMMDD_HH/visuals/tier4/` — copy from charts/:
-    - `{label}_{mode}_peak_torque.png` and `{label}_{mode}_peak_torque_rate.png`
-    - `deceleration_profiles_{mode}.png`
-    - `velocity_tracking_error_{mode}.png`
-    - `tier4_flagged_metrics.png`
-  - `docs/experiments/postmortems/YYYYMMDD_HH/visuals/keyframes/` — copy from digest output:
-    - `grid_*.png` keyframe grids
-  - If a visual class is unavailable (script failed or vel_traces.npz missing), report it in artifact gates and data gaps instead of failing the run
+- Report symlink:
+  - `ln -s ../../experiments/postmortems/YYYYMMDD_HH/postmortem.md docs/reports/{slug}_{ts}/postmortem.md`
+- Keyframe grids:
+  - Copy `grid_*.png` into a stable report-tree location (recommended: `docs/reports/{slug}_{ts}/graphics/{model}/grid_{run_basename}.png`)
 
-Create destination directories if missing. Do NOT generate any visuals during the export step — only copy from step 1 and step 1.5 outputs.
+Do NOT create a `visuals/` folder under `docs/experiments/postmortems/YYYYMMDD_HH/`. All visuals live under `docs/reports/{slug}_{ts}/graphics/{model}/`.
+
+Create destination directories if missing. Do NOT generate visuals during export — only copy digest artifacts/keyframes and write markdown.
 
 ### 7. Key findings summary
 
