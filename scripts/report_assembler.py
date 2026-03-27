@@ -7,7 +7,7 @@ Usage:
         --model-label model_7027 \
         --grid-dirs /path/to/linear_grid /path/to/angular_grid \
         --video-dirs /path/to/video_dir_1 /path/to/video_dir_2 \
-        --output-root /Users/HanHu/software/motion_rl/docs/reports/
+        --output-root /Users/HanHu/software/motion_rl/docs/experiments/reports/
 """
 
 from __future__ import annotations
@@ -227,7 +227,7 @@ def main() -> int:
         "--output-root",
         type=Path,
         required=True,
-        help="Parent dir for the report folder (e.g. docs/reports/)",
+        help="Parent dir for the report folder (e.g. docs/experiment-reports/)",
     )
     parser.add_argument(
         "--timestamp",
@@ -269,16 +269,12 @@ def main() -> int:
 
     for vd in args.video_dirs:
         if not vd.is_dir():
-            print(
-                f"[report_assembler] WARNING: video dir does not exist, skipping: {vd}"
-            )
+            print(f"[report_assembler] WARNING: video dir does not exist, skipping: {vd}")
             continue
         try:
             mode, condition_slug, survived = classify_video_dir(vd)
         except Exception as exc:  # noqa: BLE001
-            print(
-                f"[report_assembler] WARNING: could not classify video dir {vd}: {exc}"
-            )
+            print(f"[report_assembler] WARNING: could not classify video dir {vd}: {exc}")
             continue
 
         outcome = "success" if survived else "failure"

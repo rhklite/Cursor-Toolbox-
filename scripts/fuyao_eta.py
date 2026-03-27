@@ -200,30 +200,46 @@ def _fmt_completion(eta_seconds: float) -> str:
     return completion.strftime(f"%a %I:%M %p {tz_label}")
 
 
+def _truncate_cell(text: str, width: int) -> str:
+    """Clip long cell text to fit width."""
+    if width <= 1:
+        return text[:width]
+    if len(text) <= width:
+        return text
+    return text[: width - 1] + "…"
+
+
 # ---------------------------------------------------------------------------
 # Table printer
 # ---------------------------------------------------------------------------
 
 def _print_table(results: List[Dict[str, Any]], queried_at: datetime) -> None:
-    COL_LABEL = 55
-    COL_PROGRESS = 10
-    COL_REMAINING = 11
-    COL_COMPLETION = 20
+    # Fixed widths keep output stable for pass-through agent rendering.
+    COL_JOB = 29
+    COL_LABEL = 46
+    COL_PROGRESS = 22
+    COL_REMAINING = 12
+    COL_COMPLETION = 21
 
-    header = (
-        f"{'LABEL':<{COL_LABEL}}"
-        f"{'PROGRESS':>{COL_PROGRESS}}"
-        f"{'REMAINING':>{COL_REMAINING}}"
-        f"  {'EST COMPLETION (PT)':<{COL_COMPLETION}}"
-    )
-    sep = "-" * len(header)
+    headers = ["JOB_NAME", "LABEL", "PROGRESS", "REMAINING", "EST_COMPLETION_PT"]
+    widths = [COL_JOB, COL_LABEL, COL_PROGRESS, COL_REMAINING, COL_COMPLETION]
 
-    print(header)
-    print(sep)
+    def sep_line() -> str:
+        return "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+
+    def row_line(cells: List[str]) -> str:
+        padded = []
+        for cell, width in zip(cells, widths):
+            padded.append(_truncate_cell(cell, width).ljust(width))
+        return "| " + " | ".join(padded) + " |"
+
+    print(sep_line())
+    print(row_line(headers))
+    print(sep_line())
 
     for r in results:
-        label = r.get("label") or r["job_name"]
-        label_trunc = label[:COL_LABEL - 1] if len(label) >= COL_LABEL else label
+        job_name = r.get("job_name", "")
+        label = r.get("label") or job_name
 
         if r.get("error") == "SSH_TIMEOUT":
             progress_str = "TIMEOUT"
@@ -244,13 +260,18 @@ def _print_table(results: List[Dict[str, Any]], queried_at: datetime) -> None:
             completion_str = _fmt_completion(r["eta_seconds"])
 
         print(
-            f"{label_trunc:<{COL_LABEL}}"
-            f"{progress_str:>{COL_PROGRESS}}"
-            f"{remaining_str:>{COL_REMAINING}}"
-            f"  {completion_str:<{COL_COMPLETION}}"
+            row_line(
+                [
+                    job_name,
+                    label,
+                    progress_str,
+                    remaining_str,
+                    completion_str,
+                ]
+            )
         )
 
-    print(sep)
+    print(sep_line())
     tz_label = "PDT" if (queried_at.utcoffset() and int(queried_at.utcoffset().total_seconds() / 3600) == -7) else "PST"
     print(f"Queried {len(results)} job(s) at {queried_at.strftime('%Y-%m-%d %I:%M %p')} {tz_label}")
 

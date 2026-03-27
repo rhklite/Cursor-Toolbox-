@@ -13,6 +13,9 @@ Required:
 
 Options:
   --eval-type TYPE               torque_survey | standard | custom (default: torque_survey)
+  --walk-checkpoint PATH         Local walk model checkpoint to upload (enables model-switch mode).
+  --walk-checkpoint-remote PATH  Existing walk model path on remote kernel.
+  --gpus N                       GPUs per node (default: 1).
   --custom-cmd CMD               Required for --eval-type custom.
   --branch NAME                  Remote branch to sync before deploy.
   --label LABEL                  Fuyao label. Default: eval-<task>-<timestamp>.
@@ -28,15 +31,13 @@ Options:
 
 Examples:
   fuyao_deploy_eval.sh \
-    --task r01_v12_amp_with_4dof_arms_and_head_full_scenes \
-    --checkpoint ~/checkpoints/model_15000.pt \
-    --eval-type torque_survey \
-    --label pengfei-eval \
-    --yes \
-    -- --push_magnitudes "0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5" \
-       --push_directions "0,45,90,135,180,225,270,315" \
-       --push_ang_magnitudes "" \
-       --trials_per_condition 10
+    --task r01_v12_amp_with_4dof_arms_and_head_full_scenes_stability_priority \
+    --checkpoint ~/checkpoints/recovery_model.pt \
+    --walk-checkpoint ~/checkpoints/liudun_model_15000.pt \
+    --eval-type standard \
+    --gpus 4 \
+    --label sweep-a-eval \
+    --yes
 EOF
 }
 
@@ -97,6 +98,9 @@ branch=""
 task_name=""
 checkpoint_local=""
 checkpoint_remote=""
+walk_checkpoint_local=""
+walk_checkpoint_remote=""
+gpus=1
 eval_type="torque_survey"
 custom_cmd=""
 yes_flag=false
@@ -115,6 +119,18 @@ while [[ $# -gt 0 ]]; do
             ;;
         --checkpoint-remote)
             checkpoint_remote="$2"
+            shift 2
+            ;;
+        --walk-checkpoint)
+            walk_checkpoint_local="$2"
+            shift 2
+            ;;
+        --walk-checkpoint-remote)
+            walk_checkpoint_remote="$2"
+            shift 2
+            ;;
+        --gpus)
+            gpus="$2"
             shift 2
             ;;
         --eval-type)
@@ -207,6 +223,21 @@ if [[ -n "$checkpoint_local" && ! -f "$checkpoint_local" ]]; then
     exit 1
 fi
 
+if [[ -n "$walk_checkpoint_local" && -n "$walk_checkpoint_remote" ]]; then
+    echo "ERROR: provide only one of --walk-checkpoint or --walk-checkpoint-remote." >&2
+    exit 1
+fi
+
+if [[ -n "$walk_checkpoint_local" && ! -f "$walk_checkpoint_local" ]]; then
+    echo "ERROR: local walk checkpoint not found: $walk_checkpoint_local" >&2
+    exit 1
+fi
+
+has_walk_ckpt=false
+if [[ -n "$walk_checkpoint_local" || -n "$walk_checkpoint_remote" ]]; then
+    has_walk_ckpt=true
+fi
+
 queue_name=$(normalize_queue "$queue_input")
 if [[ -z "$site" ]]; then
     site=$(default_site_for_queue "$queue_name")
@@ -234,6 +265,7 @@ remote_tmp_dir="/tmp/fuyao_eval_deploy_${stamp}_$$"
 remote_eval_template="${remote_tmp_dir}/fuyao_eval_only.sh"
 remote_eval_script="${remote_tmp_dir}/humanoid-gym/scripts/fuyao_eval_only.sh"
 remote_checkpoint="${remote_tmp_dir}/humanoid-gym/resume/model.pt"
+remote_walk_checkpoint="${remote_tmp_dir}/humanoid-gym/resume/walk_model.pt"
 
 cleanup_remote() {
     ssh "$ssh_alias" "rm -rf $(printf "%q" "$remote_tmp_dir")" >/dev/null 2>&1 || true
@@ -258,6 +290,15 @@ echo "Injecting eval entrypoint."
 scp "$local_eval_script" "${ssh_alias}:${remote_eval_template}" >/dev/null
 ssh "$ssh_alias" "set -euo pipefail; cp $(printf "%q" "$remote_eval_template") $(printf "%q" "$remote_eval_script"); chmod +x $(printf "%q" "$remote_eval_script")"
 
+local_fuyao_evaluate="$(dirname "$local_eval_script")/../../../software/motion_rl/humanoid-gym/scripts/fuyao_evaluate.sh"
+if [[ ! -f "$local_fuyao_evaluate" ]]; then
+    local_fuyao_evaluate="${HOME}/software/motion_rl/humanoid-gym/scripts/fuyao_evaluate.sh"
+fi
+if [[ -f "$local_fuyao_evaluate" ]]; then
+    echo "Injecting fuyao_evaluate.sh."
+    scp "$local_fuyao_evaluate" "${ssh_alias}:${remote_tmp_dir}/humanoid-gym/scripts/fuyao_evaluate.sh" >/dev/null
+fi
+
 if [[ -n "$checkpoint_local" ]]; then
     echo "Uploading local checkpoint."
     scp "$checkpoint_local" "${ssh_alias}:${remote_checkpoint}" >/dev/null
@@ -266,11 +307,21 @@ else
     ssh "$ssh_alias" "set -euo pipefail; cp $(printf "%q" "$checkpoint_remote") $(printf "%q" "$remote_checkpoint")"
 fi
 
+if [[ "$has_walk_ckpt" == true ]]; then
+    if [[ -n "$walk_checkpoint_local" ]]; then
+        echo "Uploading local walk checkpoint."
+        scp "$walk_checkpoint_local" "${ssh_alias}:${remote_walk_checkpoint}" >/dev/null
+    else
+        echo "Staging remote walk checkpoint."
+        ssh "$ssh_alias" "set -euo pipefail; cp $(printf "%q" "$walk_checkpoint_remote") $(printf "%q" "$remote_walk_checkpoint")"
+    fi
+fi
+
 declare -a remote_cmd=(
     fuyao deploy
     "--docker-image=${fuyao_image}"
     "--nodes=1"
-    "--gpus-per-node=1"
+    "--gpus-per-node=${gpus}"
     "--site=${site}"
     "--label=${label}"
     "--experiment=${experiment}"
@@ -289,6 +340,10 @@ remote_cmd+=(
     --eval-type "$eval_type"
 )
 
+if [[ "$has_walk_ckpt" == true ]]; then
+    remote_cmd+=(--walk_checkpoint_path /code/humanoid-gym/resume/walk_model.pt)
+fi
+
 if [[ "$eval_type" == "custom" ]]; then
     remote_cmd+=(--custom-cmd "$custom_cmd")
 fi
@@ -306,8 +361,8 @@ if [[ "$dry_run" == true ]]; then
 fi
 
 echo "Submitting Fuyao eval-only job."
-tmp_log=$(mktemp /tmp/fuyao_eval_deploy_log_XXXXXX.txt)
-if ssh "$ssh_alias" "set -euo pipefail; cd $(printf "%q" "$remote_tmp_dir"); ${quoted_remote_cmd}" | tee "$tmp_log"; then
+tmp_log=$(mktemp /tmp/fuyao_eval_deploy_log_XXXXXX)
+if printf 'n\n' | ssh "$ssh_alias" "set -euo pipefail; cd $(printf "%q" "$remote_tmp_dir"); ${quoted_remote_cmd}" | tee "$tmp_log"; then
     :
 else
     echo "ERROR: fuyao deploy command failed." >&2

@@ -180,10 +180,10 @@ def chart_tier1_dashboard(
         x - bar_w, survival_rates, bar_w, label="Survival Rate (%)", color="#2196F3"
     )
 
-    tts_display = [v if not (isinstance(v, float) and math.isnan(v)) else 0 for v in mean_tts_vals]
-    bars_tts = ax1.bar(
-        x, tts_display, bar_w, label="Mean TTS (s)", color="#4CAF50"
-    )
+    tts_display = [
+        v if not (isinstance(v, float) and math.isnan(v)) else 0 for v in mean_tts_vals
+    ]
+    bars_tts = ax1.bar(x, tts_display, bar_w, label="Mean TTS (s)", color="#4CAF50")
 
     ax1.set_ylabel("Survival Rate (%) / TTS (s)", fontsize=11)
     ax1.set_xticks(x)
@@ -191,13 +191,19 @@ def chart_tier1_dashboard(
     ax1.set_ylim(bottom=0)
 
     ax2 = ax1.twinx()
-    pjt_display = [v if not (isinstance(v, float) and math.isnan(v)) else 0 for v in max_pjt_vals]
+    pjt_display = [
+        v if not (isinstance(v, float) and math.isnan(v)) else 0 for v in max_pjt_vals
+    ]
     bars_pjt = ax2.bar(
         x + bar_w, pjt_display, bar_w, label="Max Peak Torque (Nm)", color="#FF9800"
     )
     ax2.set_ylabel("Max Peak Joint Torque (Nm)", fontsize=11)
 
-    for bar_set, vals in [(bars_sr, survival_rates), (bars_tts, tts_display), (bars_pjt, pjt_display)]:
+    for bar_set, vals in [
+        (bars_sr, survival_rates),
+        (bars_tts, tts_display),
+        (bars_pjt, pjt_display),
+    ]:
         for bar, val in zip(bar_set, vals):
             if val and not (isinstance(val, float) and math.isnan(val)):
                 ax1_or_2 = ax2 if bar_set is bars_pjt else ax1
@@ -260,7 +266,9 @@ def chart_survival_heatmap(
             grid[ri, ci] = rate
             annot[ri][ci] = f"{int(n_surv)}/{n_total}\n{rate:.0f}%"
 
-    fig, ax = plt.subplots(figsize=(max(8, len(directions) * 1.5), max(5, len(magnitudes) * 0.8)))
+    fig, ax = plt.subplots(
+        figsize=(max(8, len(directions) * 1.5), max(5, len(magnitudes) * 0.8))
+    )
     im = ax.imshow(
         grid,
         aspect="auto",
@@ -598,7 +606,9 @@ def chart_tier4_flagged_metrics(
         for metric in TIER4_METRICS:
             if metric in survived.columns:
                 vals = survived[metric].dropna()
-                all_means[metric].append(float(vals.mean()) if len(vals) else float("nan"))
+                all_means[metric].append(
+                    float(vals.mean()) if len(vals) else float("nan")
+                )
             else:
                 all_means[metric].append(float("nan"))
 
@@ -622,8 +632,18 @@ def chart_tier4_flagged_metrics(
                 colors.append("#4CAF50")
             else:
                 colors.append("#F44336")
-        display_vals = [v if not (isinstance(v, float) and math.isnan(v)) else 0 for v in vals]
-        ax.barh(offsets, display_vals, bar_height, label=label, color=colors, edgecolor="white", linewidth=0.5)
+        display_vals = [
+            v if not (isinstance(v, float) and math.isnan(v)) else 0 for v in vals
+        ]
+        ax.barh(
+            offsets,
+            display_vals,
+            bar_height,
+            label=label,
+            color=colors,
+            edgecolor="white",
+            linewidth=0.5,
+        )
 
     for i, metric in enumerate(TIER4_METRICS):
         threshold = TIER4_THRESHOLDS[metric]["warn"]
@@ -657,6 +677,142 @@ def chart_tier4_flagged_metrics(
     fig.savefig(out_path, dpi=DPI)
     plt.close(fig)
     print(f"[postmortem_charts] saved tier4_flagged_metrics.png")
+    return out_path
+
+
+# ---------------------------------------------------------------------------
+# Chart 7: Root Height Recovery
+# ---------------------------------------------------------------------------
+
+
+def chart_root_height_recovery(
+    run_dirs: List[Path],
+    labels: List[str],
+    output_dir: Path,
+    target_height: float = 1.0,
+) -> Path:
+    """Grouped bar chart of mean final and min root height with target line."""
+    final_means = []
+    final_stds = []
+    min_means = []
+
+    for rd in run_dirs:
+        df = load_results_csv(rd)
+        triggered = df[df["triggered"] == True]  # noqa: E712
+        survived = triggered[triggered["survived"] == True]  # noqa: E712
+
+        if "final_root_height" in survived.columns and len(survived):
+            vals = survived["final_root_height"].dropna()
+            final_means.append(float(vals.mean()) if len(vals) else float("nan"))
+            final_stds.append(float(vals.std()) if len(vals) > 1 else 0.0)
+        else:
+            final_means.append(float("nan"))
+            final_stds.append(0.0)
+
+        if "min_root_height" in survived.columns and len(survived):
+            vals = survived["min_root_height"].dropna()
+            min_means.append(float(vals.mean()) if len(vals) else float("nan"))
+        else:
+            min_means.append(float("nan"))
+
+    n_runs = len(run_dirs)
+    fig, ax = plt.subplots(figsize=(max(6, 2.5 * n_runs), 5))
+    x = np.arange(n_runs)
+    bar_w = 0.3
+
+    colors_final = []
+    for fm in final_means:
+        if isinstance(fm, float) and math.isnan(fm):
+            colors_final.append("#BDBDBD")
+        elif fm >= 0.95:
+            colors_final.append("#4CAF50")
+        else:
+            colors_final.append("#F44336")
+
+    bars_final = ax.bar(
+        x - bar_w / 2,
+        [v if not (isinstance(v, float) and math.isnan(v)) else 0 for v in final_means],
+        bar_w,
+        yerr=[s for s in final_stds],
+        capsize=3,
+        label="Final Root Height (m)",
+        color=colors_final,
+        edgecolor="white",
+        linewidth=0.5,
+    )
+    bars_min = ax.bar(
+        x + bar_w / 2,
+        [v if not (isinstance(v, float) and math.isnan(v)) else 0 for v in min_means],
+        bar_w,
+        label="Min Root Height (m)",
+        color="#90CAF9",
+        edgecolor="white",
+        linewidth=0.5,
+    )
+
+    ax.axhline(
+        target_height,
+        color="#FF9800",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Target ({target_height:.1f}m)",
+    )
+    ax.axhline(
+        0.95,
+        color="#FF9800",
+        linestyle=":",
+        linewidth=1,
+        alpha=0.5,
+        label="Warn (0.95m)",
+    )
+
+    for bar, val in zip(bars_final, final_means):
+        if not (isinstance(val, float) and math.isnan(val)):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0.005,
+                f"{val:.3f}",
+                ha="center",
+                va="bottom",
+                fontsize=7,
+            )
+    for bar, val in zip(bars_min, min_means):
+        if not (isinstance(val, float) and math.isnan(val)):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0.005,
+                f"{val:.3f}",
+                ha="center",
+                va="bottom",
+                fontsize=7,
+            )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9, rotation=30, ha="right")
+    ax.set_ylabel("Root Height (m)", fontsize=11)
+    ax.set_title("Root Height Recovery", fontsize=14, fontweight="bold")
+    ax.set_ylim(
+        bottom=(
+            min(
+                0.7,
+                min(
+                    v for v in min_means if not (isinstance(v, float) and math.isnan(v))
+                )
+                - 0.05,
+            )
+            if any(not (isinstance(v, float) and math.isnan(v)) for v in min_means)
+            else 0.7
+        ),
+        top=1.1,
+    )
+    ax.legend(fontsize=8, loc="lower left")
+    ax.grid(True, axis="y", alpha=0.3)
+
+    fig.tight_layout()
+    out_path = output_dir / "root_height_recovery.png"
+    fig.savefig(out_path, dpi=DPI)
+    plt.close(fig)
+    print(f"[postmortem_charts] saved root_height_recovery.png")
     return out_path
 
 
@@ -697,9 +853,20 @@ def generate_all(
                 if p:
                     outputs.append(p)
             else:
-                print(f"[postmortem_charts] WARNING: no vel_traces.npz in {rd}, skipping velocity plots")
+                print(
+                    f"[postmortem_charts] WARNING: no vel_traces.npz in {rd}, skipping velocity plots"
+                )
 
         outputs.append(chart_tier4_flagged_metrics(run_dirs, labels, output_dir))
+
+    has_height = False
+    for rd in run_dirs:
+        df = load_results_csv(rd)
+        if "final_root_height" in df.columns:
+            has_height = True
+            break
+    if has_height:
+        outputs.append(chart_root_height_recovery(run_dirs, labels, output_dir))
 
     print(f"[postmortem_charts] generated {len(outputs)} charts in {output_dir}")
     return outputs
@@ -776,7 +943,9 @@ def main():
     if not valid_dirs:
         sys.exit("[postmortem_charts] ERROR: no valid run directories found")
 
-    generate_all(valid_dirs, valid_labels, args.output_dir, tier1=do_tier1, tier4=do_tier4)
+    generate_all(
+        valid_dirs, valid_labels, args.output_dir, tier1=do_tier1, tier4=do_tier4
+    )
 
 
 if __name__ == "__main__":

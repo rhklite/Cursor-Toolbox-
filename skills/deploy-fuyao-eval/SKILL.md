@@ -31,6 +31,8 @@ Activate on requests like:
 ## Optional Inputs and Defaults
 
 - eval_type: torque_survey (default), standard, custom
+- walk_checkpoint (local path) or walk_checkpoint_remote (remote-kernel path): enables model-switch mode
+- gpus: GPUs per node (default 1). For stability_priority standard eval, use 4 to match training pipeline parallelism.
 - custom_cmd: required only when eval_type is custom
 - branch: optional remote branch sync
 - project: rc-wbc
@@ -40,6 +42,8 @@ Activate on requests like:
 - label: auto-generated if omitted
 - yes: include --yes when user confirms submission
 - passthrough eval args after `--`
+
+Note: For standard eval-type with stability_priority tasks, the container delegates to fuyao_evaluate.sh which runs the full orchestrated evaluation (linear/angular grids, play, video conditions) -- identical to the training pipeline's post-training eval.
 
 ## Deterministic Workflow
 
@@ -61,6 +65,8 @@ bash ~/.cursor/scripts/fuyao_deploy_eval.sh \
   --task <task> \
   [--checkpoint <local_ckpt> | --checkpoint-remote <remote_ckpt>] \
   --eval-type <torque_survey|standard|custom> \
+  [--walk-checkpoint <local_walk> | --walk-checkpoint-remote <remote_walk>] \
+  [--gpus <N>] \
   [--custom-cmd "<cmd>"] \
   [--branch <branch>] \
   [--label <label>] \
@@ -96,6 +102,19 @@ bash ~/.cursor/scripts/fuyao_deploy_eval.sh \
   --push_ang_magnitudes "" \
   --trials_per_condition 10 \
   --report_suffix pengfei_fuyao
+```
+
+## Model-Switch Stability Eval Example
+
+```bash
+bash ~/.cursor/scripts/fuyao_deploy_eval.sh \
+  --task r01_v12_sa_amp_with_4dof_arms_and_head_full_scenes_stability_priority \
+  --checkpoint-remote /path/to/recovery_model.pt \
+  --walk-checkpoint-remote /path/to/walk_model.pt \
+  --eval-type standard \
+  --gpus 4 \
+  --label sweep-a-soft-tor-080 \
+  --yes
 ```
 
 ## Post-Submit Report

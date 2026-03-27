@@ -59,18 +59,18 @@ python ~/.cursor/scripts/report_assembler.py \
     --model-label <model_name> \
     --grid-dirs <linear_grid_dir> <angular_grid_dir> \
     --video-dirs <video_dir_1> <video_dir_2> ... \
-    --output-root /Users/HanHu/software/motion_rl/docs/reports/ \
+    --output-root /Users/HanHu/software/motion_rl/docs/experiments/reports/ \
     --timestamp <YYYYMMDD_HHMM>
 ```
 
 Use the same --timestamp value for all models in the same experiment so they land in the same report folder.
 
-After assembly, the report tree is at: `docs/reports/{slug}_{timestamp}/`
+After assembly, the report tree is at: `docs/experiments/reports/{slug}_{timestamp}/`
 - `artifacts/{model}/linear/` and `artifacts/{model}/angular/` contain CSV/JSON/NPZ for digest and chart generation
 - `videos/{model}/linear/{success|failure}/` and `videos/{model}/angular/{success|failure}/` contain per-condition .mp4 files
 - `graphics/{model}/` contains all chart PNGs
 
-Record the resolved report root path (for example: `docs/reports/stability-curriculum-push-ramp-v2_20260325_1500`) for use in later steps.
+Record the resolved report root path (for example: `docs/experiments/reports/stability-curriculum-push-ramp-v2_20260325_1500`) for use in later steps.
 
 **If the assembler fails (non-zero exit):** warn the user. Fall back to using the original flat directories for steps 1, 1.5, and 6, and note this in artifact gates/data gaps.
 
@@ -185,21 +185,21 @@ If comparison mode was used, include a cross-run comparison section in both huma
 Export outputs with reports as canonical destination.
 
 - Canonical human report:
-  - Write `docs/reports/{slug}_{ts}/postmortem.md`
+  - Write `docs/experiments/reports/{slug}_{ts}/postmortem.md`
   - All image references in this file MUST use repo-root-absolute paths (leading `/`)
-  - Example: `![tier1_dashboard](/docs/reports/{slug}_{ts}/graphics/{model}/tier1_dashboard.png)`
+  - Example: `![tier1_dashboard](/docs/experiments/reports/{slug}_{ts}/graphics/{model}/tier1_dashboard.png)`
 - Canonical LLM digest bundle:
-  - Write `docs/reports/{slug}_{ts}/llm_postmortem_digest/`
+  - Write `docs/experiments/reports/{slug}_{ts}/llm_postmortem_digest/`
   - Include `DIGEST_*.md` files
   - Include `COMPARISON.md` when comparison mode is enabled
   - Include text-only `diagnosis.md`
 - Backward-compatible experiments backlink:
   - Create `docs/experiments/postmortems/YYYYMMDD_HH/` if missing
-  - Create symlink: `ln -s ../../../reports/{slug}_{ts}/postmortem.md docs/experiments/postmortems/YYYYMMDD_HH/postmortem.md`
+  - Create symlink: `ln -s ../../reports/{slug}_{ts}/postmortem.md docs/experiments/postmortems/YYYYMMDD_HH/postmortem.md`
 - Keyframe grids:
-  - Copy `grid_*.png` into `docs/reports/{slug}_{ts}/graphics/{model}/grid_{run_basename}.png`
+  - Copy `grid_*.png` into `docs/experiments/reports/{slug}_{ts}/graphics/{model}/grid_{run_basename}.png`
 
-Do NOT create a `visuals/` folder under `docs/experiments/postmortems/YYYYMMDD_HH/`. All visuals live under `docs/reports/{slug}_{ts}/graphics/{model}/`.
+Do NOT create a `visuals/` folder under `docs/experiments/postmortems/YYYYMMDD_HH/`. All visuals live under `docs/experiments/reports/{slug}_{ts}/graphics/{model}/`.
 
 Create destination directories if missing. Do NOT generate visuals during export — only copy digest artifacts/keyframes and write markdown.
 

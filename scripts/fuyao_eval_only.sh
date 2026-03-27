@@ -169,18 +169,15 @@ case "$eval_type" in
         ;;
     standard)
         if [[ "$task_name" == *"stability_priority"* ]]; then
-            declare -a stab_args=(
-                python humanoid/scripts/play_stability_eval.py
-                --task r01_v12_stability_eval
-                --headless
-                --checkpoint_path "$resolved_checkpoint"
+            declare -a feval_args=(
+                bash scripts/fuyao_evaluate.sh
+                --task "$task_name"
+                --checkpoint-path "$resolved_checkpoint"
             )
             if [[ -n "$resolved_walk_ckpt" ]]; then
-                stab_args+=(--walk_checkpoint_path "$resolved_walk_ckpt")
-            else
-                stab_args+=(--single_model)
+                feval_args+=(--walk-checkpoint "$resolved_walk_ckpt")
             fi
-            "${stab_args[@]}" "${passthrough_args[@]}"
+            "${feval_args[@]}" "${passthrough_args[@]}" || echo "[fuyao_eval_only] WARNING: fuyao_evaluate.sh exited non-zero ($?), continuing to artifact sync"
         elif [[ "$task_name" != *"mimic"* && "$task_name" != *"fr"* ]]; then
             python humanoid/scripts/play_balancing.py \
                 --task "$task_name" \

@@ -41,9 +41,3 @@ projects/*/*
 # User-level cursor rules
 !rules/
 !rules/**
-# User's personal scripts
-!scripts/
-!scripts/**
-# User's personal templates
-!templates/
-!templates/**
