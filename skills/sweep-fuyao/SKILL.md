@@ -36,6 +36,7 @@ Use this as the canonical execution contract for `/sweep-fuyao`.
 - `continue_on_error` (default: `true`)
 - `dry_run` (default: `false`)
 - `hp_class_map` (default: empty)
+- `resume_checkpoint` (default: `/workspace-sh/${USER}/checkpoints/model_9033_best_k_value=53.321.pt` on the Fuyao remote kernel NAS). When set, include `"resume": "true"` and `"checkpoint_path": "<resume_checkpoint>"` in the sweep payload so each combo copies the checkpoint into resume/ for fine-tuning and post-training two-model eval.
 
 ## Argument Prompt Contract (Selectable Questions)
 

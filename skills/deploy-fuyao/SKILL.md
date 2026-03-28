@@ -27,6 +27,7 @@ This skill should be treated as mandatory instruction; only fallback is manual m
 - `label` (default: remove one leading `huh8/` from `branch`)
 - `project` (default: `rc-wbc`)
 - `queue` (default: `rc-wbc-4090`; always use fully-qualified name, never bare aliases like `4090`)
+- `resume_checkpoint` (default: `/workspace-sh/${USER}/checkpoints/model_9033_best_k_value=53.321.pt` on the Fuyao remote kernel NAS). When set, pass `--model <resume_checkpoint>` to fuyao_deploy.sh so the checkpoint is copied into the resume/ directory and used for both fine-tuning and as the walk model in post-training eval.
 - `yes` flag (default: `--yes`)
 
 ## Deterministic Workflow
