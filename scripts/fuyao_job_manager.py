@@ -957,8 +957,12 @@ def _registry_sync(registry: Dict[str, Any], ssh_alias: str) -> None:
         status_map = {
             "JOB_RUNNING": "running",
             "JOB_CANCELLED": "cancelled",
+            "JOB_COMPLETE": "completed",
             "JOB_COMPLETED": "completed",
+            "JOB_SUCCEEDED": "completed",
             "JOB_FAILED": "failed",
+            "JOB_KILLED": "failed",
+            "JOB_TIMEOUT": "failed",
         }
         new_status = status_map.get(fuyao_status, j.get("status", "unknown"))
         if new_status != j.get("status"):
