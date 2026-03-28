@@ -91,6 +91,22 @@ python -c "from humanoid.envs import *; print('Pre-flight import check passed')"
     exit 1
 }
 
+# ---------------------------------------------------------------------------
+# Reproducibility snapshot: capture git state before eval begins
+# ---------------------------------------------------------------------------
+REPRO_DIR="/model/reproducibility"
+mkdir -p "$REPRO_DIR"
+(
+    cd /code
+    {
+        echo "commit=$(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
+        echo "branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')"
+        echo "timestamp=$(date -Iseconds)"
+        echo "dirty=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+    } > "$REPRO_DIR/git_snapshot.txt"
+    git diff HEAD > "$REPRO_DIR/git_diff.patch" 2>/dev/null || true
+)
+
 is_main_process=true
 if [[ "${RANK:-0}" != "0" ]]; then
     is_main_process=false

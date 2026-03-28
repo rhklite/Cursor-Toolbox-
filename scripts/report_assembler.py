@@ -7,7 +7,7 @@ Usage:
         --model-label model_7027 \
         --grid-dirs /path/to/linear_grid /path/to/angular_grid \
         --video-dirs /path/to/video_dir_1 /path/to/video_dir_2 \
-        --output-root /Users/HanHu/software/motion_rl/docs/experiments/reports/
+        --output-root /Users/HanHu/software/motion_rl/docs/experiments/report-assets/
 """
 
 from __future__ import annotations
