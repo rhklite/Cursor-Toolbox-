@@ -91,7 +91,10 @@ resolve_dirty_tree_by_timestamp() {
     return 1
   fi
 
-  mapfile -t dirty_paths < <(
+  local -a dirty_paths=()
+  while IFS= read -r rel_path; do
+    [[ -n "${rel_path}" ]] && dirty_paths+=("${rel_path}")
+  done < <(
     {
       git -C "${repo_dir}" diff --name-only
       git -C "${repo_dir}" diff --name-only --cached
@@ -264,13 +267,13 @@ if [ -n "$(git -C "${repo}" status --short --untracked-files=no)" ]; then
   overwrite_count=0
   echo "[sync-toolbox] resolving dirty tracked files by timestamp policy in ${repo}" >&2
   echo "[sync-toolbox] policy: local mtime vs ${remote_name}/main committer timestamp" >&2
-  mapfile -t dirty_paths < <(
+  dirty_paths="$(
     {
       git -C "${repo}" diff --name-only
       git -C "${repo}" diff --name-only --cached
     } | awk 'NF' | sort -u
-  )
-  for rel_path in "${dirty_paths[@]}"; do
+  )"
+  while IFS= read -r rel_path; do
     [ -z "${rel_path}" ] && continue
     abs_path="${repo}/${rel_path}"
     local_ts=""
@@ -298,7 +301,9 @@ if [ -n "$(git -C "${repo}" status --short --untracked-files=no)" ]; then
       overwrite_count=$((overwrite_count + 1))
     fi
     echo "[sync-toolbox] dirty-resolve path=${rel_path} decision=${decision} local_ts=${local_ts:-none} remote_ts=${remote_ts:-none}" >&2
-  done
+  done <<EOF
+${dirty_paths}
+EOF
   if [ "${keep_count}" -gt 0 ] && ! git -C "${repo}" diff --cached --quiet; then
     git -C "${repo}" commit -m "<chore> Auto-resolve dirty toolbox files by timestamp policy"
     echo "[sync-toolbox] committed ${keep_count} keep-local file(s) in ${repo}" >&2
