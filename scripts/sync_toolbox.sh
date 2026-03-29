@@ -54,6 +54,115 @@ single_quote_escape() {
   printf "%s" "$1" | sed "s/'/'\"'\"'/g"
 }
 
+local_mtime_epoch() {
+  local path="$1"
+  if [[ ! -e "${path}" ]]; then
+    return 1
+  fi
+  if stat -f %m "${path}" >/dev/null 2>&1; then
+    stat -f %m "${path}"
+  else
+    stat -c %Y "${path}"
+  fi
+}
+
+format_epoch_utc() {
+  local epoch="$1"
+  if [[ -z "${epoch}" ]]; then
+    printf "n/a"
+    return 0
+  fi
+  if date -r "${epoch}" "+%Y-%m-%dT%H:%M:%SZ" >/dev/null 2>&1; then
+    date -r "${epoch}" "+%Y-%m-%dT%H:%M:%SZ"
+  else
+    date -u -d "@${epoch}" "+%Y-%m-%dT%H:%M:%SZ"
+  fi
+}
+
+resolve_dirty_tree_by_timestamp() {
+  local repo_dir="$1"
+  local remote_name="$2"
+  local base_ref="${remote_name}/main"
+  local keep_count=0
+  local overwrite_count=0
+
+  if ! git -C "${repo_dir}" show-ref --verify --quiet "refs/remotes/${remote_name}/main"; then
+    err "Missing ${base_ref} in ${repo_dir}; cannot compare timestamps."
+    return 1
+  fi
+
+  mapfile -t dirty_paths < <(
+    {
+      git -C "${repo_dir}" diff --name-only
+      git -C "${repo_dir}" diff --name-only --cached
+    } | awk 'NF' | sort -u
+  )
+
+  if [[ "${#dirty_paths[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  log "Resolving ${#dirty_paths[@]} dirty tracked file(s) by timestamp policy."
+  log "Policy note: local filesystem mtime vs ${base_ref} committer timestamp."
+
+  for rel_path in "${dirty_paths[@]}"; do
+    local abs_path="${repo_dir}/${rel_path}"
+    local local_ts=""
+    local remote_ts=""
+    local decision=""
+
+    if local_ts="$(local_mtime_epoch "${abs_path}" 2>/dev/null)"; then
+      :
+    else
+      local_ts=""
+    fi
+
+    remote_ts="$(git -C "${repo_dir}" log -1 --format=%ct "${base_ref}" -- "${rel_path}" 2>/dev/null || true)"
+
+    if [[ -z "${remote_ts}" ]]; then
+      decision="keep_local_missing_on_remote"
+      git -C "${repo_dir}" add -- "${rel_path}"
+      keep_count=$((keep_count + 1))
+    elif [[ -z "${local_ts}" ]]; then
+      decision="overwrite_with_remote_local_missing"
+      git -C "${repo_dir}" checkout "${base_ref}" -- "${rel_path}"
+      git -C "${repo_dir}" add -- "${rel_path}"
+      overwrite_count=$((overwrite_count + 1))
+    elif (( local_ts > remote_ts )); then
+      decision="keep_local_newer"
+      git -C "${repo_dir}" add -- "${rel_path}"
+      keep_count=$((keep_count + 1))
+    else
+      decision="overwrite_with_remote"
+      git -C "${repo_dir}" checkout "${base_ref}" -- "${rel_path}"
+      git -C "${repo_dir}" add -- "${rel_path}"
+      overwrite_count=$((overwrite_count + 1))
+    fi
+
+    log "dirty-resolve path=${rel_path} decision=${decision} local_ts=${local_ts:-none} ($(format_epoch_utc "${local_ts:-}")) remote_ts=${remote_ts:-none} ($(format_epoch_utc "${remote_ts:-}"))"
+  done
+
+  if [[ "${keep_count}" -gt 0 ]]; then
+    local commit_msg
+    commit_msg="$(cat <<'EOF'
+<chore> Auto-resolve dirty toolbox files by timestamp policy
+
+Apply per-file timestamp conflict policy against origin/main:
+- keep local file when local mtime is newer
+- overwrite from origin/main when remote timestamp is newer or equal
+
+EOF
+)"
+    if ! git -C "${repo_dir}" diff --cached --quiet; then
+      git -C "${repo_dir}" commit -m "${commit_msg}"
+      log "Committed ${keep_count} keep-local file(s) after timestamp resolution."
+    fi
+  fi
+
+  log "Timestamp resolution result: keep_local=${keep_count}, overwrite_with_remote=${overwrite_count}"
+  return 0
+}
+
 sync_toolbox_repo_by_git() {
   local repo_dir="$1"
   local remote_name="$2"
@@ -79,17 +188,22 @@ sync_toolbox_repo_by_git() {
     return 1
   fi
 
-  if [[ -n "$(git -C "${repo_dir}" status --short --untracked-files=no)" ]]; then
-    err "Uncommitted changes detected in ${repo_dir}; aborting git sync."
-    return 1
-  fi
-
   if ! git -C "${repo_dir}" fetch --prune "${remote_name}"; then
     err "Failed to fetch from ${remote_name} for ${repo_dir}"
     return 1
   fi
 
+  if [[ -n "$(git -C "${repo_dir}" status --short --untracked-files=no)" ]]; then
+    if ! resolve_dirty_tree_by_timestamp "${repo_dir}" "${remote_name}"; then
+      err "Failed to auto-resolve dirty tree in ${repo_dir}"
+      return 1
+    fi
+  fi
+
   if git -C "${repo_dir}" pull --ff-only "${remote_name}" "${branch}"; then
+    if [[ -n "$(git -C "${repo_dir}" log --oneline "${remote_name}/${branch}..HEAD")" ]]; then
+      git -C "${repo_dir}" push "${remote_name}" "${branch}"
+    fi
     return 0
   fi
 
@@ -97,6 +211,10 @@ sync_toolbox_repo_by_git() {
   if ! git -C "${repo_dir}" merge --no-edit "${remote_name}/${branch}"; then
     err "Failed to merge ${remote_name}/${branch} in ${repo_dir}"
     return 1
+  fi
+
+  if [[ -n "$(git -C "${repo_dir}" log --oneline "${remote_name}/${branch}..HEAD")" ]]; then
+    git -C "${repo_dir}" push "${remote_name}" "${branch}"
   fi
 
   return 0
@@ -131,20 +249,74 @@ if [ -z "${branch}" ] || [ "${branch}" = "HEAD" ]; then
   exit 3
 fi
 
-if [ -n "$(git -C "${repo}" status --short --untracked-files=no)" ]; then
-  echo "[sync-toolbox] remote destination has uncommitted changes in ${repo}" >&2
-  exit 4
-fi
-
 if ! git -C "${repo}" fetch --prune "${remote_name}"; then
   echo "[sync-toolbox] failed to fetch from ${remote_name} in ${repo}" >&2
   exit 5
+fi
+
+if ! git -C "${repo}" show-ref --verify --quiet "refs/remotes/${remote_name}/main"; then
+  echo "[sync-toolbox] missing ${remote_name}/main in ${repo}" >&2
+  exit 4
+fi
+
+if [ -n "$(git -C "${repo}" status --short --untracked-files=no)" ]; then
+  keep_count=0
+  overwrite_count=0
+  echo "[sync-toolbox] resolving dirty tracked files by timestamp policy in ${repo}" >&2
+  echo "[sync-toolbox] policy: local mtime vs ${remote_name}/main committer timestamp" >&2
+  mapfile -t dirty_paths < <(
+    {
+      git -C "${repo}" diff --name-only
+      git -C "${repo}" diff --name-only --cached
+    } | awk 'NF' | sort -u
+  )
+  for rel_path in "${dirty_paths[@]}"; do
+    [ -z "${rel_path}" ] && continue
+    abs_path="${repo}/${rel_path}"
+    local_ts=""
+    remote_ts="$(git -C "${repo}" log -1 --format=%ct "${remote_name}/main" -- "${rel_path}" 2>/dev/null || true)"
+    if [ -e "${abs_path}" ]; then
+      local_ts="$(stat -c %Y "${abs_path}" 2>/dev/null || stat -f %m "${abs_path}" 2>/dev/null || true)"
+    fi
+    if [ -z "${remote_ts}" ]; then
+      decision="keep_local_missing_on_remote"
+      git -C "${repo}" add -- "${rel_path}"
+      keep_count=$((keep_count + 1))
+    elif [ -z "${local_ts}" ]; then
+      decision="overwrite_with_remote_local_missing"
+      git -C "${repo}" checkout "${remote_name}/main" -- "${rel_path}"
+      git -C "${repo}" add -- "${rel_path}"
+      overwrite_count=$((overwrite_count + 1))
+    elif [ "${local_ts}" -gt "${remote_ts}" ]; then
+      decision="keep_local_newer"
+      git -C "${repo}" add -- "${rel_path}"
+      keep_count=$((keep_count + 1))
+    else
+      decision="overwrite_with_remote"
+      git -C "${repo}" checkout "${remote_name}/main" -- "${rel_path}"
+      git -C "${repo}" add -- "${rel_path}"
+      overwrite_count=$((overwrite_count + 1))
+    fi
+    echo "[sync-toolbox] dirty-resolve path=${rel_path} decision=${decision} local_ts=${local_ts:-none} remote_ts=${remote_ts:-none}" >&2
+  done
+  if [ "${keep_count}" -gt 0 ] && ! git -C "${repo}" diff --cached --quiet; then
+    git -C "${repo}" commit -m "<chore> Auto-resolve dirty toolbox files by timestamp policy"
+    echo "[sync-toolbox] committed ${keep_count} keep-local file(s) in ${repo}" >&2
+  fi
+  echo "[sync-toolbox] timestamp resolution result: keep_local=${keep_count}, overwrite_with_remote=${overwrite_count}" >&2
 fi
 
 if ! git -C "${repo}" pull --ff-only "${remote_name}" "${branch}"; then
   if ! git -C "${repo}" merge --no-edit "${remote_name}/${branch}"; then
     echo "[sync-toolbox] failed to merge ${remote_name}/${branch} in ${repo}" >&2
     exit 6
+  fi
+fi
+
+if [ -n "$(git -C "${repo}" log --oneline "${remote_name}/${branch}..HEAD")" ]; then
+  if ! git -C "${repo}" push "${remote_name}" "${branch}"; then
+    echo "[sync-toolbox] failed to push ${branch} to ${remote_name} in ${repo}" >&2
+    exit 7
   fi
 fi
 REMOTE_SYNC
