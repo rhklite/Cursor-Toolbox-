@@ -12,6 +12,7 @@ Required:
 Options:
   --eval-type TYPE            torque_survey | standard | custom (default: torque_survey)
   --walk_checkpoint_path PATH Walking model checkpoint (enables model-switch mode).
+  --video-only                For stability standard eval, skip grid/play and run video jobs only.
   --custom-cmd CMD            Required when --eval-type custom.
   --help                      Show this message.
 
@@ -26,6 +27,7 @@ checkpoint_path=""
 walk_checkpoint_path=""
 eval_type="torque_survey"
 custom_cmd=""
+video_only="0"
 declare -a passthrough_args=()
 
 while [[ $# -gt 0 ]]; do
@@ -49,6 +51,10 @@ while [[ $# -gt 0 ]]; do
         --custom-cmd)
             custom_cmd="$2"
             shift 2
+            ;;
+        --video-only)
+            video_only="1"
+            shift
             ;;
         --help|-h)
             usage
@@ -170,6 +176,7 @@ fi
 echo "Eval-only job starting."
 echo "task=$task_name"
 echo "eval_type=$eval_type"
+echo "video_only=$video_only"
 echo "checkpoint=$resolved_checkpoint"
 if [[ -n "$resolved_walk_ckpt" ]]; then
     echo "walk_checkpoint=$resolved_walk_ckpt"
@@ -192,6 +199,9 @@ case "$eval_type" in
             )
             if [[ -n "$resolved_walk_ckpt" ]]; then
                 feval_args+=(--walk-checkpoint "$resolved_walk_ckpt")
+            fi
+            if [[ "$video_only" == "1" ]]; then
+                feval_args+=(--video-only)
             fi
             "${feval_args[@]}" "${passthrough_args[@]}" || echo "[fuyao_eval_only] WARNING: fuyao_evaluate.sh exited non-zero ($?), continuing to artifact sync"
         elif [[ "$task_name" != *"mimic"* && "$task_name" != *"fr"* ]]; then

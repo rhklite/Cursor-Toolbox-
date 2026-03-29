@@ -52,6 +52,10 @@ HP_ALIAS_KEYS=(
     batch_size
     epoch_num
     continue_value
+    soft_torque_limit
+    posture_reward_sigma
+    gated_root_height
+    amp_task_reward_lerp
 )
 HP_ALIAS_VALUES=(
     lr
@@ -80,6 +84,10 @@ HP_ALIAS_VALUES=(
     bs
     en
     cval
+    soft_tor
+    sigma_j
+    gated_h
+    amp_lerp
 )
 
 hp_alias_lookup() {
@@ -235,6 +243,7 @@ if class_map is None:
 emit("HP_CLASS_MAP_B64", base64.b64encode(json.dumps(class_map, sort_keys=True).encode("utf-8")).decode("ascii"))
 emit("RESUME", s("resume", "false"))
 emit("CHECKPOINT_PATH", s("checkpoint_path", ""))
+emit("CHECKPOINT_REMOTE", s("checkpoint_remote", "false"))
 emit("CONFIRM_DISPATCH", s("confirm_dispatch", "false"))
 PY
     )"
@@ -760,6 +769,9 @@ DEFAULT_CLASS_MAP = {
     "soft_dof_vel_limit": "rewards",
     "soft_dof_pos_limit": "rewards",
     "tracking_sigma_torso_ang_vel_xy": "rewards",
+    "soft_torque_limit": "rewards",
+    "posture_reward_sigma": "rewards",
+    "gated_root_height": "rewards.scales",
     "tracking_avg_ang_vel": "rewards.scales",
     "torque_limits": "rewards.scales",
     "stand_still": "rewards.scales",
@@ -935,10 +947,10 @@ EOF
     fi
 
     if [ "$RESUME" = "true" ] && [ -n "$CHECKPOINT_REMOTE_FULL" ]; then
-        if ! ssh "$SSH_ALIAS" "cp '${CHECKPOINT_REMOTE_FULL}' '${combo_dir}/humanoid-gym/' && test -f '${combo_dir}/humanoid-gym/${CHECKPOINT_BASENAME}'" >>"$dispatch_log" 2>&1; then
+        if ! ssh "$SSH_ALIAS" "mkdir -p '${combo_dir}/humanoid-gym/resume' && cp '${CHECKPOINT_REMOTE_FULL}' '${combo_dir}/humanoid-gym/resume/${CHECKPOINT_BASENAME}' && test -f '${combo_dir}/humanoid-gym/resume/${CHECKPOINT_BASENAME}'" >>"$dispatch_log" 2>&1; then
             rc=$?
             reason="checkpoint_copy_failed"
-            echo "Error: checkpoint not found at ${combo_dir}/humanoid-gym/${CHECKPOINT_BASENAME} after copy" >>"$dispatch_log"
+            echo "Error: checkpoint not found at ${combo_dir}/humanoid-gym/resume/${CHECKPOINT_BASENAME} after copy" >>"$dispatch_log"
             write_status "$status_path" "failed" "$reason" "$combo_name" "$combo_label" "$job_name" "$combo_dir"
             return "$rc"
         fi
@@ -1128,7 +1140,7 @@ case "$DRY_RUN" in
                 echo "Error: checkpoint_path is required when resume=true." >&2
                 exit 1
             fi
-            if [ "$DRY_RUN" != "true" ] && [ ! -f "$CHECKPOINT_PATH" ]; then
+            if [ "$DRY_RUN" != "true" ] && [ "$CHECKPOINT_REMOTE" != "true" ] && [ ! -f "$CHECKPOINT_PATH" ]; then
                 echo "Error: checkpoint file not found: $CHECKPOINT_PATH" >&2
                 exit 1
             fi
@@ -1281,28 +1293,44 @@ FETCH_DEPS
     CHECKPOINT_REMOTE_FULL=""
     if [ "$RESUME" = "true" ]; then
         CHECKPOINT_BASENAME="$(basename "$CHECKPOINT_PATH")"
-        local ckpt_size
-        ckpt_size="$(stat -f%z "$CHECKPOINT_PATH" 2>/dev/null || stat -c%s "$CHECKPOINT_PATH" 2>/dev/null || echo 0)"
-        if [ "$ckpt_size" -lt 1024 ]; then
-            echo "Error: checkpoint file too small (${ckpt_size} bytes): $CHECKPOINT_PATH" >&2
-            exit 1
-        fi
-        echo "Checkpoint: ${CHECKPOINT_BASENAME} ($(( ckpt_size / 1024 / 1024 )) MB)"
-        echo "  Note: fuyao_train.sh runs from humanoid-gym/; checkpoint will be placed there."
 
-        local ckpt_remote_dir="/tmp/fuyao_sweep_checkpoints/${sweep_id}"
-        CHECKPOINT_REMOTE_FULL="${ckpt_remote_dir}/${CHECKPOINT_BASENAME}"
-        if [ "$DRY_RUN" != "true" ]; then
-            echo "Uploading checkpoint to remote: ${CHECKPOINT_REMOTE_FULL}"
-            ssh "$SSH_ALIAS" "mkdir -p '${ckpt_remote_dir}'"
-            scp "$CHECKPOINT_PATH" "${SSH_ALIAS}:${CHECKPOINT_REMOTE_FULL}"
-            ssh "$SSH_ALIAS" "test -f '${CHECKPOINT_REMOTE_FULL}'" || {
-                echo "Error: checkpoint upload verification failed." >&2
-                exit 1
-            }
-            echo "Checkpoint uploaded and verified."
+        if [ "$CHECKPOINT_REMOTE" = "true" ]; then
+            CHECKPOINT_REMOTE_FULL="$CHECKPOINT_PATH"
+            echo "Checkpoint (remote NAS): ${CHECKPOINT_REMOTE_FULL}"
+            echo "  Basename: ${CHECKPOINT_BASENAME}"
+            if [ "$DRY_RUN" != "true" ]; then
+                ssh "$SSH_ALIAS" "test -f '${CHECKPOINT_REMOTE_FULL}'" || {
+                    echo "Error: remote checkpoint not found: ${CHECKPOINT_REMOTE_FULL}" >&2
+                    exit 1
+                }
+                echo "Remote checkpoint verified."
+            else
+                echo "DRY_RUN: would verify remote checkpoint at ${CHECKPOINT_REMOTE_FULL}"
+            fi
         else
-            echo "DRY_RUN: would upload checkpoint to ${CHECKPOINT_REMOTE_FULL}"
+            local ckpt_size
+            ckpt_size="$(stat -f%z "$CHECKPOINT_PATH" 2>/dev/null || stat -c%s "$CHECKPOINT_PATH" 2>/dev/null || echo 0)"
+            if [ "$ckpt_size" -lt 1024 ]; then
+                echo "Error: checkpoint file too small (${ckpt_size} bytes): $CHECKPOINT_PATH" >&2
+                exit 1
+            fi
+            echo "Checkpoint: ${CHECKPOINT_BASENAME} ($(( ckpt_size / 1024 / 1024 )) MB)"
+            echo "  Note: fuyao_train.sh runs from humanoid-gym/; checkpoint will be placed there."
+
+            local ckpt_remote_dir="/tmp/fuyao_sweep_checkpoints/${sweep_id}"
+            CHECKPOINT_REMOTE_FULL="${ckpt_remote_dir}/${CHECKPOINT_BASENAME}"
+            if [ "$DRY_RUN" != "true" ]; then
+                echo "Uploading checkpoint to remote: ${CHECKPOINT_REMOTE_FULL}"
+                ssh "$SSH_ALIAS" "mkdir -p '${ckpt_remote_dir}'"
+                scp "$CHECKPOINT_PATH" "${SSH_ALIAS}:${CHECKPOINT_REMOTE_FULL}"
+                ssh "$SSH_ALIAS" "test -f '${CHECKPOINT_REMOTE_FULL}'" || {
+                    echo "Error: checkpoint upload verification failed." >&2
+                    exit 1
+                }
+                echo "Checkpoint uploaded and verified."
+            else
+                echo "DRY_RUN: would upload checkpoint to ${CHECKPOINT_REMOTE_FULL}"
+            fi
         fi
     fi
 

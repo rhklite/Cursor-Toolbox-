@@ -13,12 +13,13 @@ Required:
 
 Options:
   --eval-type TYPE               torque_survey | standard | custom (default: torque_survey)
+  --video-only                   For standard eval, skip grid/play and run video jobs only.
   --walk-checkpoint PATH         Local walk model checkpoint to upload (enables model-switch mode).
   --walk-checkpoint-remote PATH  Existing walk model path on remote kernel.
   --gpus N                       GPUs per node (default: 1).
   --custom-cmd CMD               Required for --eval-type custom.
   --branch NAME                  Remote branch to sync before deploy.
-  --label LABEL                  Fuyao label. Default: eval-<task>-<timestamp>.
+  --label LABEL                  Fuyao label. Default: eval-<task>-eval.
   --project NAME                 Fuyao project (default: rc-wbc).
   --experiment NAME              Fuyao experiment (default: huh8/r01).
   --queue NAME                   Queue name or alias (default: rc-wbc-4090).
@@ -48,6 +49,56 @@ quote_join() {
         out+=$(printf "%q " "$item")
     done
     printf "%s" "${out% }"
+}
+
+normalize_eval_label() {
+    local raw_label="$1"
+    local fallback_core="$2"
+    local core="$raw_label"
+    local lower_core=""
+    local changed=false
+
+    core="${core#"${core%%[![:space:]]*}"}"
+    core="${core%"${core##*[![:space:]]}"}"
+    fallback_core="${fallback_core#"${fallback_core%%[![:space:]]*}"}"
+    fallback_core="${fallback_core%"${fallback_core##*[![:space:]]}"}"
+
+    if [[ -z "$core" ]]; then
+        core="$fallback_core"
+    fi
+
+    while true; do
+        changed=false
+        lower_core="$(printf '%s' "$core" | tr '[:upper:]' '[:lower:]')"
+        if [[ "$lower_core" == eval-* && ${#core} -ge 5 ]]; then
+            core="${core:5}"
+            changed=true
+        fi
+
+        lower_core="$(printf '%s' "$core" | tr '[:upper:]' '[:lower:]')"
+        if [[ "$lower_core" == *-eval && ${#core} -ge 5 ]]; then
+            core="${core:0:${#core}-5}"
+            changed=true
+        fi
+
+        if [[ "$changed" == false ]]; then
+            break
+        fi
+    done
+
+    core="${core#"${core%%[![:space:]]*}"}"
+    core="${core%"${core##*[![:space:]]}"}"
+    core="${core#-}"
+    core="${core%-}"
+
+    if [[ -z "$core" ]]; then
+        core="$fallback_core"
+    fi
+    if [[ -z "$core" ]]; then
+        core="job"
+    fi
+
+    printf 'eval-%s-eval' "$core"
 }
 
 normalize_queue() {
@@ -103,6 +154,7 @@ walk_checkpoint_remote=""
 gpus=1
 eval_type="torque_survey"
 custom_cmd=""
+video_only=false
 yes_flag=false
 dry_run=false
 declare -a eval_args=()
@@ -140,6 +192,10 @@ while [[ $# -gt 0 ]]; do
         --custom-cmd)
             custom_cmd="$2"
             shift 2
+            ;;
+        --video-only)
+            video_only=true
+            shift
             ;;
         --branch)
             branch="$2"
@@ -243,11 +299,11 @@ if [[ -z "$site" ]]; then
     site=$(default_site_for_queue "$queue_name")
 fi
 
+sanitized_task=$(echo "$task_name" | tr '/ ' '__')
 if [[ -z "$label" ]]; then
-    ts=$(date +%Y%m%d%H%M%S)
-    sanitized_task=$(echo "$task_name" | tr '/ ' '__')
-    label="eval-${sanitized_task}-${ts}"
+    label="$sanitized_task"
 fi
+label="$(normalize_eval_label "$label" "$sanitized_task")"
 
 local_eval_script="${HOME}/.cursor/scripts/fuyao_eval_only.sh"
 if [[ ! -f "$local_eval_script" ]]; then
@@ -342,6 +398,10 @@ remote_cmd+=(
 
 if [[ "$has_walk_ckpt" == true ]]; then
     remote_cmd+=(--walk_checkpoint_path /code/humanoid-gym/resume/walk_model.pt)
+fi
+
+if [[ "$video_only" == true ]]; then
+    remote_cmd+=(--video-only)
 fi
 
 if [[ "$eval_type" == "custom" ]]; then

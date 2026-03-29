@@ -218,10 +218,17 @@ def chart_tier1_dashboard(
 
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left", fontsize=8)
+    fig.legend(
+        lines1 + lines2,
+        labels1 + labels2,
+        loc="upper center",
+        ncol=3,
+        fontsize=8,
+        bbox_to_anchor=(0.5, 0.97),
+    )
 
-    fig.suptitle("Tier 1 Metrics Dashboard", fontsize=14, fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.suptitle("Tier 1 Metrics Dashboard", fontsize=14, fontweight="bold", y=1.0)
+    fig.tight_layout(rect=[0, 0, 1, 0.92])
 
     out_path = output_dir / "tier1_dashboard.png"
     fig.savefig(out_path, dpi=DPI)
