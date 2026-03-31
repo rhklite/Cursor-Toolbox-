@@ -451,6 +451,158 @@ def chart_torque_heatmaps(
 
 
 # ---------------------------------------------------------------------------
+# Chart 4: Posture Deviation Visualizations
+# ---------------------------------------------------------------------------
+
+
+def _posture_offset_columns(df: pd.DataFrame) -> List[str]:
+    return [c for c in df.columns if c.startswith("final_pos_offset_")]
+
+
+def _joint_group_color(joint_name: str) -> str:
+    if joint_name.startswith("leg_"):
+        return "#1E88E5"
+    if joint_name.startswith("waist_"):
+        return "#43A047"
+    if joint_name.startswith("arm_"):
+        return "#FB8C00"
+    if joint_name.startswith("neck_"):
+        return "#8E24AA"
+    return "#757575"
+
+
+def chart_posture_deviation_bars(
+    df: pd.DataFrame,
+    output_dir: Path,
+) -> Optional[Path]:
+    """Per-joint mean final position offset across triggered+survived trials."""
+    offset_cols = _posture_offset_columns(df)
+    if not offset_cols:
+        return None
+
+    mask = (df["triggered"] == True) & (df["survived"] == True)  # noqa: E712
+    subset = df[mask]
+    if subset.empty:
+        return None
+
+    means = subset[offset_cols].mean(skipna=True)
+    means = means.dropna()
+    if means.empty:
+        return None
+
+    joint_names = [c.replace("final_pos_offset_", "") for c in means.index]
+    values = means.values
+    order = np.argsort(values)[::-1]
+    joint_names = [joint_names[i] for i in order]
+    values = values[order]
+    colors = [_joint_group_color(name) for name in joint_names]
+
+    fig_h = max(6, len(joint_names) * 0.35)
+    fig, ax = plt.subplots(figsize=(11, fig_h))
+    y = np.arange(len(joint_names))
+    bars = ax.barh(y, values, color=colors, edgecolor="white", linewidth=0.5)
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(joint_names, fontsize=8)
+    ax.set_xlabel("Mean |q - q_default| at episode end (rad)", fontsize=11)
+    ax.set_title(
+        "Per-Joint Final Position Deviation (Triggered + Survived)",
+        fontsize=14,
+        fontweight="bold",
+    )
+    ax.grid(True, axis="x", alpha=0.3)
+    ax.invert_yaxis()
+
+    for bar, v in zip(bars, values):
+        ax.text(
+            bar.get_width(),
+            bar.get_y() + bar.get_height() / 2.0,
+            f" {v:.3f}",
+            va="center",
+            fontsize=7,
+        )
+
+    fig.tight_layout()
+
+    angular, _, _, _ = detect_sweep_mode(df)
+    mode = "angular" if angular else "linear"
+    out_path = output_dir / f"posture_deviation_bars_{mode}.png"
+    fig.savefig(out_path, dpi=DPI)
+    plt.close(fig)
+    print(f"[postmortem_charts] saved {out_path.name}")
+    return out_path
+
+
+def chart_posture_deviation_heatmap(
+    df: pd.DataFrame,
+    output_dir: Path,
+) -> Optional[Path]:
+    """Rows=magnitude, cols=joints, values=mean final_pos_offset over directions."""
+    offset_cols = _posture_offset_columns(df)
+    if not offset_cols:
+        return None
+
+    angular, mag_key, _, _ = detect_sweep_mode(df)
+    mode = "angular" if angular else "linear"
+    mag_unit = "rad/s" if angular else "m/s"
+
+    mask = (df["triggered"] == True) & (df["survived"] == True)  # noqa: E712
+    subset = df[mask]
+    if subset.empty:
+        return None
+
+    grouped = subset.groupby(mag_key, dropna=False)[offset_cols].mean(numeric_only=True)
+    grouped = grouped.sort_index()
+    if grouped.empty:
+        return None
+
+    joint_names = [c.replace("final_pos_offset_", "") for c in grouped.columns]
+    magnitudes = grouped.index.tolist()
+    grid = grouped.to_numpy(dtype=float)
+    if np.all(np.isnan(grid)):
+        return None
+
+    fig_w = max(10, len(joint_names) * 0.38)
+    fig_h = max(4.5, len(magnitudes) * 0.6)
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    vmax = float(np.nanmax(grid)) if not np.all(np.isnan(grid)) else 1.0
+    vmax = max(vmax, 1e-6)
+    im = ax.imshow(
+        grid,
+        aspect="auto",
+        origin="lower",
+        cmap="YlOrRd",
+        vmin=0.0,
+        vmax=vmax,
+    )
+
+    ax.set_xticks(range(len(joint_names)))
+    ax.set_xticklabels(joint_names, rotation=90, fontsize=7)
+    ax.set_yticks(range(len(magnitudes)))
+    ax.set_yticklabels([f"{float(m):.2g}" for m in magnitudes], fontsize=8)
+    ax.set_xlabel("Joint", fontsize=11)
+    ax.set_ylabel(f"Push Magnitude ({mag_unit})", fontsize=11)
+    ax.set_title(
+        "Per-Joint Final Position Deviation Heatmap (Magnitude-Averaged over Directions)",
+        fontsize=13,
+        fontweight="bold",
+    )
+    fig.colorbar(
+        im,
+        ax=ax,
+        label="Mean |q - q_default| at episode end (rad)",
+        shrink=0.85,
+    )
+    fig.tight_layout()
+
+    out_path = output_dir / f"posture_deviation_heatmap_{mode}.png"
+    fig.savefig(out_path, dpi=DPI)
+    plt.close(fig)
+    print(f"[postmortem_charts] saved {out_path.name}")
+    return out_path
+
+
+# ---------------------------------------------------------------------------
 # Chart 4: Deceleration Profiles (from NPZ)
 # ---------------------------------------------------------------------------
 
@@ -850,6 +1002,12 @@ def generate_all(
         for rd, label in zip(run_dirs, labels):
             df = load_results_csv(rd)
             outputs.extend(chart_torque_heatmaps(df, label, output_dir))
+            p = chart_posture_deviation_bars(df, output_dir)
+            if p:
+                outputs.append(p)
+            p = chart_posture_deviation_heatmap(df, output_dir)
+            if p:
+                outputs.append(p)
 
             vel_data = load_vel_traces(rd)
             if vel_data:
