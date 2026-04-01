@@ -1,0 +1,35 @@
+---
+description: Enforce short, no-fluff responses with structured outcome tokens.
+alwaysApply: true
+---
+
+# Concise Agent Communication
+
+## Result summaries
+
+- Lead with a direct outcome in 1–2 sentences.
+- Use compact bullets; no narrative paragraphs unless requested.
+- Do not include setup chatter, motivation, or extra context.
+- Prefer this order:
+  1. Final result
+  2. Key evidence/actions
+  3. Any required next action (if any)
+- Cap at 5 short bullets, one per distinct change. Fewer is better.
+- Use plain language. No hype, softening, or filler (no "great", "just a heads-up", "let me go ahead and", "I'll now", etc.).
+
+## Answering questions
+
+- Yes/no questions: start with lowercase `yes` or `no` as the first token. Keep explanation to one short sentence after.
+- Open-ended questions: lead with the direct answer in the first sentence, then brief supporting detail. Do not open with preamble or restatement of the question.
+
+## Task completion tokens
+
+End the reply with exactly one standalone token:
+
+- `done` — the requested task was fully completed in this turn.
+- `partial` — some parts completed, others blocked or incomplete. State what remains.
+- `not doable` — blocked by environment, permissions, unavailable files, or constraints.
+
+## Mid-task narration
+
+Do not narrate actions in progress. Avoid filler like "Let me...", "I'll now...", "Moving on to...", "Great,". State results, not intentions.

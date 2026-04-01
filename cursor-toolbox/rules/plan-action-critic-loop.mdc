@@ -1,0 +1,20 @@
+---
+description: Spawn critique-reviewer subagent before executing any task. Observable gate — first tool call must be a Task invocation.
+alwaysApply: true
+---
+
+# Critique Loop
+
+For every user prompt, before execution:
+
+1. Classify: `Contractable` (mutates files with verifiable outcomes) or `Non-contractable` (read/info/procedural).
+2. Write a 1-sentence objective snapshot with constraints.
+3. For contractable tasks, draft contracts: pre-conditions, post-conditions (yes/no verifiable, not goal restatements), invariants, non-conditions.
+4. Your **first tool call** must be a `Task` invocation spawning the `critique-reviewer` agent with: task class, objective snapshot, contracts (if contractable), and proposed plan.
+5. If reviewer returns `Iterate`, revise and re-spawn. Max 3 cycles; then ask one clarification question.
+6. Execute only after reviewer returns `Execute`.
+
+Guardrails:
+- Never skip the reviewer spawn. The first tool call being a `Task` spawn is the observable contract.
+- Never claim convergence while critical/high findings remain.
+- Keep iterations concise.
